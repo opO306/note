@@ -1,0 +1,104 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 공통 함수들
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Firebase Custom Claims: { admin: true } 인 유저
+    // Admin SDK에서 설정해줘야 함.
+       function isAdmin() {
+  return request.auth != null
+    && request.auth.uid == "TKwUesd22jaQaJhbS5LQEBbtIXF2";
+}
+
+    // posts 문서의 작성자 체크
+    function isPostOwner() {
+      return isSignedIn()
+        && resource.data.authorUid == request.auth.uid;
+    }
+
+    // 클라이언트가 건드리면 안 되는 운영용 필드들
+    function isChangingModerationFields() {
+      // 바꾸면 안 되는 필드 목록
+      let forbidden = [
+        "hidden",
+        "hiddenReason",
+        "reportCount",
+        "lastReportedAt",
+        "autoHiddenAt",
+        "trustScore" // 혹시 잘못 들어와도 막기
+      ];
+
+      // 이번 요청에서 바뀐 필드들
+      let changed = request.resource.data.diff(resource.data).changedKeys();
+
+      // changed 목록 안에 forbidden 중 하나라도 있으면 true
+      return changed.hasAny(forbidden);
+    }
+
+    // ========== users 컬렉션 ==========
+    match /users/{userId} {
+
+      // 로그인한 모든 유저는 프로필 읽기 가능
+      allow read: if isSignedIn();
+
+      // 자기 user 문서 생성 (회원 가입 시)
+      allow create: if isSignedIn()
+        && request.auth.uid == userId;
+
+      // 업데이트
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        // 본인은 trustScore, 관리자용 필드 수정 불가
+        && !("trustScore" in request.resource.data.diff(resource.data).changedKeys())
+        && !("role" in request.resource.data.diff(resource.data).changedKeys())
+        && !("admin" in request.resource.data.diff(resource.data).changedKeys());
+
+      // 삭제 / 관리자용 강제 수정 등은 관리자만
+      allow delete, write: if isAdmin();
+    }
+
+    // ========== posts 컬렉션 ==========
+    match /posts/{postId} {
+
+      // 모든 로그인 유저가 게시글 읽기 가능
+      allow read: if true;
+
+      // 글 작성: 로그인 + authorUid == 본인
+      allow create: if isSignedIn()
+        && request.resource.data.authorUid == request.auth.uid;
+
+      // 글 수정: 작성자이면서 운영 필드 안 건드릴 때
+      allow update: if isPostOwner()
+        && !isChangingModerationFields();
+
+      // 글 삭제: 작성자이거나 관리자
+      allow delete: if isPostOwner() || isAdmin();
+
+      // 관리자: 어떤 필드든 자유롭게 수정 가능
+      allow write: if isAdmin();
+    }
+
+    // ========== reports 컬렉션 ==========
+    match /reports/{reportId} {
+
+      // 신고 생성: 로그인 유저 + reporterUid == 본인
+      allow create: if isSignedIn()
+        && request.resource.data.reporterUid == request.auth.uid;
+
+      // 일반 유저는 신고 문서 읽기/수정/삭제 불가
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ========== 그 외 컬렉션(임시로 전부 막기) ==========
+    // 실제로 사용하는 다른 컬렉션이 있다면
+    // 여기에 match 블록을 추가로 만들어줘야 함.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

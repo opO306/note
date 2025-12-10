@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "852428184810",
+    "project_id": "dddd-e6a52",
+    "storage_bucket": "dddd-e6a52.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:852428184810:android:07ce6976a9c70e99ae4b93",
+        "android_client_info": {
+          "package_name": "com.bivunote.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCLCb3zOQPR-aYK88a1JEalKcWVNw0HLQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
