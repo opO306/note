@@ -154,7 +154,6 @@ function MainScreenInner({
     goPostDetail,
     goAchievements,
   } = useNavigationStore();
-
   const [showWriteScreen, setShowWriteScreen] = useState(false);
   const [lastUserProfileNickname, setLastUserProfileNickname] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -268,7 +267,7 @@ function MainScreenInner({
   // ========================================
   // 2. 기존 훅 연결
   // ========================================
-  const { posts, setPosts } = usePosts();
+  const { posts, setPosts, refresh } = usePosts();
   const { balance: lumenBalance, addLumens, spendLumens } = useLumens();
 
   // 🔹 차단된 유저 목록 가져오기
@@ -652,20 +651,18 @@ function MainScreenInner({
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      // 1. 만약 get() 방식을 쓴다면 여기서 데이터를 다시 fetch 합니다.
-      // await posts.refetch(); 
-
-      // 2. onSnapshot(실시간)을 쓰고 있다면, 단순히 시각적 피드백(UX)을 위해 딜레이만 줍니다.
-      // (사용자는 새로고침이 되었다고 느끼게 됩니다)
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      toast.success("최신 목록을 불러왔어요");
+      // 2. 가짜 setTimeout 대신 진짜 데이터 불러오기 함수 실행!
+      if (refresh) {
+        await refresh();
+        toast.success("최신 목록을 불러왔어요");
+      }
     } catch (error) {
       console.error("새로고침 실패", error);
+      toast.error("목록을 불러오지 못했습니다");
     } finally {
       setIsRefreshing(false);
     }
-  }, []); // posts가 바뀔 때마다 갱신할 필요 없으므로 의존성 비움
+  }, [refresh]);
   // ========================================
   // 5. 초기화 및 뒤로가기 처리
   // ========================================
