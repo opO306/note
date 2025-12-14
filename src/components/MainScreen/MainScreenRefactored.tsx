@@ -1845,8 +1845,6 @@ function MainScreenInner({
         />
       )}
 
-      {/* 👇👇👇 [여기]에 붙여넣으세요 👇👇👇 */}
-
       <BlockedUserListDialog
         open={showBlockedUsers}
         onOpenChange={setShowBlockedUsers}

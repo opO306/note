@@ -78,13 +78,6 @@ export default function App() {
     }
   }, [globalError]);
 
-  useEffect(() => {
-    console.log("[App.tsx] 7. 훅 상태 변경 감지됨:", {
-      isLoading,
-      initialScreen,
-      nickname: userData.nickname,
-    });
-  }, [isLoading, initialScreen, userData]);
   // 기타 UI 상태
   const [legalBackTarget, setLegalBackTarget] = useState<AppScreen>("login");
   const [shouldOpenMyPageOnMain, setShouldOpenMyPageOnMain] = useState(false);

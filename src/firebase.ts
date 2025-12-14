@@ -15,8 +15,8 @@ import { Capacitor } from "@capacitor/core";
 import { FirebaseAppCheck } from "@capacitor-firebase/app-check";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 
-
-console.log("Current API Key:", import.meta.env.VITE_FIREBASE_API_KEY); // 이 줄 추가
+// ❌ 삭제됨: console.log("Current API Key:", ...); 
+// 보안상 API 키 로그는 절대 남기면 안 됩니다.
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -35,19 +35,16 @@ const app = initializeApp(firebaseConfig);
 const initAppCheck = async () => {
     if (Capacitor.isNativePlatform()) {
         try {
-            // 🚨 수정 포인트: 배포용 빌드에서는 'debug' 옵션을 빼야 합니다!
-            // process.env.NODE_ENV === 'production' 체크를 하거나,
-            // 그냥 provider 옵션을 아예 지우면 자동으로 Play Integrity를 씁니다.
-
+            // ✅ 배포용 설정: provider: 'debug' 옵션이 주석 처리되거나 삭제되어야 Play Integrity(정식 보안)가 작동합니다.
             await FirebaseAppCheck.initialize({
-                // provider: 'debug',  <-- ❌ 이 줄을 지우거나 주석 처리하세요!
                 isTokenAutoRefreshEnabled: true,
             });
-            console.log("✅ App Check initialized (Production/Play Integrity)");
+            // console.log("✅ App Check initialized"); // 배포 시엔 불필요한 로그도 줄이는 게 좋습니다.
         } catch (e) {
             console.error("⚠️ App Check init failed:", e);
         }
     } else if (typeof window !== "undefined") {
+        // 웹 개발 환경에서만 디버그 토큰 사용
         if (import.meta.env.DEV) {
             (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = "A03EAF33-30D2-4C92-9CC5-AB53B21869FD";
         }
@@ -63,9 +60,8 @@ const initAppCheck = async () => {
 
 initAppCheck();
 
-// ✅ [핵심 수정] 3. Firestore 초기화 (Long Polling 강제 적용)
+// 3. Firestore 초기화 (Long Polling 강제 적용)
 export const db = initializeFirestore(app, {
-    // 👇👇👇 이 옵션이 모바일 통신 에러(QUIC)를 해결해줍니다! 👇👇👇
     experimentalForceLongPolling: true,
     experimentalLongPollingOptions: { timeoutSeconds: 25 },
     useFetchStreams: false,
@@ -80,7 +76,7 @@ export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app, "asia-northeast3");
 
-// 5. 에뮬레이터 연결 (필요시 true로 변경)
+// 5. 에뮬레이터 연결 (배포 시 false 고정 확인)
 if (false && import.meta.env.DEV) {
     connectAuthEmulator(auth, "http://localhost:9099");
     connectFirestoreEmulator(db, "localhost", 8080);

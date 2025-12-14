@@ -6,10 +6,13 @@ android {
     
     signingConfigs {
         release {
-            storeFile file("../release.jks")
-            storePassword "123456"
-            keyAlias "release"
-            keyPassword "123456"
+            // 수정됨: 직접 입력하는 대신 gradle.properties의 변수를 가져옵니다.
+            if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
+                storeFile file(MYAPP_UPLOAD_STORE_FILE)
+                storePassword MYAPP_UPLOAD_STORE_PASSWORD
+                keyAlias MYAPP_UPLOAD_KEY_ALIAS
+                keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+            }
         }
     }
     
