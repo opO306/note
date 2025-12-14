@@ -1,7 +1,7 @@
 // functions/src/index.ts
 
 // v2 Functions API
-import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError, onCallGenkit } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as crypto from "crypto";
@@ -941,4 +941,66 @@ export const generatePoem = onCallGenkit(
         region: "asia-northeast3",
     },
     generatePoemFlow
+);
+
+export const onFollowCreated = onDocumentCreated(
+    { document: "follows/{followId}", region: "asia-northeast3" },
+    async (event) => {
+        const snapshot = event.data;
+        if (!snapshot) return;
+
+        const data = snapshot.data();
+        const followerUid = data.followerUid;   // 나 (팔로우 거는 사람)
+        const followingUid = data.followingUid; // 너 (팔로우 당하는 사람)
+
+        if (!followerUid || !followingUid) return;
+
+        const batch = db.batch();
+
+        // 1. 내(follower) '팔로잉' 숫자 +1
+        const followerRef = db.collection("users").doc(followerUid);
+        batch.update(followerRef, {
+            followingCount: admin.firestore.FieldValue.increment(1)
+        });
+
+        // 2. 상대(following) '팔로워' 숫자 +1
+        const followingRef = db.collection("users").doc(followingUid);
+        batch.update(followingRef, {
+            followerCount: admin.firestore.FieldValue.increment(1),
+            lastFollowedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        await batch.commit();
+    }
+);
+
+// 7-2. 언팔로우 발생 시 (-1)
+export const onFollowDeleted = onDocumentDeleted(
+    { document: "follows/{followId}", region: "asia-northeast3" },
+    async (event) => {
+        const snapshot = event.data;
+        if (!snapshot) return;
+
+        const data = snapshot.data();
+        const followerUid = data.followerUid;
+        const followingUid = data.followingUid;
+
+        if (!followerUid || !followingUid) return;
+
+        const batch = db.batch();
+
+        // 1. 내 '팔로잉' 숫자 -1
+        const followerRef = db.collection("users").doc(followerUid);
+        batch.update(followerRef, {
+            followingCount: admin.firestore.FieldValue.increment(-1)
+        });
+
+        // 2. 상대 '팔로워' 숫자 -1
+        const followingRef = db.collection("users").doc(followingUid);
+        batch.update(followingRef, {
+            followerCount: admin.firestore.FieldValue.increment(-1)
+        });
+
+        await batch.commit();
+    }
 );
