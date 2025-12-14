@@ -5,7 +5,7 @@ import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from "firebas
 import { onCall, HttpsError, onCallGenkit } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as crypto from "crypto";
-
+import { sendPushNotification } from "./notificationService";
 // Firebase Admin
 import { admin, db } from "./firebaseAdmin";
 
@@ -925,7 +925,7 @@ const generatePoemFlow = ai.defineFlow(
 
         // 실제로 AI 모델을 호출하여 결과를 받아옵니다.
         const { text } = await ai.generate({
-            model: "gemini-1.5-flash",
+            model: "gemini-2.0-flash-lite-001",
             prompt: `"${subject}"에 대한 짧고 감성적인 시를 한국어로 써줘.`,
         });
 
@@ -1002,5 +1002,71 @@ export const onFollowDeleted = onDocumentDeleted(
         });
 
         await batch.commit();
+    }
+);
+
+// ✅ [추가] 게시글/댓글 변경 감지 (댓글 알림 + 멘션 알림)
+export const onPostUpdatedForNotifications = onDocumentUpdated(
+    { document: "posts/{postId}", region: "asia-northeast3" },
+    async (event: any) => {
+        const before = event.data?.before?.data();
+        const after = event.data?.after?.data();
+        const postId = event.params.postId;
+
+        if (!before || !after) return;
+
+        // 1. 새로운 댓글이 달렸는지 확인 (배열 길이가 늘어남)
+        const beforeReplies = before.replies || [];
+        const afterReplies = after.replies || [];
+
+        if (afterReplies.length > beforeReplies.length) {
+            // 새로 추가된 댓글 찾기 (마지막에 추가됐다고 가정)
+            const newReply = afterReplies[afterReplies.length - 1];
+            const authorUid = after.authorUid || after.userId; // 글 작성자
+            const replyAuthorUid = newReply.authorUid || newReply.userId; // 댓글 작성자
+            const replyContent = newReply.content || "";
+
+            // 🅰️ [댓글 알림] 글 작성자에게 알림 (내 글에 내가 쓴건 제외)
+            if (authorUid && authorUid !== replyAuthorUid) {
+                await sendPushNotification({
+                    targetUid: authorUid,
+                    type: "reply",
+                    title: "내 글에 새 댓글이 달렸어요 💬",
+                    body: `${newReply.authorNickname}: ${replyContent.substring(0, 30)}...`,
+                    link: `/post/${postId}`
+                });
+            }
+
+            // 🅱️ [멘션 알림] 본문에서 @닉네임 찾기
+            // 예: "안녕하세요 @홍길동 님 반갑습니다" -> ["@홍길동"]
+            const mentionRegex = /@([가-힣a-zA-Z0-9_]+)/g;
+            const matches = replyContent.match(mentionRegex);
+
+            if (matches && matches.length > 0) {
+                const mentionedNicknames = [...new Set(matches.map((m: string) => m.substring(1)))]; // @ 제거 및 중복 제거
+
+                // 닉네임으로 UID 찾아서 알림 (DB 쿼리 필요)
+                // *성능을 위해 최대 3명까지만 처리*
+                for (const nickname of mentionedNicknames.slice(0, 3)) {
+                    const userQuery = await db.collection("users").where("nickname", "==", nickname).limit(1).get();
+
+                    if (!userQuery.empty) {
+                        const targetUser = userQuery.docs[0];
+                        const targetUid = targetUser.id;
+
+                        // 자기를 멘션한건 제외
+                        if (targetUid !== replyAuthorUid) {
+                            await sendPushNotification({
+                                targetUid: targetUid,
+                                type: "mention",
+                                title: "누군가 나를 언급했어요 📢",
+                                body: `${newReply.authorNickname}님이 답글에서 회원님을 언급했습니다.`,
+                                link: `/post/${postId}`
+                            });
+                        }
+                    }
+                }
+            }
+        }
     }
 );

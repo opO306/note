@@ -1,6 +1,7 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import { admin, db } from "./firebaseAdmin";
+import { sendPushNotification } from "./notificationService";
 
 type CategoryScore = {
     score: number;
@@ -392,8 +393,16 @@ async function processUser(uid: string, dateId: string) {
         },
     };
 
-    await saveDigest(uid, dateId, payload);
-    await pushInAppNotification(uid, dateId, payload.push.body);
+    await saveDigest(uid, dateId, payload); // 다이제스트 데이터 저장은 그대로
+
+    // ✅ [여기만 추가] 하드웨어 푸시 알림 발송 (설정 체크 포함)
+    await sendPushNotification({
+        targetUid: uid,
+        type: "daily_digest",
+        title: payload.push.title,
+        body: payload.push.body,
+        link: `/digest/${dateId}`,
+    });
 }
 
 export const sendMorningRecommendations = onSchedule(
