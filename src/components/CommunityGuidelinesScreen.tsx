@@ -293,9 +293,7 @@ export function CommunityGuidelinesScreen({
                 className="flex-1 cursor-pointer leading-relaxed"
               >
                 <span className="font-medium">이해 중심으로 질문하고 설명하겠습니다</span>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  정답만 말하는 것이 아니라, 이해를 돕는 설명을 약속해요.
-                </p>
+
               </Label>
             </div>
 
@@ -312,9 +310,6 @@ export function CommunityGuidelinesScreen({
                 className="flex-1 cursor-pointer leading-relaxed"
               >
                 <span className="font-medium">비유와 예시를 사용해 설명하겠습니다</span>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  복잡한 개념도 비유와 예시로 쉽게 풀어낼게요.
-                </p>
               </Label>
             </div>
 
@@ -331,9 +326,6 @@ export function CommunityGuidelinesScreen({
                 className="flex-1 cursor-pointer leading-relaxed"
               >
                 <span className="font-medium">서로를 존중하며 소통하겠습니다</span>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  모든 사람을 배려하고 존중하는 태도를 지키겠습니다.
-                </p>
               </Label>
             </div>
           </div>

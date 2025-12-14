@@ -15,6 +15,9 @@ import { Capacitor } from "@capacitor/core";
 import { FirebaseAppCheck } from "@capacitor-firebase/app-check";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 
+
+console.log("Current API Key:", import.meta.env.VITE_FIREBASE_API_KEY); // 이 줄 추가
+
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -46,7 +49,7 @@ const initAppCheck = async () => {
         }
     } else if (typeof window !== "undefined") {
         if (import.meta.env.DEV) {
-            (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+            (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = "A03EAF33-30D2-4C92-9CC5-AB53B21869FD";
         }
         const siteKey = import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY;
         if (siteKey) {

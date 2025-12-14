@@ -82,21 +82,28 @@ async function findProfanity(text?: string): Promise<string | null> {
     if (!text || typeof text !== "string") return null;
 
     const cleanText = normalize(text);
-    const words = await getBadWords();
+    const badWords = await getBadWords();
 
-    // 공백 기준으로 단어를 쪼갬 (영어 단어 오작동 방지)
-    const tokens = cleanText.split(/\s+/);
+    // 텍스트를 공백 기준으로 단어 배열(토큰)로 만듭니다.
+    const tokens = cleanText.split(/\s+/).filter(t => t.length > 0);
 
-    for (const badWord of words) {
-        // 영어 욕설은 단어 단위로 정확히 일치하는지 확인
-        if (/[a-zA-Z]/.test(badWord)) {
-            if (tokens.includes(badWord)) return badWord;
-        } else {
-            // 한국어는 포함 여부 확인 (공백이 살아있으므로 오작동 감소)
-            if (cleanText.includes(badWord)) return badWord;
+    for (const badWord of badWords) {
+        // 1. "개 새끼"처럼 공백이 포함된 욕설은, 원래 문장에 포함되어 있는지 검사합니다.
+        if (badWord.includes(" ")) {
+            if (cleanText.includes(badWord)) {
+                return badWord; // 찾았으니 즉시 반환
+            }
+        }
+        // 2. "병신"처럼 공백 없는 욕설은, 우리가 만든 단어 배열(토큰)에 정확히 일치하는 단어가 있는지 검사합니다.
+        //    이렇게 하면 "새로운" 이라는 단어가 "새" 라는 욕설로 잘못 감지되는 일을 막을 수 있습니다.
+        else {
+            if (tokens.includes(badWord)) {
+                return badWord; // 찾았으니 즉시 반환
+            }
         }
     }
-    return null;
+
+    return null; // 모든 검사를 통과했으면 욕설이 없는 것입니다.
 }
 
 async function containsProfanity(text?: string): Promise<boolean> {
@@ -566,37 +573,132 @@ async function batchUpdateSnapshot(snapshot: admin.firestore.QuerySnapshot, upda
     if (count > 0) await batch.commit();
 }
 
+// 🚨 [새로 추가할 함수] 게시글 작성자 변경 + 해당 글에 달린 내 댓글 닉네임까지 변경하는 함수
+async function updatePostsWithRepliesForDeletedUser(
+    snapshot: admin.firestore.QuerySnapshot,
+    uid: string,
+    deletedName: string
+) {
+    if (snapshot.empty) return;
+
+    let batch = db.batch();
+    let count = 0;
+
+    for (const doc of snapshot.docs) {
+        const data = doc.data();
+
+        // 1. 게시글 자체의 작성자 정보 변경 준비
+        const updates: any = {
+            authorUid: null,
+            authorNickname: deletedName,
+            authorDeleted: true
+        };
+
+        // 2. 게시글 안에 'replies' 배열이 있다면, 내 댓글을 찾아 닉네임 변경
+        if (Array.isArray(data.replies)) {
+            let hasChanges = false;
+            const updatedReplies = data.replies.map((reply: any) => {
+                // 댓글 작성자 ID 확인 (코드 스타일에 따라 필드명이 다를 수 있어 체크)
+                const replyAuthorId = reply.authorUid || reply.authorId || reply.userId;
+
+                // 내 댓글이면 닉네임 변경
+                if (replyAuthorId === uid) {
+                    hasChanges = true;
+                    return {
+                        ...reply,
+                        authorNickname: deletedName, // 닉네임 덮어쓰기
+                        authorDeleted: true
+                    };
+                }
+                return reply;
+            });
+
+            // 변경된 내용이 있으면 업데이트 목록에 추가
+            if (hasChanges) {
+                updates.replies = updatedReplies;
+            }
+        }
+
+        batch.update(doc.ref, updates);
+        count++;
+
+        // 배치 한도(500개) 안전하게 처리
+        if (count >= 400) {
+            await batch.commit();
+            batch = db.batch();
+            count = 0;
+        }
+    }
+
+    if (count > 0) {
+        await batch.commit();
+    }
+}
 export const deleteAccount = onCall({ region: "asia-northeast3" }, async (request) => {
     const { auth } = request;
     if (!auth) throw new HttpsError("unauthenticated", "로그인 필요");
     const uid = auth.uid;
 
+    // 1. 유저 문서 정보를 '탈퇴한 사용자'로 변경
     await db.runTransaction(async (tx) => {
         const userRef = db.collection("users").doc(uid);
         if (!(await tx.get(userRef)).exists) return;
+
         tx.set(userRef, {
-            nickname: DELETED_USER_NAME, displayName: DELETED_USER_NAME, photoURL: null, bio: "",
-            isDeleted: true, deletedAt: admin.firestore.FieldValue.serverTimestamp(), email: admin.firestore.FieldValue.delete()
+            nickname: DELETED_USER_NAME,
+            displayName: DELETED_USER_NAME,
+            photoURL: null,
+            bio: "",
+            isDeleted: true,
+            deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+            // 이메일 필드 삭제 (재가입 방지 해시만 남김)
+            email: admin.firestore.FieldValue.delete()
         }, { merge: true });
     });
 
+    // 2. 팔로우/팔로잉 관계 삭제
     const followsRef = db.collection("follows");
-    const [snap1, snap2] = await Promise.all([followsRef.where("followerUid", "==", uid).get(), followsRef.where("followingUid", "==", uid).get()]);
+    const [snap1, snap2] = await Promise.all([
+        followsRef.where("followerUid", "==", uid).get(),
+        followsRef.where("followingUid", "==", uid).get()
+    ]);
+
     let batch = db.batch();
     let cnt = 0;
     [...snap1.docs, ...snap2.docs].forEach(d => {
-        batch.delete(d.ref); cnt++;
+        batch.delete(d.ref);
+        cnt++;
         if (cnt >= 400) { batch.commit(); batch = db.batch(); cnt = 0; }
     });
     if (cnt > 0) await batch.commit();
 
-    await batchUpdateSnapshot(await db.collection("posts").where("authorUid", "==", uid).get(), { authorUid: null, authorNickname: DELETED_USER_NAME, authorDeleted: true });
-    await batchUpdateSnapshot(await db.collection("posts").where("guideReplyAuthorUid", "==", uid).get(), { guideReplyAuthorUid: null, guideReplyAuthor: DELETED_USER_NAME });
+    // 🚨 [수정된 부분] 내가 쓴 게시글 처리 (게시글 작성자명 변경 + 그 글 안의 내 댓글 이름 변경)
+    // 기존 batchUpdateSnapshot 대신 방금 만든 새 함수를 사용합니다.
+    const myPostsSnapshot = await db.collection("posts").where("authorUid", "==", uid).get();
+    await updatePostsWithRepliesForDeletedUser(myPostsSnapshot, uid, DELETED_USER_NAME);
 
+    // 🚨 [기존 유지] 내가 '길잡이'로 채택된 글의 정보 수정 (단순 필드 수정이므로 기존 함수 사용)
+    await batchUpdateSnapshot(
+        await db.collection("posts").where("guideReplyAuthorUid", "==", uid).get(),
+        { guideReplyAuthorUid: null, guideReplyAuthor: DELETED_USER_NAME }
+    );
+
+    // 4. Auth 계정 삭제 및 이메일 해시 저장
     try { await admin.auth().deleteUser(uid); } catch (e) { }
+
     if (auth.token.email) {
         const hash = crypto.createHash("sha256").update(auth.token.email.trim().toLowerCase()).digest("hex");
-        await db.collection("deletedEmails").doc(hash).set({ deletedAt: admin.firestore.FieldValue.serverTimestamp(), cooldownDays: 30 }, { merge: true });
+
+        // 👇 [추가] 만료일 계산: 오늘 + 30일
+        const expireDate = new Date();
+        expireDate.setDate(expireDate.getDate() + 30);
+
+        await db.collection("deletedEmails").doc(hash).set({
+            deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+            cooldownDays: 30,
+            // 👇 [필수] 이 필드가 있어야 나중에 자동으로 지워집니다!
+            expireAt: admin.firestore.Timestamp.fromDate(expireDate)
+        }, { merge: true });
     }
     return { success: true };
 });
@@ -804,33 +906,36 @@ export const unblockUser = onCall({ region: "asia-northeast3" }, async (request)
 const ai = genkit({
     plugins: [
         vertexAI({
-            location: "asia-northeast3",
+            location: "us-central1",
+            // 🚨 [수정 1] 존재하지 않는 옵션이므로 삭제합니다.
+            // googleAuthApiClient: { skipGCECheck: true }, 
         }),
-        // 🚨 [수정 5] enableFirebaseTelemetry()를 상단에서 호출했으므로 여기서는 제거
     ],
 });
 
-const generatePoemInputSchema = z.object({ subject: z.string() });
-
-// 🚨 [수정 6] defineFlow -> ai.defineFlow 사용
+// AI에게 시 생성을 요청하는 작업의 '설계도'를 정의합니다.
 const generatePoemFlow = ai.defineFlow(
     {
         name: "generatePoemFlow",
-        inputSchema: generatePoemInputSchema,
+        inputSchema: z.object({ subject: z.string() }),
         outputSchema: z.object({ poem: z.string() }),
     },
     async (input) => {
         const { subject } = input;
 
+        // 실제로 AI 모델을 호출하여 결과를 받아옵니다.
         const { text } = await ai.generate({
             model: "gemini-1.5-flash",
             prompt: `"${subject}"에 대한 짧고 감성적인 시를 한국어로 써줘.`,
         });
 
+        // 🚨 [수정 2] text() -> text (괄호 제거)
+        // text는 이미 문자열이므로 함수처럼 호출할 필요가 없습니다.
         return { poem: text };
     }
 );
 
+// 위에서 만든 '설계도(Flow)'를 실제로 호출 가능한 Firebase 함수로 만듭니다.
 export const generatePoem = onCallGenkit(
     {
         region: "asia-northeast3",

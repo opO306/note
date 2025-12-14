@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { SimpleDropdown } from "@/components/ui/simple-dropdown";
 import { EmptyStatePanel } from "@/components/ui/empty-state";
 import { LanternIcon, LanternFilledIcon } from "@/components/icons/Lantern";
-import { MessageCircle, Bookmark, Plus } from "lucide-react";
+import { MessageCircle, Bookmark, Plus, RotateCw } from "lucide-react";
 import { getUserTitle, getTitleLabelById } from "@/data/titleData";
 import {
   getDisplayName,
@@ -34,7 +34,8 @@ interface PostListViewProps {
   activeCategory: string;
   activeSubCategory: string;
   sortBy: SortOption["value"];
-
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
   // 🆕 [추가] 차단된 유저 ID 목록
   blockedUserIds: string[];
 
@@ -75,6 +76,8 @@ function PostListViewComponent({
   onBookmarkToggle,
   onStartWriting,
   currentTitle,
+  onRefresh,
+  isRefreshing = false,
 }: PostListViewProps) {
 
   // 🆕 [추가] 차단된 유저의 게시글 필터링
@@ -126,6 +129,9 @@ function PostListViewComponent({
         filteredCount={filteredCount}
         sortBy={sortBy}
         onSortChange={handleSortChange}
+        // 🆕 [추가] 하위 컴포넌트로 전달
+        onRefresh={onRefresh}
+        isRefreshing={isRefreshing}
       />
 
       {/* Posts */}
@@ -165,6 +171,8 @@ interface SubCategoryBarProps {
   filteredCount: number;
   sortBy: SortOption["value"];
   onSortChange: (value: string) => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 function SubCategoryBar({
@@ -174,6 +182,8 @@ function SubCategoryBar({
   filteredCount,
   sortBy,
   onSortChange,
+  onRefresh,
+  isRefreshing,
 }: SubCategoryBarProps) {
   return (
     <div className="bg-card/98 glass-effect border-b border-border px-4 py-3 flex-shrink-0 shadow-sm relative z-20">
@@ -200,19 +210,39 @@ function SubCategoryBar({
         </div>
       )}
 
+      {/* 4. 버튼 UI 배치 수정 */}
       <div className="flex items-center justify-between">
         <span className="text-sm text-muted-foreground">{filteredCount}개의 글</span>
-        <SimpleDropdown
-          value={sortBy}
-          onChange={(value) => onSortChange(value as SortOption["value"])}
-          options={SORT_OPTIONS}
-          triggerClassName="w-24 h-8"
-        />
+
+        {/* 우측 컨트롤 그룹 (새로고침 + 정렬) */}
+        <div className="flex items-center space-x-2">
+
+          {/* 🆕 새로고침 버튼 추가 */}
+          {onRefresh && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="h-8 w-8 p-0 rounded-full hover:bg-accent transition-all"
+            >
+              <RotateCw
+                className={`w-4 h-4 text-muted-foreground ${isRefreshing ? "animate-spin" : ""}`}
+              />
+            </Button>
+          )}
+
+          <SimpleDropdown
+            value={sortBy}
+            onChange={(value) => onSortChange(value as SortOption["value"])}
+            options={SORT_OPTIONS}
+            triggerClassName="w-24 h-8"
+          />
+        </div>
       </div>
     </div>
   );
 }
-
 function EmptyState({ onStartWriting }: { onStartWriting: () => void }) {
   return (
     <EmptyStatePanel

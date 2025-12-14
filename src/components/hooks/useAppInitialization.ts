@@ -1,6 +1,8 @@
+// src/components/hooks/useAppInitialization.ts
+
 import { useState, useEffect, useCallback, useRef } from "react";
-import { onAuthStateChanged, signOut, type User } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"; // setDoc, serverTimestamp 추가
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "@/firebase";
 import { toast } from "@/toastHelper";
@@ -17,12 +19,13 @@ interface UseAppInitializationReturn {
     resetAuthState: () => Promise<void>;
 }
 
-// ... callCheckRejoinAllowed 함수는 그대로 유지 ...
+// 재가입 제한 확인 함수 (클라우드 함수 호출)
 async function callCheckRejoinAllowed(email: string): Promise<{ allowed: boolean; remainingDays: number }> {
     const checkRejoin = httpsCallable<{ email: string }, { allowed: boolean; remainingDays: number }>(
         functions,
         "checkRejoinAllowed"
     );
+    // 에러 발생 시 여기서 catch하지 않고 밖으로 던져서 처리
     const { data } = await checkRejoin({ email });
     return data;
 }
@@ -51,34 +54,63 @@ export function useAppInitialization(): UseAppInitializationReturn {
 
                 setGlobalError(null);
                 try {
-                    // 재가입 확인 로직 (기존 유지)
-                    // ... (생략 가능하지만 안전을 위해 포함) ...
-                    // const rejoinData = await callCheckRejoinAllowed(user.email);
-                    // if (!rejoinData.allowed) { ... signOut ... return; }
+                    // 🚨 [핵심 수정 1] 주석 해제 & 재가입 제한 확인 로직 적용
+                    // LoginScreen뿐만 아니라 앱 진입점에서도 반드시 체크해야 뚫리지 않습니다.
+                    try {
+                        await callCheckRejoinAllowed(user.email);
+                    } catch (e: any) {
+                        // 쿨타임 중이면 강제 로그아웃
+                        if (e.code === 'functions/failed-precondition') {
+                            console.warn("🚫 재가입 쿨타임 중인 계정입니다. 로그아웃 처리합니다.");
+                            await signOut(auth);
+                            setInitialScreen("login");
+                            // 에러 메시지는 LoginScreen에서 Toast로 보여줄 것이므로 여기선 조용히 리턴
+                            setIsLoading(false);
+                            return;
+                        }
+                        // 그 외 에러는 일단 진행 (서버 오류 등)
+                        console.error("재가입 확인 실패:", e);
+                    }
 
                     console.log("✅ [5b] Firestore 데이터 조회 중...");
                     const userDocRef = doc(db, "users", user.uid);
                     const snap = await getDoc(userDocRef);
 
-                    const authNickname = user.displayName;
+                    const authNickname = user.displayName || "";
                     const authPhoto = user.photoURL || "";
 
                     let dbNickname = "";
                     let onboardingComplete = false;
 
-                    // [수정 핵심] Firestore 데이터 확인 및 자동 복구 로직
                     if (snap.exists()) {
                         const data = snap.data();
-                        dbNickname = data.nickname || "";
-                        onboardingComplete = data.onboardingComplete === true;
 
-                        console.log("✅ [6] DB 데이터 확인:", { dbNickname, onboardingComplete });
-
-                        // ⚠️ 예외 처리: 문서는 있는데 닉네임 필드만 없는 경우 -> Auth 정보로 채워넣음
-                        if (!dbNickname && authNickname) {
-                            console.log("🛠️ [Self-Heal] DB 닉네임 누락. Auth 프로필로 자동 복구합니다.");
+                        // 🚨 [핵심 수정 2] 탈퇴한 유저(isDeleted)인지 확인
+                        // 쿨타임이 지나서 들어온 경우라면, 기존 '탈퇴한 사용자' 데이터를 덮어써야 합니다.
+                        if (data.isDeleted) {
+                            console.log("♻️ [Self-Heal] 탈퇴 후 복귀한 유저입니다. 계정을 초기화합니다.");
                             dbNickname = authNickname;
-                            // 비동기로 DB 업데이트 (화면 전환을 막지 않음)
+                            onboardingComplete = false; // 다시 온보딩 받도록 설정
+
+                            // 유저 문서를 새 정보로 덮어쓰기 (isDeleted 플래그 제거)
+                            await setDoc(userDocRef, {
+                                nickname: authNickname,
+                                nicknameLower: authNickname.toLowerCase(),
+                                email: user.email,
+                                photoURL: authPhoto,
+                                isDeleted: false, // 👈 중요: 탈퇴 상태 해제
+                                rejoinedAt: serverTimestamp(),
+                                onboardingComplete: false
+                            }, { merge: true });
+                        } else {
+                            // 정상 유저
+                            dbNickname = data.nickname || "";
+                            onboardingComplete = data.onboardingComplete === true;
+                        }
+
+                        // 닉네임 누락 자동 복구
+                        if (!dbNickname && authNickname) {
+                            dbNickname = authNickname;
                             setDoc(userDocRef, {
                                 nickname: authNickname,
                                 nicknameLower: authNickname.toLowerCase(),
@@ -86,8 +118,8 @@ export function useAppInitialization(): UseAppInitializationReturn {
                             }, { merge: true });
                         }
                     } else if (authNickname) {
-                        // ⚠️ 예외 처리: 문서는 없는데 구글 로그인으로 이름은 있는 경우 -> 신규 문서 생성
-                        console.log("🛠️ [Self-Heal] 문서 없음. 구글 정보로 신규 생성합니다.");
+                        // 문서 없음 (신규)
+                        console.log("🆕 신규 유저 생성");
                         dbNickname = authNickname;
                         await setDoc(userDocRef, {
                             nickname: authNickname,
@@ -95,25 +127,23 @@ export function useAppInitialization(): UseAppInitializationReturn {
                             email: user.email,
                             photoURL: authPhoto,
                             createdAt: serverTimestamp(),
-                            onboardingComplete: false // 약관 동의 등을 위해 false로 시작
+                            onboardingComplete: false
                         }, { merge: true });
                     }
 
                     // 상태 업데이트
                     setUserData({
                         nickname: dbNickname,
-                        email: user.email,
+                        email: user.email || "",
                         profileImage: authPhoto
                     });
 
-                    // 화면 결정 로직
-                    let finalScreen = "nickname"; // 기본값
-
+                    // 화면 결정
+                    let finalScreen = "nickname";
                     if (dbNickname) {
                         if (onboardingComplete) {
                             finalScreen = "main";
                         } else {
-                            // 닉네임은 있지만 온보딩(가이드라인/약관)을 안 봤다면
                             finalScreen = "guidelines";
                         }
                     }

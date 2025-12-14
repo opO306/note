@@ -31,7 +31,7 @@ export const aiAutoReply = onCall(
             // 3. Vertex AI 초기화 (API Key 없이 IAM 인증 자동 사용)
             const vertex_ai = new VertexAI({
                 project: "dddd-e6a52", // 본인 프로젝트 ID
-                location: "us-central"
+                location: "us-central1"
             });
 
             // 4. 모델 선택

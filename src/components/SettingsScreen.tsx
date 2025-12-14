@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
+import { LoadingOverlay } from "./ui/loading-animations";
 import { Separator } from "./ui/separator";
 import { toast, isToastEnabled, setToastEnabled } from "../toastHelper";
 import {
@@ -25,6 +26,13 @@ import {
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
+import {
+  getAuth,
+  reauthenticateWithCredential,
+  reauthenticateWithPopup,
+  EmailAuthProvider,
+  GoogleAuthProvider,
+} from "firebase/auth";
 
 interface SettingsScreenProps {
   onBack: () => void;
@@ -79,7 +87,7 @@ export function SettingsScreen({
   const [aiAutoReplyEnabled, setAiAutoReplyEnabled] = useState(false);
   const [personalizedDigestEnabled, setPersonalizedDigestEnabled] = useState(false);
   const [consentsLoading, setConsentsLoading] = useState(false);
-
+  const [isDeleting, setIsDeleting] = useState(false);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
@@ -272,40 +280,70 @@ export function SettingsScreen({
   }, []);
 
   const handleAccountDelete = useCallback(async () => {
-    const confirmed = window.confirm(
-      "정말로 계정을 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
-    );
-    if (!confirmed) {
+    if (!window.confirm("정말로 계정을 탈퇴하시겠습니까? 모든 데이터가 영구적으로 삭제되며, 이 작업은 되돌릴 수 없습니다.")) {
       return;
     }
 
-    try {
-      // 1) 서버에 계정 삭제 요청 (Cloud Function 호출)
-      await deleteAccountFn({});
+    const auth = getAuth();
+    const user = auth.currentUser;
 
-      // 2) 클라이언트 Auth 세션도 정리 시도
-      if (auth.currentUser) {
-        try {
-          await auth.currentUser.delete();
-        } catch (err) {
-          // 토큰 만료 등으로 실패할 수 있어서, 여기서는 조용히 무시
-          console.warn("[settings] client auth delete failed", err);
+    if (!user) {
+      toast.error("로그인이 필요합니다.");
+      return;
+    }
+
+    setIsDeleting(true); // 로딩 시작
+
+    try {
+      // --- 1. 본인 재인증 단계 ---
+      // 현재 사용자의 로그인 방식을 자동으로 확인합니다.
+      const providerId = user.providerData[0]?.providerId;
+
+      // CASE 1: 이메일/비밀번호 로그인 사용자
+      if (providerId === 'password') {
+        const password = prompt("본인 확인을 위해 비밀번호를 다시 입력해주세요.");
+        if (password === null) { // 사용자가 취소 버튼을 누른 경우
+          setIsDeleting(false);
+          return;
         }
+        if (!user.email) throw new Error("계정의 이메일 정보를 확인할 수 없습니다.");
+        const credential = EmailAuthProvider.credential(user.email, password);
+        await reauthenticateWithCredential(user, credential);
+      }
+      // CASE 2: 구글 로그인 사용자
+      else if (providerId === 'google.com') {
+        const provider = new GoogleAuthProvider();
+        await reauthenticateWithPopup(user, provider);
+      }
+      // 다른 소셜 로그인을 사용한다면 여기에 else if (...)를 추가하면 됩니다.
+      else {
+        throw new Error("지원하지 않는 로그인 방식입니다. 관리자에게 문의해주세요.");
       }
 
-      // 3) 사용자에게 안내 + 앱 상태 초기화 (로그아웃)
-      toast.success(
-        "계정 탈퇴가 요청되었습니다. 잠시 후 계정이 완전히 삭제됩니다.",
-      );
-      onLogout();
-    } catch (error) {
-      console.error("[settings] deleteAccount 호출 실패", error);
-      toast.error(
-        "계정 삭제 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.",
-      );
+      // --- 2. 재인증 성공 시, 백엔드에 최종 삭제 요청 ---
+      // 이제 Firebase는 이 사용자가 본인임을 신뢰하므로 Cloud Function 호출을 허용합니다.
+      await deleteAccountFn({});
+
+      // --- 3. 성공 후처리 ---
+      toast.success("계정 탈퇴가 완료되었습니다. 이용해주셔서 감사합니다.");
+      onLogout(); // 로그아웃 처리 및 로그인 화면으로 이동
+
+    } catch (error: any) {
+      console.error("[settings] deleteAccount 과정 실패", error);
+
+      // 사용자에게 친절한 오류 메시지 표시
+      if (error.code === 'auth/wrong-password') {
+        toast.error("비밀번호가 일치하지 않습니다.");
+      } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        toast.info("계정 탈퇴가 취소되었습니다.");
+      } else if (error.code === 'auth/too-many-requests') {
+        toast.error("요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.");
+      } else {
+        toast.error("계정 삭제 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+      }
+      setIsDeleting(false); // 오류 발생 시 로딩 종료
     }
   }, [onLogout]);
-
   // localStorage에서 화면 알림 설정 불러오기
   const [toastEnabled, setToastEnabledState] = useState(isToastEnabled());
 
@@ -318,6 +356,12 @@ export function SettingsScreen({
 
   return (
     <div className="w-full h-full bg-background text-foreground overflow-y-auto scrollbar-hide">
+      {/* 👇 로딩 오버레이 추가 (최상단에 배치) */}
+      <LoadingOverlay
+        isLoading={isDeleting}
+        message="계정을 정리하고 있습니다..."
+        variant="blur"
+      />
       {/* Header */}
       <header className="bg-card/95 backdrop-blur-xl border-b border-border flex-shrink-0 safe-top">
         <div className="px-4 py-3">

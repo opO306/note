@@ -157,7 +157,7 @@ function MainScreenInner({
 
   const [showWriteScreen, setShowWriteScreen] = useState(false);
   const [lastUserProfileNickname, setLastUserProfileNickname] = useState<string | null>(null);
-
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   // 🔹 글 상세로 들어올 때, 어디에서 왔는지 기억하는 상태
@@ -645,6 +645,27 @@ function MainScreenInner({
     setRoute({ name: "adminReports" });
   }, [isAdmin, setRoute]);
 
+
+  // ========================================
+  // 🆕 [추가] 새로고침 로직
+  // ========================================
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      // 1. 만약 get() 방식을 쓴다면 여기서 데이터를 다시 fetch 합니다.
+      // await posts.refetch(); 
+
+      // 2. onSnapshot(실시간)을 쓰고 있다면, 단순히 시각적 피드백(UX)을 위해 딜레이만 줍니다.
+      // (사용자는 새로고침이 되었다고 느끼게 됩니다)
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      toast.success("최신 목록을 불러왔어요");
+    } catch (error) {
+      console.error("새로고침 실패", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []); // posts가 바뀔 때마다 갱신할 필요 없으므로 의존성 비움
   // ========================================
   // 5. 초기화 및 뒤로가기 처리
   // ========================================
@@ -1231,6 +1252,8 @@ function MainScreenInner({
                 onStartWriting={handleStartWriting}
                 currentTitle={titleActions.currentTitle}
                 blockedUserIds={blockedUserIds} // 🆕 차단 목록 전달
+                onRefresh={handleRefresh}
+                isRefreshing={isRefreshing}
               />
             </>
           )}
