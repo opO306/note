@@ -1753,96 +1753,111 @@ function MainScreenInner({
         </div>
       )}
 
+      {/* 1. 관리자 신고 목록 화면 수정 */}
       {route.name === "adminReports" && isAdmin && (
         <div className="absolute inset-0 z-40 bg-background">
-          <div className="w-full h-full flex flex-col">
-            <AdminReportScreen
-              onBack={handleLayerBack}
-            />
-            <BottomNavigation
-              onHomeClick={navigateToHome}
-              onRankingClick={navigateToRanking}
-              onBookmarksClick={navigateToBookmarks}
-              onMyPageClick={navigateToMyPage}
-              onWriteClick={handleStartWriting}
-              activeTab={currentScreen}
-            />
-          </div>
+          <Suspense fallback={<ScreenFallback />}>
+            <div className="w-full h-full flex flex-col">
+              <AdminReportScreen
+                onBack={() => {
+                  setRoute({ name: "home" });
+                  setCurrentScreen("home"); // 안전하게 탭 상태도 동기화
+                }}
+              />
+              <BottomNavigation
+                onHomeClick={navigateToHome}
+                onRankingClick={navigateToRanking}
+                onBookmarksClick={navigateToBookmarks}
+                onMyPageClick={navigateToMyPage}
+                onWriteClick={handleStartWriting}
+                activeTab={currentScreen}
+              />
+            </div>
+          </Suspense>
         </div>
       )}
 
+      {/* 2. 알림 설정 다이얼로그 수정 */}
       {showNotificationSettings && (
         <div className="fixed inset-0 z-50 bg-background">
-          <NotificationSettingsDialog
-            onBack={handleLayerBack}
-            categories={categories}
-          />
+          <Suspense fallback={null}>
+            <NotificationSettingsDialog
+              onBack={handleLayerBack}
+              categories={categories}
+            />
+          </Suspense>
         </div>
       )}
 
+      {/* 3. 신고 다이얼로그 (게시글) 수정 */}
       {reportingPost && (
-        <ReportDialog
-          open={!!reportingPost}
-          onOpenChange={(open) => !open && setReportingPost(null)}
-          targetType="게시글"
-          onSubmit={async (reasons, details) => {
-            if (!reportingPost) return;
-            try {
-              const reporterUid = auth.currentUser?.uid ?? null;
-              await addDoc(collection(db, "reports"), {
-                targetType: "post",
-                targetId: reportingPost.id,
-                targetAuthorUid: (reportingPost as any).authorUid ?? (reportingPost as any).uid ?? null,
-                reporterUid,
-                reasons,
-                details,
-                createdAt: serverTimestamp(),
-                status: "pending",
-                autoHidden: false,
-                priority: "normal",
-              });
-              toast.success("신고가 접수되었어요. 검토 후 조치하겠습니다.");
-            } catch (error) {
-              console.error("[report] 게시글 신고 저장 실패", error);
-              toast.error("신고 처리 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
-            } finally {
-              setReportingPost(null);
-            }
-          }}
-        />
+        <Suspense fallback={null}>
+          <ReportDialog
+            open={!!reportingPost}
+            onOpenChange={(open) => !open && setReportingPost(null)}
+            targetType="게시글"
+            onSubmit={async (reasons, details) => {
+              if (!reportingPost) return;
+              try {
+                const reporterUid = auth.currentUser?.uid ?? null;
+                await addDoc(collection(db, "reports"), {
+                  targetType: "post",
+                  targetId: reportingPost.id,
+                  targetAuthorUid: (reportingPost as any).authorUid ?? (reportingPost as any).uid ?? null,
+                  reporterUid,
+                  reasons,
+                  details,
+                  createdAt: serverTimestamp(),
+                  status: "pending",
+                  autoHidden: false,
+                  priority: "normal",
+                });
+                toast.success("신고가 접수되었어요. 검토 후 조치하겠습니다.");
+              } catch (error) {
+                console.error("[report] 게시글 신고 저장 실패", error);
+                toast.error("신고 처리 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
+              } finally {
+                setReportingPost(null);
+              }
+            }}
+          />
+        </Suspense>
       )}
 
+      {/* 4. 신고 다이얼로그 (답글) 수정 */}
       {reportingReply && (
-        <ReportDialog
-          open={!!reportingReply}
-          onOpenChange={(open) => !open && setReportingReply(null)}
-          targetType="답글"
-          onSubmit={async (reasons, details) => {
-            if (!reportingReply) return;
-            try {
-              const reporterUid = auth.currentUser?.uid ?? null;
-              await addDoc(collection(db, "reports"), {
-                targetType: "reply",
-                targetId: String(reportingReply.id),
-                targetAuthorUid: reportingReply.authorUid ?? null,
-                reporterUid,
-                reasons,
-                details,
-                createdAt: serverTimestamp(),
-                status: "pending",
-                autoHidden: false,
-                priority: "normal",
-                postId: selectedPost?.id ?? null,
-              });
-              toast.success("신고가 접수되었어요. 검토 후 조치하겠습니다.");
-            } catch (error) {
-              console.error("[report] 답글 신고 저장 실패", error);
-              toast.error("신고 처리 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
-            } finally {
-              setReportingReply(null);
-            }
-          }}
-        />
+        <Suspense fallback={null}>
+          <ReportDialog
+            open={!!reportingReply}
+            onOpenChange={(open) => !open && setReportingReply(null)}
+            targetType="답글"
+            onSubmit={async (reasons, details) => {
+              if (!reportingReply) return;
+              try {
+                const reporterUid = auth.currentUser?.uid ?? null;
+                await addDoc(collection(db, "reports"), {
+                  targetType: "reply",
+                  targetId: String(reportingReply.id),
+                  targetAuthorUid: reportingReply.authorUid ?? null,
+                  reporterUid,
+                  reasons,
+                  details,
+                  createdAt: serverTimestamp(),
+                  status: "pending",
+                  autoHidden: false,
+                  priority: "normal",
+                  postId: selectedPost?.id ?? null,
+                });
+                toast.success("신고가 접수되었어요. 검토 후 조치하겠습니다.");
+              } catch (error) {
+                console.error("[report] 답글 신고 저장 실패", error);
+                toast.error("신고 처리 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
+              } finally {
+                setReportingReply(null);
+              }
+            }}
+          />
+        </Suspense>
       )}
 
       <BlockedUserListDialog

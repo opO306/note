@@ -1,15 +1,77 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ✅ 로그인 체크 함수
+    function isSignedIn() {
+      return request.auth != null;
+    }
     
-    // 기본적으로 읽기는 허용하되, 쓰기는 관리자만 가능하게 풀고 테스트
-    match /users/{userId} {
-      allow read: if true;
-      // 테스트를 위해 로그인만 하면 생성/수정 가능하게 잠시 풉니다.
-      allow create, update: if request.auth != null && request.auth.uid == userId;
+    // ✅ 본인 확인 함수
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
 
-    // 나머지 규칙들...
+    // 1. 사용자 정보 (users)
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId);
+      
+      match /{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // 2. 게시글 (posts)
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        resource.data.authorUid == request.auth.uid || 
+        resource.data.uid == request.auth.uid
+      );
+    }
+
+    // 3. 팔로우 (follows)
+    match /follows/{followId} {
+      allow read: if isSignedIn();
+      allow create, delete: if isSignedIn();
+    }
+
+    // 4. 북마크 (user_bookmarks)
+    match /user_bookmarks/{userId}/{document=**} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // 5. 알림 (user_notifications)
+ 		match /user_notifications/{userId}/{document=**} {
+      allow read, update, delete: if isOwner(userId);
+      allow create: if isSignedIn();
+    }
+    
+    // 6. 알림 설정 (user_notification_settings)
+    match /user_notification_settings/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // 7. 좋아요/등불 (user_lanterns)
+    match /user_lanterns/{userId}/{document=**} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // 8. 신고 (reports)
+    match /reports/{reportId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if false; 
+    }
+
+    // 🚨 [추가됨] 9. 조회수 기록 (postViews)
+    // - 조회수 중복 방지를 위해 로그인한 유저는 기록을 읽고 쓸 수 있어야 함
+    match /postViews/{viewId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    // 그 외 차단
     match /{document=**} {
       allow read, write: if false;
     }
