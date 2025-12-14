@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 기본적으로 읽기는 허용하되, 쓰기는 관리자만 가능하게 풀고 테스트
+    match /users/{userId} {
+      allow read: if true;
+      // 테스트를 위해 로그인만 하면 생성/수정 가능하게 잠시 풉니다.
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 나머지 규칙들...
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

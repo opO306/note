@@ -1,0 +1,40 @@
+name: Deploy Firebase Functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "functions/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: |
+            functions/package-lock.json
+
+      - name: Install functions dependencies
+        working-directory: ./functions
+        run: npm ci
+
+      - name: Build functions (TypeScript -> JS)
+        working-directory: ./functions
+        run: npm run build
+
+      - name: Deploy Firebase Functions
+        working-directory: ./functions
+        run: npx firebase-tools deploy --only functions --non-interactive --project dddd-e6a52
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GCLOUD_PROJECT: dddd-e6a52
+          

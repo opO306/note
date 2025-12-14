@@ -1,0 +1,1460 @@
+/* Import Pretendard font */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+
+@custom-variant dark (&:is(.dark *));
+
+/* Safe Area Insets for iOS and Android devices with notches */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+}
+
+:root {
+  --font-size: 16px;
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  
+  /* Typography scale */
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.875rem;    /* 14px */
+  --text-base: 1rem;      /* 16px */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.5rem;     /* 24px */
+  --text-3xl: 1.875rem;   /* 30px */
+  --text-4xl: 2.25rem;    /* 36px */
+  
+  --background: #fafbfc;
+  --foreground: #1a1d23;
+  --card: #ffffff;
+  --card-foreground: #1a1d23;
+  --popover: #ffffff;
+  --popover-foreground: #1a1d23;
+  --primary: #2c3137;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f3f5;
+  --secondary-foreground: #4a5059;
+  --muted: #f5f6f8;
+  --muted-foreground: #6b7280;
+  --accent: #f0f1f3;
+  --accent-foreground: #2c3137;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: rgba(55, 65, 81, 0.24);
+  --input: transparent;
+  --input-background: #f9fafb;
+  --switch-background: #d1d5db;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: rgba(44, 49, 55, 0.2);
+  --chart-1: #f59e0b;
+  --chart-2: #10b981;
+  --chart-3: #3b82f6;
+  --chart-4: #ef4444;
+  --chart-5: #8b5cf6;
+  --radius: 0.75rem;
+  --success: #16a34a;
+  --warning: #eab308;
+  --info: #3b82f6;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --transition-fast: 150ms ease-out;
+  --transition-medium: 250ms ease-out;
+  --transition-slow: 350ms ease-out;
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #1a1d23;
+  --sidebar-primary: #2c3137;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f3f5;
+  --sidebar-accent-foreground: #4a5059;
+  --sidebar-border: rgba(55, 65, 81, 0.12);
+  --sidebar-ring: rgba(44, 49, 55, 0.2);
+}
+
+.dark {
+  --background: #202124;
+  --foreground: #e8eaed;
+  --card: #303134;
+  --card-foreground: #e8eaed;
+  --popover: #303134;
+  --popover-foreground: #e8eaed;
+  --primary: #c9a532;
+  --primary-foreground: #ffffff;
+  --secondary: #3c4043;
+  --secondary-foreground: #e8eaed;
+  --muted: #292a2d;
+  --muted-foreground: #9aa0a6;
+  --accent: #3c4043;
+  --accent-foreground: #e8eaed;
+  --destructive: #f28b82;
+  --destructive-foreground: #1f1f1f;
+  --border: rgba(154, 160, 166, 0.2);
+  --input: #292a2d;
+  --input-background: #25262a;
+  --ring: rgba(201, 165, 50, 0.3);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: #c9a532;
+  --chart-2: #81c995;
+  --chart-3: #8ab4f8;
+  --chart-4: #f28b82;
+  --chart-5: #c58af9;
+  --success: #81c995;
+  --warning: #fdd663;
+  --info: #8ab4f8;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  --transition-fast: 150ms ease-out;
+  --transition-medium: 250ms ease-out;
+  --transition-slow: 350ms ease-out;
+  --sidebar: #25262a;
+  --sidebar-foreground: #e8eaed;
+  --sidebar-primary: #c9a532;
+  --sidebar-primary-foreground: #1f1f1f;
+  --sidebar-accent: #292a2d;
+  --sidebar-accent-foreground: #e8eaed;
+  --sidebar-border: rgba(154, 160, 166, 0.2);
+  --sidebar-ring: rgba(201, 165, 50, 0.3);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  /* 스크롤바 전역 숨김 (스크롤 가능은 유지) */
+  * {
+    scrollbar-width: none; /* Firefox */
+  }
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none; /* WebKit */
+  }
+
+  html {
+    font-size: var(--font-size);
+    width: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Prevent overscroll bounce on mobile */
+    overscroll-behavior-y: none;
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  /* Button optimizations */
+  button {
+    transition: all var(--transition-fast);
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+  }
+
+  /* lucide-react ì•„ì´ì½˜ ê°•ì œ í‘œì‹œ */
+  svg {
+    display: inline-block !important;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+
+  svg.lucide {
+    stroke: currentColor !important;
+    fill: none !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    stroke-width: 2 !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+  }
+
+  /* ë²„íŠ¼/ë§í¬ ë‚´ë¶€ SVG ê¸°ë³¸ê°’ */
+  button svg,
+  a svg,
+  [role="button"] svg {
+    stroke: currentColor !important;
+    fill: none !important;
+    display: inline-block !important;
+  }
+
+  button:active {
+    transform: scale(0.97);
+  }
+
+  /* Remove default focus styles but keep accessibility */
+  button:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Common utility classes */
+  .smooth-transition {
+    transition: all var(--transition-fast);
+  }
+
+  .card-hover {
+    transition: all var(--transition-fast);
+  }
+
+  .card-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Touch target optimization for mobile */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Icon button with extended touch area */
+  .touch-icon-btn {
+    position: relative;
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Small interactive elements with extended touch area using pseudo-element */
+  .touch-extended {
+    position: relative;
+  }
+
+  .touch-extended::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: inherit;
+  }
+
+  /* Ensure small icon buttons are touchable */
+  button[size="icon"].touch-safe,
+  .touch-safe {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    padding: 0.625rem !important;
+  }
+
+  .glass-effect {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .interactive-scale {
+    transition: transform var(--transition-fast);
+  }
+
+  .interactive-scale:active {
+    transform: scale(0.95);
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Scroll optimization classes */
+  .scroll-optimized {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    will-change: scroll-position;
+  }
+
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+
+  /* List rendering optimization */
+  .list-optimized {
+    contain: layout style paint;
+    content-visibility: auto;
+  }
+
+  /* Optimized scroll container with GPU acceleration */
+  .scroll-container {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    transform: translateZ(0);
+    will-change: scroll-position;
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  /* 스크롤은 되지만 스크롤바는 안 보이게 하는 공통 클래스 */
+.no-scrollbar {
+  /* Firefox */
+  scrollbar-width: none;
+  /* IE, Edge */
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  /* Chrome, Safari, 모바일 웹뷰 */
+  display: none;
+}
+
+
+  /* Scroll snap for better UX */
+  .scroll-snap-y {
+    scroll-snap-type: y proximity;
+  }
+
+  .scroll-snap-item {
+    scroll-snap-align: start;
+    scroll-snap-stop: normal;
+  }
+
+  /* Safe Area utilities */
+  .safe-top {
+    padding-top: var(--safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: var(--safe-area-inset-bottom);
+  }
+
+  .safe-left {
+    padding-left: var(--safe-area-inset-left);
+  }
+
+  .safe-right {
+    padding-right: var(--safe-area-inset-right);
+  }
+
+  .safe-all {
+    padding-top: var(--safe-area-inset-top);
+    padding-right: var(--safe-area-inset-right);
+    padding-bottom: var(--safe-area-inset-bottom);
+    padding-left: var(--safe-area-inset-left);
+  }
+
+  /* Safe Area for headers (status bar) */
+  .safe-header {
+    padding-top: calc(var(--safe-area-inset-top) + 0.75rem);
+  }
+
+.safe-nav-bottom {
+  /* 기기 환경에서 제공하는 안전 영역 + 네비게이션 바 높이만큼 여유(약 3.5rem) */
+  padding-bottom: calc(var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)) + 3.5rem);
+}
+
+  /* Navigation button styling */
+  .nav-button {
+    transition: all var(--transition-fast);
+    transform: scale(1);
+    will-change: transform;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    outline: none !important;
+    border: none;
+    position: relative;
+  }
+
+  .nav-button:active {
+    transform: scale(0.95) !important;
+    transition-duration: 100ms;
+  }
+
+  .nav-button:active::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border: 2px solid var(--primary);
+    border-radius: inherit;
+    opacity: 0.6;
+    animation: click-feedback 300ms ease-out;
+  }
+
+  .nav-button:hover {
+    transform: scale(1.02);
+  }
+
+  /* Remove all default focus styles for nav buttons */
+  .nav-button:focus,
+  .nav-button:focus-visible,
+  .nav-button-override,
+  .nav-button-override:focus,
+  .nav-button-override:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Write button styling */
+  .write-button {
+    transition: all var(--transition-medium);
+    transform: scale(1);
+    will-change: transform;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    outline: none !important;
+    border: none;
+    position: relative;
+  }
+
+  .write-button:active {
+    transform: scale(0.92) !important;
+    transition-duration: 100ms;
+  }
+
+  .write-button:active::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border: 3px solid var(--primary);
+    border-radius: inherit;
+    opacity: 0.7;
+    animation: write-click-feedback 400ms ease-out;
+  }
+
+  .write-button:hover {
+    transform: scale(1.05);
+  }
+
+  .write-button:focus,
+  .write-button:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Animations */
+  @keyframes click-feedback {
+    0% {
+      opacity: 0.8;
+      transform: scale(0.95);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.05);
+    }
+  }
+
+  @keyframes write-click-feedback {
+    0% {
+      opacity: 0.9;
+      transform: scale(0.9);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.1);
+    }
+  }
+
+  @keyframes float {
+    0% {
+      transform: translate(0, 0) rotate(0deg);
+    }
+    25% {
+      transform: translate(10px, -15px) rotate(5deg);
+    }
+    50% {
+      transform: translate(-5px, -25px) rotate(-3deg);
+    }
+    75% {
+      transform: translate(-15px, -10px) rotate(7deg);
+    }
+    100% {
+      transform: translate(0, 0) rotate(0deg);
+    }
+  }
+
+  @keyframes fadeInOut {
+    0% {
+      opacity: 0;
+    }
+    50% {
+      opacity: 0.08;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fadeInOut1 {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 0.04; }
+  }
+
+  @keyframes fadeInOut2 {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 0.06; }
+  }
+
+  @keyframes fadeInOut3 {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 0.08; }
+  }
+
+  /* Image loading skeleton */
+  .image-skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--muted) 0%,
+      var(--muted-foreground) 20%,
+      var(--muted) 40%,
+      var(--muted) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+  }
+
+  /* Lazy image fade-in */
+  .lazy-image-loaded {
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  /* Keyboard-aware input styling */
+  .input-keyboard-safe {
+    transition: all var(--transition-medium);
+  }
+
+  .input-keyboard-safe:focus {
+    transform: translateY(-2px);
+  }
+
+  /* Prevent zoom on iOS when input is focused */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  textarea {
+    font-size: 16px !important; /* iOS won't zoom if font-size >= 16px */
+  }
+
+  /* Smooth keyboard transition */
+  .keyboard-aware-container {
+    transition: padding-bottom var(--transition-medium);
+  }
+
+  /* Hide scrollbar during keyboard animation */
+  .keyboard-scrolling {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .keyboard-scrolling::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn var(--transition-medium) ease-out;
+  }
+
+  .animate-fade-out {
+    animation: fadeOut var(--transition-medium) ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp var(--transition-medium) ease-out;
+  }
+
+  .animate-slide-down {
+    animation: slideDown var(--transition-medium) ease-out;
+  }
+
+  .animate-slide-left {
+    animation: slideLeft var(--transition-medium) ease-out;
+  }
+
+  .animate-slide-right {
+    animation: slideRight var(--transition-medium) ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn var(--transition-medium) ease-out;
+  }
+
+  .animate-scale-out {
+    animation: scaleOut var(--transition-medium) ease-out;
+  }
+
+  /* GPU acceleration for animations */
+  .gpu-accelerate {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    will-change: transform;
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Additional animations */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideLeft {
+    from {
+      transform: translateX(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideRight {
+    from {
+      transform: translateX(-20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes scaleOut {
+    from {
+      transform: scale(1);
+      opacity: 1;
+    }
+    to {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+  }
+
+  @keyframes bounce {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    25% {
+      transform: translateX(-10px);
+    }
+    75% {
+      transform: translateX(10px);
+    }
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.5;
+      transform: scale(1.05);
+    }
+  }
+
+  @keyframes wiggle {
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+    25% {
+      transform: rotate(-5deg);
+    }
+    75% {
+      transform: rotate(5deg);
+    }
+  }
+
+  @keyframes ripple {
+    0% {
+      transform: scale(0);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
+}
+
+/**
+ * Accessibility
+ */
+@layer base {
+  /* Screen reader only */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* Show on focus (for skip links) */
+  .sr-only.focus\:not-sr-only:focus {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: inherit;
+    margin: inherit;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  /* Focus visible styles - 모바일 앱이라 기본 포커스 테두리 제거 */
+  *:focus-visible {
+    outline: none;
+    outline-offset: 0;
+    border-radius: 0;
+  }
+
+
+  /* Remove focus for mouse users */
+  *:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    * {
+      border-color: currentColor !important;
+    }
+
+    button,
+    a {
+      text-decoration: underline;
+    }
+
+    .bg-primary,
+    .bg-secondary,
+    .bg-accent {
+      border: 2px solid currentColor;
+    }
+  }
+
+  /* Forced colors mode (Windows High Contrast) */
+  @media (forced-colors: active) {
+    * {
+      forced-color-adjust: auto;
+    }
+
+    button,
+    a {
+      border: 1px solid ButtonText;
+    }
+
+    .focus-ring {
+      outline: 2px solid Highlight;
+    }
+  }
+
+  /* Focus trap */
+  .focus-trap {
+    position: relative;
+  }
+
+  /* Keyboard navigation indicator */
+  body.using-keyboard *:focus {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  body.using-mouse *:focus {
+    outline: none;
+  }
+
+  /* Skip links */
+  .skip-links a {
+    position: absolute;
+    left: -9999px;
+    z-index: 999;
+    padding: 0.5rem 1rem;
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    text-decoration: none;
+    border-radius: 0.25rem;
+  }
+
+  .skip-links a:focus {
+    left: 1rem;
+    top: 1rem;
+  }
+
+  /* Improved link underline for accessibility */
+  a:not(.no-underline) {
+    text-decoration-skip-ink: auto;
+  }
+
+  /* Better focus for interactive elements - 터치에서는 테두리 없앰 */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+    outline-offset: 0;
+  }
+
+
+  /* 📱 터치 기기에서는 포커스 테두리 숨기기 (눌림 표시가 남지 않게) */
+  @media (pointer: coarse) {
+    button:focus-visible,
+    a:focus-visible {
+      outline: none;
+      outline-offset: 0;
+    }
+  }
+
+
+  @media (pointer: coarse) {
+    /* 스위치(Radix)는 button role="switch" 이라 제외 */
+    button:not([role="switch"]),
+    a {
+      min-height: 10px;
+      min-width: 10px;
+    }
+  }
+
+
+
+  /* Accessible form validation */
+  input:invalid,
+  textarea:invalid,
+  select:invalid {
+    border-color: var(--destructive);
+  }
+
+  input[aria-invalid="true"],
+  textarea[aria-invalid="true"],
+  select[aria-invalid="true"] {
+    border-color: var(--destructive);
+  }
+
+  /* Loading states */
+  [aria-busy="true"] {
+    cursor: wait;
+  }
+
+  /* Disabled states */
+  [aria-disabled="true"],
+  :disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  /* Hidden content */
+  [aria-hidden="true"],
+  [hidden] {
+    display: none !important;
+  }
+
+  /* Live regions */
+  [aria-live] {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  /* Improve text selection */
+  ::selection {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  /* Better scrollbar for accessibility */
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--muted);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--muted-foreground);
+    border-radius: 6px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--foreground);
+  }
+
+  /* Focus indicators for keyboard users */
+  .keyboard-user *:focus {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Announce for screen readers */
+  .visually-hidden-focusable:not(:focus):not(:focus-within) {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+}
+
+/**
+ * Base typography system
+ */
+@layer base {
+  h1:not([class*="text-"]) {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h2:not([class*="text-"]) {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h3:not([class*="text-"]) {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h4:not([class*="text-"]) {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  p:not([class*="text-"]) {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+
+  label:not([class*="text-"]) {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  button:not([class*="text-"]) {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  input:not([class*="text-"]) {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+}
+
+/* ì¹©/í•„í„°ìš©: ìƒíƒœ ë³€í™” ì‹œì—ë„ ê¸€ìžìƒ‰ ìœ ì§€ */
+.btn-keep-text,
+.btn-keep-text * { 
+  color: inherit !important; 
+}
+
+.btn-keep-text:where(:hover, :active, :focus, :focus-visible),
+.btn-keep-text[data-state="on"],
+.btn-keep-text[aria-pressed="true"],
+.btn-keep-text[aria-selected="true"] {
+  color: inherit !important;
+}
+
+/* ë²„íŠ¼ í…ìŠ¤íŠ¸ë¥¼ ìƒíƒœ ë³€í™”ì—ë„ ê³ ì • */
+.btn-keep-text,
+.btn-keep-text:where(:hover, :active, :focus, :focus-visible) {
+  color: var(--foreground) !important;
+}
+/* ì„ íƒ/í† ê¸€ ë“± ARIA ìƒíƒœë„ ì»¤ë²„ */
+.btn-keep-text[aria-pressed="true"],
+.btn-keep-text[aria-selected="true"],
+.btn-keep-text[data-state="on"] {
+  color: var(--foreground) !important;
+}
+
+/* ë¶€ë“œëŸ¬ìš´ ê¸€ë¡œìš° */
+@keyframes soft-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+  }
+}
+
+/* Tier 5 - ë¶ˆê½ƒ ê¸€ë¡œìš° */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4),
+                0 0 20px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.6),
+                0 0 30px rgba(239, 68, 68, 0.4);
+  }
+}
+
+/* Tier 7 - ë¬´ì§€ê°œ íš¨ê³¼ */
+@keyframes rainbow {
+  0% {
+    border-color: #ef4444;
+  }
+  16.67% {
+    border-color: #f59e0b;
+  }
+  33.33% {
+    border-color: #eab308;
+  }
+  50% {
+    border-color: #10b981;
+  }
+  66.67% {
+    border-color: #3b82f6;
+  }
+  83.33% {
+    border-color: #8b5cf6;
+  }
+  100% {
+    border-color: #ef4444;
+  }
+}
+
+/* Tier 8 - ì „ì„¤ íš¨ê³¼ */
+@keyframes legendary {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(251, 191, 36, 0.6),
+                0 0 30px rgba(251, 191, 36, 0.4),
+                0 0 45px rgba(251, 191, 36, 0.2);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.8),
+                0 0 40px rgba(251, 191, 36, 0.6),
+                0 0 60px rgba(251, 191, 36, 0.3);
+    transform: scale(1.02);
+  }
+}
+
+/* ëª…íŒ¨ í”„ë ˆìž„ í˜¸ë²„ íš¨ê³¼ */
+.badge-frame:hover {
+  transform: translateY(-2px);
+  transition: transform 0.2s ease-out;
+}
+
+/* ëª…íŒ¨ ì• ë‹ˆë©”ì´ì…˜ íš¨ê³¼ */
+@keyframes neon-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes crystal-sparkle {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+:root {
+  /* 기본 알림 - 흰색 배경, 검은 텍스트 */
+  --normal-bg: hsl(0 0% 100%);           /* 순백색 */
+  --normal-text: hsl(240 10% 3.9%);      /* 거의 검은색 */
+  --normal-border: hsl(240 5.9% 90%);    /* 연한 회색 테두리 */
+  
+  /* ✅ 성공 알림 - 초록색 완전 제거! */
+  --success-bg: hsl(0 0% 100%);          /* 흰색 배경 */
+  --success-text: hsl(240 10% 3.9%);     /* 검은색 텍스트 */
+  --success-border: hsl(240 5.9% 10%);   /* 진한 회색 테두리로 강조 */
+  
+  /* ❌ 에러 알림 - 빨간색 유지 (경고는 눈에 띄어야 함!) */
+  --error-bg: hsl(0 84.2% 60.2%);        /* 빨간색 배경 */
+  --error-text: hsl(0 0% 100%);          /* 흰색 텍스트 */
+  --error-border: hsl(0 84.2% 60.2%);    /* 빨간색 테두리 */
+  
+  /* ℹ️ 정보 알림 - 중립적 */
+  --info-bg: hsl(0 0% 100%);             /* 흰색 배경 */
+  --info-text: hsl(240 10% 3.9%);        /* 검은색 텍스트 */
+  --info-border: hsl(240 5.9% 10%);      /* 진한 회색 테두리 */
+  
+  /* ⚠️ 경고 알림 - 주황색 */
+  --warning-bg: hsl(47.9 95.8% 53.1%);   /* 노란색/주황색 배경 */
+  --warning-text: hsl(240 10% 3.9%);     /* 검은색 텍스트 */
+  --warning-border: hsl(47.9 95.8% 53.1%);
+}
+
+.dark {
+  /* 기본 알림 - 어두운 배경, 밝은 텍스트 */
+  --normal-bg: hsl(240 10% 19%);         /* 어두운 회색 */
+  --normal-text: hsl(0 0% 90.9%);        /* 밝은 회색 */
+  --normal-border: hsl(240 3.7% 15.9%);  /* 더 어두운 테두리 */
+  
+  /* ✅ 성공 알림 - 초록색 제거, 대신 노란색 테두리로 강조 */
+  --success-bg: hsl(240 10% 19%);        /* 어두운 회색 배경 */
+  --success-text: hsl(0 0% 90.9%);       /* 밝은 회색 텍스트 */
+  --success-border: hsl(47.9 95.8% 53.1%); /* 노란색 테두리! */
+  
+  /* ❌ 에러 알림 - 빨간색 유지 */
+  --error-bg: hsl(0 72.2% 50.6%);        /* 빨간색 배경 */
+  --error-text: hsl(0 0% 12.2%);         /* 어두운 텍스트 */
+  --error-border: hsl(0 72.2% 50.6%);    /* 빨간색 테두리 */
+  
+  /* ℹ️ 정보 알림 - 중립적, 노란색 테두리 */
+  --info-bg: hsl(240 10% 19%);
+  --info-text: hsl(0 0% 90.9%);
+  --info-border: hsl(47.9 95.8% 53.1%);  /* 노란색 테두리 */
+  
+  /* ⚠️ 경고 알림 - 주황색 */
+  --warning-bg: hsl(47.9 95.8% 53.1%);
+  --warning-text: hsl(240 10% 3.9%);
+  --warning-border: hsl(47.9 95.8% 53.1%);
+}
+
+/* Light mode 고정용 클래스 */
+.force-light-mode {
+  color-scheme: light;
+}
+
+/* 상단 알림이 모바일 상태바(시간, 배터리)와 겹치지 않도록 */
+[data-sonner-toaster][data-y-position="top"] {
+  top: calc(var(--safe-area-inset-top) + 1rem) !important;
+}
+
+/* 알림 스와이프 제스처 최적화 */
+[data-sonner-toast] {
+  touch-action: manipulation;         /* 세로 스크롤 허용 */
+  user-select: none;            /* 텍스트 선택 방지 */
+  -webkit-user-select: none;    /* iOS 텍스트 선택 방지 */
+}
+
+/* 알림 애니메이션 부드럽게 */
+[data-sonner-toast][data-mounted="true"] {
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);  /* 위에서 */
+    opacity: 0;                    /* 투명하게 시작 */
+  }
+  to {
+    transform: translateY(0);      /* 아래로 */
+    opacity: 1;                    /* 선명하게 끝 */
+  }
+}
+
+/* 다크모드/라이트모드 배경 블러 효과 */
+[data-sonner-toast] {
+  backdrop-filter: blur(8px);           /* 배경 흐림 */
+  -webkit-backdrop-filter: blur(8px);   /* iOS 배경 흐림 */
+}
+
+/* 동적 떠다니는 심볼용 클래스 */
+.floating-symbol {
+  position: absolute;
+  font-family: monospace;
+  left: var(--symbol-x, 0);
+  top: var(--symbol-y, 0);
+  font-size: var(--symbol-size, 16px);
+  animation: var(--symbol-animation, fadeInOut1 5s ease-in-out 0s infinite both);
+}
+
+/* 회전 애니메이션 커스텀 duration */
+.custom-spin-8s {
+  animation-duration: 8s;
+}
+
+.custom-spin-10s {
+  animation-duration: 10s;
+}
+
+.custom-spin-15s {
+  animation-duration: 15s;
+}
+
+/* Transform origin 커스텀 */
+.transform-origin-custom {
+  transform-origin: var(--transform-origin, center);
+}
+
+/* 역방향 애니메이션 */
+.animation-reverse {
+  animation-direction: reverse;
+}
+
+/* 동적 style 전용 컨테이너 */
+.dynamic-container {
+  left: var(--dynamic-left, auto);
+  top: var(--dynamic-top, auto);
+  right: var(--dynamic-right, auto);
+  bottom: var(--dynamic-bottom, auto);
+  width: var(--dynamic-width, auto);
+  height: var(--dynamic-height, auto);
+  transform: var(--dynamic-transform, none);
+  padding-bottom: var(--dynamic-padding-bottom, 0);
+}
+
+/* 기하학적 도형 애니메이션 커스텀 */
+.geometric-orbit-1 {
+  transform-origin: 0 64px;
+  animation-duration: 10s;
+}
+
+.geometric-orbit-2 {
+  transform-origin: 0 48px;
+  animation-duration: 15s;
+  animation-direction: reverse;
+}
+
+/* 🔥 스위치 강제 크기 조절 - 완벽한 비율 */
+
+/* 스위치 본체 */
+[data-slot="switch"] {
+  height: 16px !important;
+  width: 32px !important;
+  min-height: 16px !important;
+  min-width: 32px !important;
+  padding: 2px !important; /* 내부 여백 추가 */
+}
+
+/* 스위치 내부 하얀 동그라미 (Thumb) */
+[data-slot="switch-thumb"] {
+  width: 12px !important;
+  height: 12px !important;
+  min-width: 12px !important;
+  min-height: 12px !important;
+}
+
+/* ON 상태일 때 Thumb 위치 - 정밀 계산 */
+[data-slot="switch"][data-state="checked"] [data-slot="switch-thumb"] {
+  transform: translateX(16px) !important; /* 32px(전체) - 12px(Thumb) - 4px(padding) = 16px */
+}
+
+/* OFF 상태일 때 Thumb 위치 */
+[data-slot="switch"][data-state="unchecked"] [data-slot="switch-thumb"] {
+  transform: translateX(0px) !important;
+}
+
+/* 모바일 환경 (더 작게) */
+@media (max-width: 768px) {
+  [data-slot="switch"] {
+    height: 14px !important;
+    width: 28px !important;
+    padding: 0px !important;
+  }
+  
+  [data-slot="switch-thumb"] {
+    width: 10px !important;
+    height: 10px !important;
+  }
+  
+  [data-slot="switch"][data-state="checked"] [data-slot="switch-thumb"] {
+    transform: translateX(8px) !important; /* 28px - 10px - 4px = 14px */
+  }
+}
+
+/* 데스크톱 환경 (조금 크게) */
+@media (min-width: 769px) {
+  [data-slot="switch"] {
+    height: 18px !important;
+    width: 36px !important;
+    padding: 1px !important;
+  }
+  
+  [data-slot="switch-thumb"] {
+    width: 13px !important;
+    height: 14px !important;
+  }
+  
+  [data-slot="switch"][data-state="checked"] [data-slot="switch-thumb"] {
+    transform: translateX(8px) !important; /* 36px - 14px - 4px = 18px */
+  }
+}
+
+/* Radix UI 기본 transform 제거 */
+[data-slot="switch-thumb"] {
+  transition: transform 0.2s ease !important;
+}
+
+/* 부드러운 애니메이션 */
+[data-slot="switch"] {
+  transition: background-color 0.2s ease !important;
+}
+
+/* ============================
+   모바일에서 버튼 눌림 자국 제거 (강제 버전)
+   ============================ */
+@media (pointer: coarse) {
+  *:focus,
+  *:focus-visible {
+    /* 모든 포커스 테두리/하이라이트 숨기기 */
+    outline: none !important;
+    box-shadow: none !important;
+
+    /* Tailwind/shadcn ring 효과까지 완전 제거 */
+    --tw-ring-offset-width: 0 !important;
+    --tw-ring-color: transparent !important;
+    --tw-ring-offset-color: transparent !important;
+  }
+}
+

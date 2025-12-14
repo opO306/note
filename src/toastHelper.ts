@@ -1,0 +1,99 @@
+// src/toastHelper.ts
+
+import { toast as originalToast, type ExternalToast } from "sonner";
+
+/**
+ * 화면 알림 표시 여부를 localStorage에서 가져오기
+ */
+export function isToastEnabled(): boolean {
+    try {
+        if (typeof window === "undefined") return true;
+        const enabled = localStorage.getItem("toastEnabled");
+        return enabled === null ? true : enabled === "true";
+    } catch (_) { // 2. error 변수 대신 _ 사용 (사용하지 않음 명시)
+        return true;
+    }
+}
+
+export function setToastEnabled(enabled: boolean): void {
+    try {
+        if (typeof window === "undefined") return;
+        localStorage.setItem("toastEnabled", enabled.toString());
+    } catch (error) {
+        console.error("Failed to save toast setting:", error);
+    }
+}
+
+/**
+ * 래핑된 toast 객체
+ * ✨ [수정] 모든 메서드를 함수로 감싸서(Lazy), React 초기화 전에 호출되는 것을 방지함
+ */
+export const toast = {
+    success: (message: string | React.ReactNode, options?: ExternalToast) => {
+        if (isToastEnabled()) {
+            return originalToast.success(message, options);
+        }
+        return undefined;
+    },
+
+    error: (message: string | React.ReactNode, options?: ExternalToast) => {
+        // 에러는 설정 무시하고 항상 표시
+        return originalToast.error(message, options);
+    },
+
+    info: (message: string | React.ReactNode, options?: ExternalToast) => {
+        if (isToastEnabled()) {
+            return originalToast.info(message, options);
+        }
+        return undefined;
+    },
+
+    warning: (message: string | React.ReactNode, options?: ExternalToast) => {
+        // 경고는 설정 무시하고 항상 표시
+        return originalToast.warning(message, options);
+    },
+
+    message: (message: string | React.ReactNode, options?: ExternalToast) => {
+        if (isToastEnabled()) {
+            return originalToast.message(message, options);
+        }
+        return undefined;
+    },
+
+    // ✨ [수정] 직접 할당 대신 래퍼 함수 사용 (초기화 에러 방지 핵심)
+    promise: <T>(promise: Promise<T> | (() => Promise<T>), data?: any) => {
+        return originalToast.promise(promise, data);
+    },
+
+    loading: (message: string | React.ReactNode, options?: ExternalToast) => {
+        return originalToast.loading(message, options);
+    },
+
+    custom: (jsx: (id: number | string) => React.ReactNode, options?: ExternalToast) => {
+        if (isToastEnabled()) {
+            return originalToast.custom(jsx as any, options);
+        }
+        return undefined;
+    },
+
+    dismiss: (id?: number | string) => {
+        return originalToast.dismiss(id);
+    },
+};
+
+// 하위 호환성 함수들
+export function showSuccessToast(message: string): void {
+    toast.success(message);
+}
+
+export function showErrorToast(message: string): void {
+    toast.error(message);
+}
+
+export function showInfoToast(message: string): void {
+    toast.info(message);
+}
+
+export function showWarningToast(message: string): void {
+    toast.warning(message);
+}
