@@ -25,8 +25,8 @@ export { calcWeeklyStats } from "./weeklyStats";
 enableFirebaseTelemetry();
 
 const DELETED_USER_NAME = "탈퇴한 사용자";
-const REPORT_NEEDS_REVIEW_THRESHOLD = 3; // 검토 필요 상태로 변경되는 신고 수
-const REPORT_AUTO_HIDE_THRESHOLD = 5;    // 자동 숨김 처리되는 신고 수
+const REPORT_NEEDS_REVIEW_THRESHOLD = 1; // 검토 필요 상태로 변경되는 신고 수
+const REPORT_AUTO_HIDE_THRESHOLD = 10;    // 자동 숨김 처리되는 신고 수
 
 // ─────────────────────────────────────────────────────
 // 0. 공통 유틸리티 & 설정
@@ -112,7 +112,7 @@ async function containsProfanity(text?: string): Promise<boolean> {
 }
 
 // 2. Rate-limit (도배 방지)
-const RATE_LIMIT_MS = 2000;
+const RATE_LIMIT_MS = 5000;
 const RATE_LIMIT_COLLECTION = "rateLimits";
 
 async function checkRateLimit(uid: string, action: string) {
@@ -527,7 +527,7 @@ export const selectGuide = onCall({ region: "asia-northeast3" }, async (request)
     if (!auth) throw new HttpsError("unauthenticated", "로그인 필요");
     await checkRateLimit(auth.uid, "selectGuide");
     const { postId, replyId } = data as any;
-    const GUIDE_REWARD = 3;
+    const GUIDE_REWARD = 5;
 
     await db.runTransaction(async (transaction) => {
         const postRef = db.collection("posts").doc(postId);

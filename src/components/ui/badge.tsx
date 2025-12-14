@@ -1,3 +1,4 @@
+// src/components/ui/badge.tsx
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -25,22 +26,23 @@ const badgeVariants = cva(
   },
 );
 
-function Badge({
-  className,
-  variant,
-  asChild = false,
-  ...props
-}: React.ComponentProps<"span"> &
-  VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+// 🚨 [수정됨] forwardRef로 감싸고 ref를 전달하도록 변경
+const Badge = React.forwardRef<
+  HTMLSpanElement,
+  React.ComponentProps<"span"> & VariantProps<typeof badgeVariants> & { asChild?: boolean }
+>(({ className, variant, asChild = false, ...props }, ref) => {
   const Comp = asChild ? Slot : "span";
 
   return (
     <Comp
+      ref={ref}
       data-slot="badge"
       className={cn(badgeVariants({ variant }), className)}
       {...props}
     />
   );
-}
+});
+
+Badge.displayName = "Badge";
 
 export { Badge, badgeVariants };

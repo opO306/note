@@ -1,7 +1,7 @@
-// force deploy v3
+// functions/src/aiModeration.ts
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import { VertexAI } from "@google-cloud/vertexai"; // SDK import
+import { VertexAI } from "@google-cloud/vertexai";
 
 type TargetType = "post" | "reply";
 
@@ -23,15 +23,18 @@ interface AiModerationResponse {
     flags?: string[];
 }
 
-// ⚠️ 이제 API KEY나 복잡한 ENDPOINT 설정이 필요 없습니다.
-const PROJECT_ID = "dddd-e6a52"; // 본인 프로젝트 ID 확인 필요
-const LOCATION = "asia-northeast3";
-const MODEL_ID = "gemini-1.5-flash"; // 모델명 간소화
+// ✅ [핵심 설정]
+// 1. 프로젝트 ID
+const PROJECT_ID = "dddd-e6a52";
+// 2. 모델 위치: 최신 모델(Gemini 2.0) 사용을 위해 'us-central1' 유지
+const VERTEX_LOCATION = "us-central1";
+// 3. 모델명
+const MODEL_ID = "gemini-2.0-flash";
 
 export const aiModerationReview = onCall(
     {
+        // ✅ [수정] 함수는 다시 '서울'에서 실행 (DB/사용자와 가까운 곳)
         region: "asia-northeast3",
-        // secrets: [...] <-- 필요 없음
     },
     async (request): Promise<AiModerationResponse> => {
         // 1. 운영자 권한 확인
@@ -40,72 +43,63 @@ export const aiModerationReview = onCall(
             request.auth?.token?.admin === true;
 
         if (!isAdmin) {
-            throw new HttpsError("permission-denied", "운영자만 사용할 수 있습니다.");
+            throw new HttpsError("permission-denied", "운영자만 사용할 수 있는 기능입니다.");
         }
 
-        const { targetType, title, content, reasons, details } = request.data as AiModerationRequest || {};
-
-        if (!targetType || (targetType !== "post" && targetType !== "reply")) {
-            throw new HttpsError("invalid-argument", "targetType이 잘못되었습니다.");
-        }
-        if (!content || typeof content !== "string") {
-            throw new HttpsError("invalid-argument", "content가 비어 있습니다.");
+        const data = request.data as AiModerationRequest;
+        if (!data.content) {
+            throw new HttpsError("invalid-argument", "검사할 내용(content)이 없습니다.");
         }
 
-        // 2. 프롬프트 구성
-        const userPrompt = [
-            `다음 신고된 콘텐츠를 검토하고 JSON 형식으로만 응답하세요.`,
-            ``,
-            `필수 출력 필드:`,
-            `- summary: 2~3문장 요약`,
-            `- recommendation: "reject" | "needs_review" | "action_needed" 중 하나 (무효/보류/조치 필요)`,
-            `- riskScore: 0~1 사이 실수 (높을수록 문제 가능성 높음)`,
-            `- rationale: 판단 근거 1~2문장`,
-            `- flags: 감지된 위험 키워드 문자열 배열 (없으면 빈 배열)`,
-            ``,
-            `콘텐츠 타입: ${targetType}`,
-            title ? `제목: ${title}` : ``,
-            `본문: ${content}`,
-            reasons && reasons.length ? `신고 사유: ${reasons.join(", ")}` : `신고 사유: 없음`,
-            details ? `신고 상세: ${details}` : `신고 상세: 없음`,
-            ``,
-            `JSON 외에 마크다운 코드 블록(\`\`\`json)이나 다른 설명은 포함하지 마세요.`,
-        ].filter(Boolean).join("\n");
+        logger.info(`[aiModeration] 요청 수신 (Region: Seoul / Model: US) - ${data.targetType}`, { uid: request.auth?.uid });
 
         try {
-            // 3. Vertex AI SDK 초기화 (API Key 불필요)
+            // 2. Vertex AI 초기화 (모델은 US 리전 사용)
             const vertex_ai = new VertexAI({
                 project: PROJECT_ID,
-                location: LOCATION,
+                location: VERTEX_LOCATION // "us-central1"
             });
 
+            // 3. 모델 설정
             const model = vertex_ai.getGenerativeModel({
                 model: MODEL_ID,
                 generationConfig: {
-                    temperature: 0, // 일관된 판단을 위해 0으로 설정
-                    maxOutputTokens: 500,
-                    responseMimeType: "application/json", // JSON 모드 강제
-                },
+                    maxOutputTokens: 1000,
+                    temperature: 0.2,
+                    responseMimeType: "application/json"
+                }
             });
 
-            // 4. 생성 요청
-            const result = await model.generateContent(userPrompt);
-            const response = result.response;
-            let rawText = "";
-
-            if (response.candidates && response.candidates.length > 0) {
-                rawText = response.candidates[0].content.parts[0].text || "";
+            // 4. 프롬프트 구성
+            const prompt = `
+            You are a strict content moderator for a community app.
+            Analyze the following content and provide a JSON response.
+            
+            Content Type: ${data.targetType}
+            Title: ${data.title || "N/A"}
+            Content: ${data.content}
+            
+            Output JSON format:
+            {
+                "summary": "Brief summary of the content in Korean",
+                "recommendation": "reject" | "needs_review" | "action_needed" (approve is not needed here, default is keep),
+                "riskScore": 0.0 to 1.0 (1.0 is highest risk),
+                "rationale": "Explanation in Korean",
+                "flags": ["profanity", "harassment", "spam", "hate_speech", "sexual"] (select applicable)
             }
+            `;
+
+            const result = await model.generateContent(prompt);
+            const response = result.response;
+            const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
             if (!rawText) {
                 logger.error("[aiModeration] AI 응답 비어있음");
                 throw new HttpsError("internal", "AI 응답을 받을 수 없습니다.");
             }
 
-            // 5. JSON 파싱 및 응답 구성
-            // (JSON 모드를 썼지만 혹시 모를 마크다운 제거 처리)
+            // 5. JSON 파싱
             const jsonStr = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-
             let parsed: any;
             try {
                 parsed = JSON.parse(jsonStr);
@@ -128,9 +122,8 @@ export const aiModerationReview = onCall(
 
             return responsePayload;
 
-        } catch (error) {
+        } catch (error: any) {
             logger.error("[aiModeration] 처리 실패", error);
-            if (error instanceof HttpsError) throw error;
             throw new HttpsError("internal", "AI 검수 중 오류가 발생했습니다.");
         }
     }
