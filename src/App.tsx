@@ -4,17 +4,15 @@ import type { PluginListenerHandle } from "@capacitor/core";
 import { signOut } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
 import { auth } from "./firebase";
-import { useAppInitialization } from "@/components/hooks/useAppInitialization"; // 🔹 로컬 스토리지 헬퍼 제거됨
+import { useAppInitialization } from "@/components/hooks/useAppInitialization";
 import { completeOnboardingServer, setNicknameServer } from "@/core/userRepository";
 
-// Screens - 동기 import (작은 스크린들)
+// Screens - 동기 import
 import { LoginScreen } from "@/components/LoginScreen";
 import { NicknameScreen } from "@/components/NicknameScreen";
-
-// Screens - MainScreen은 항상 필요하므로 즉시 로딩
 import { MainScreenRefactored as MainScreen } from '@/components/MainScreen/MainScreenRefactored';
 
-// Screens - Lazy loading (큰 스크린들)
+// Screens - Lazy loading
 const CommunityGuidelinesScreen = lazy(() => import("./components/CommunityGuidelinesScreen").then(m => ({ default: m.CommunityGuidelinesScreen })));
 const WelcomeScreen = lazy(() => import("./components/WelcomeScreen").then(m => ({ default: m.WelcomeScreen })));
 const PrivacyPolicyScreen = lazy(() => import("./components/PrivacyPolicyScreen").then(m => ({ default: m.PrivacyPolicyScreen })));
@@ -45,7 +43,6 @@ type AppScreen =
   | "attributions";
 
 export default function App() {
-  // 🔹 커스텀 훅 사용: 인증 및 초기화 로직 위임
   const {
     isLoading,
     initialScreen,
@@ -54,20 +51,24 @@ export default function App() {
     resetAuthState
   } = useAppInitialization();
 
-  // 화면 상태
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("login");
   const [userNickname, setUserNickname] = useState("");
   const [userProfileImage, setUserProfileImage] = useState("");
+  const [isTransitioning, setIsTransitioning] = useState(false); // 🔹 추가: 로그인 직후 로딩 강제
+
   const previousScreenRef = useRef<AppScreen>("login");
   const screenHistoryRef = useRef<AppScreen[]>([]);
   const isNavigatingBackRef = useRef(false);
+  const isOnboardingRef = useRef(false);
 
-  // 훅에서 가져온 초기 데이터 반영
+  // 초기화 및 화면 전환 로직
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && !isOnboardingRef.current) {
       setCurrentScreen(initialScreen as AppScreen);
       setUserNickname(userData.nickname);
       setUserProfileImage(userData.profileImage);
+      // 화면이 전환되면 트랜지션 로딩 해제
+      setIsTransitioning(false);
     }
   }, [isLoading, initialScreen, userData]);
 
@@ -75,21 +76,19 @@ export default function App() {
   useEffect(() => {
     if (globalError) {
       toast.error(globalError);
+      setIsTransitioning(false); // 에러 시 로딩 해제
     }
   }, [globalError]);
 
-  // 기타 UI 상태
   const [legalBackTarget, setLegalBackTarget] = useState<AppScreen>("login");
   const [shouldOpenMyPageOnMain, setShouldOpenMyPageOnMain] = useState(false);
   const [shouldOpenSettingsOnMyPage, setShouldOpenSettingsOnMyPage] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
-  // Ref for BackButton Handler
   const currentScreenRef = useRef<AppScreen>(currentScreen);
   useEffect(() => { currentScreenRef.current = currentScreen; }, [currentScreen]);
 
-  // 화면 이동 이력 관리: 뒤로가기는 스택 역순으로 처리
   useEffect(() => {
     if (isNavigatingBackRef.current) {
       isNavigatingBackRef.current = false;
@@ -103,20 +102,14 @@ export default function App() {
     previousScreenRef.current = currentScreen;
   }, [currentScreen]);
 
-  // Online Status & Dark Mode
   useOnlineStatus();
 
   useEffect(() => {
-    // 다크모드 초기화 (단순 설정값은 localStorage 사용해도 무방)
     const savedDarkMode = localStorage.getItem("darkMode");
     const isDark = savedDarkMode !== null ? savedDarkMode === "true" : true;
     setIsDarkMode(isDark);
     document.documentElement.classList.toggle("dark", isDark);
   }, []);
-
-  // ==========================================
-  // 📍 핸들러 함수들
-  // ==========================================
 
   const toggleDarkMode = useCallback(() => {
     setIsDarkMode((prev) => {
@@ -127,82 +120,74 @@ export default function App() {
     });
   }, []);
 
-  // App.tsx
   const handleRestart = useCallback(() => {
+    setIsTransitioning(false);
     resetAuthState();
   }, [resetAuthState]);
-
-  // App.tsx 내부
 
   const handleNicknameComplete = useCallback(async (nickname: string) => {
     try {
       if (!auth.currentUser) throw new Error("NOT_AUTHENTICATED");
 
-      // 1. 서버(Firestore)에 저장
-      // (NicknameScreen에서 이미 저장했으므로, 여기서는 중복 호출일 수 있지만 안전하게 둡니다)
-      // 만약 NicknameScreen에서 다 했다면 이 줄은 주석 처리해도 됩니다.
-      // await setNicknameServer(nickname); 
+      const trimmed = nickname.trim();
 
-      // 2. 로컬 상태 즉시 반영
-      setUserNickname(nickname);
+      // 1) 로컬 상태 반영
+      setUserNickname(trimmed);
 
-      // 3. 바로 다음 화면으로 이동
-      // "guidelines" (가이드라인) 또는 바로 "main" (메인)
-      setCurrentScreen("main");
+      // 2) 서버(클라우드 함수)로 닉네임 저장 (이게 핵심)
+      isOnboardingRef.current = true;
+      await setNicknameServer(trimmed);
 
-    } catch (error) {
+      // 3) 다음 화면으로 이동
+      // 현재 앱 구조상: nickname -> guidelines -> welcome 흐름이 이미 깔려있습니다.
+      setCurrentScreen("guidelines");
+
+      setTimeout(() => {
+        isOnboardingRef.current = false;
+      }, 300);
+    } catch (error: any) {
       console.error("[App] 닉네임 완료 처리 실패:", error);
-      toast.error("오류가 발생했습니다.");
+      toast.error(error?.message || "닉네임 저장에 실패했습니다.");
+      isOnboardingRef.current = false;
     }
   }, []);
 
   const handleGuidelinesComplete = useCallback(async () => {
     try {
+      isOnboardingRef.current = true;
       await completeOnboardingServer();
       setCurrentScreen("welcome");
+      setTimeout(() => {
+        isOnboardingRef.current = false;
+      }, 1000);
     } catch (error) {
       console.error("[App] 온보딩 완료 처리 실패:", error);
       toast.error("온보딩 완료 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      isOnboardingRef.current = false;
     }
   }, []);
 
-  // 프로필 이미지 변경 (즉시 반영 + 서버 업로드)
   const handleProfileImageChange = useCallback((file: File) => {
-    // 1. 즉시 미리보기 (로컬 상태에만 반영하고 localStorage에는 저장 X)
     const reader = new FileReader();
     reader.onload = (e) => {
       const previewUrl = e.target?.result as string;
-      if (previewUrl) {
-        setUserProfileImage(previewUrl);
-        // ⚠️ Base64는 너무 길어서 localStorage 용량을 초과할 수 있으므로 저장하지 않음
-      }
+      if (previewUrl) setUserProfileImage(previewUrl);
     };
     reader.readAsDataURL(file);
-
-    // 2. 백그라운드 업로드 후 최종 URL만 저장 (Firestore에 이미 저장됨)
     uploadAndUpdateProfileImage(file).then(finalUrl => {
       setUserProfileImage(finalUrl);
-      // 프로필 이미지는 Firestore에만 저장 (로컬 스토리지 사용 안 함)
     }).catch(error => {
       console.error("프로필 이미지 업로드 실패:", error);
       toast.error("이미지 업로드에 실패했습니다.");
-      // 실패 시 원래 이미지로 되돌리거나, 재시도 안내가 필요할 수 있음
-      // 여기선 현재 상태 유지 (미리보기 상태로 남을 수 있음 -> 새로고침하면 복구됨)
     });
   }, []);
 
-  // ==========================================
-  // 📍 뒤로가기 로직 (간소화됨)
-  // ==========================================
   useEffect(() => {
-    if (currentScreen === "main") return; // MainScreen 내부에서 처리
-
+    if (currentScreen === "main") return;
     let backListener: PluginListenerHandle;
     const setupListener = async () => {
       backListener = await CapacitorApp.addListener("backButton", () => {
         const screen = currentScreenRef.current;
-
-        // 1순위: 스택 기반 역순 이동
         const history = screenHistoryRef.current;
         const prev = history.pop();
         if (prev) {
@@ -210,16 +195,14 @@ export default function App() {
           setCurrentScreen(prev);
           return;
         }
-
         if (screen === "login" || screen === "guidelines") {
           setShowExitConfirm(true);
         } else if (screen === "privacy" || screen === "terms") {
           setCurrentScreen(legalBackTarget);
         } else if (screen === "openSourceLicenses" || screen === "attributions") {
-          // 오픈소스/저작권 안내는 하드웨어 뒤로가기를 눌러도 메인으로 복귀
           setCurrentScreen("main");
         } else if (screen === "nickname") {
-          handleRestart(); // 로그아웃 처리
+          handleRestart();
         } else if (screen === "welcome") {
           setCurrentScreen("guidelines");
         }
@@ -229,22 +212,20 @@ export default function App() {
     return () => { backListener?.remove(); };
   }, [currentScreen, legalBackTarget, handleRestart]);
 
-
-  // ==========================================
-  // 📍 렌더링
-  // ==========================================
-  if (isLoading) {
+  // 🔹 로딩 화면: 초기화 로딩 또는 로그인 직후 화면 전환 대기 중일 때 표시
+  if (isLoading || isTransitioning) {
     return (
       <div className={`w-full h-screen flex items-center justify-center ${isDarkMode ? "dark bg-background" : "bg-white"}`}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-          <p className="text-sm text-muted-foreground">로딩 중...</p>
+          <p className="text-sm text-muted-foreground">
+            {isTransitioning ? "로그인 확인 중..." : "로딩 중..."}
+          </p>
         </div>
       </div>
     );
   }
 
-  // 로딩 폴백 컴포넌트
   const ScreenFallback = () => (
     <div className="w-full h-screen flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
@@ -256,11 +237,21 @@ export default function App() {
 
       {currentScreen === "login" && (
         <LoginScreen
-          //onGoogleLogin={handleGoogleLogin}
           onShowTerms={() => { setLegalBackTarget("login"); setCurrentScreen("terms"); }}
           onShowPrivacy={() => { setLegalBackTarget("login"); setCurrentScreen("privacy"); }}
           isDarkMode={isDarkMode}
           onToggleDarkMode={toggleDarkMode}
+          onLoginSuccess={() => {
+            console.log("🚀 [App] 로그인 성공 신호 받음 -> 리셋 실행");
+            // 1. 로딩 화면 띄우기
+            setIsTransitioning(true);
+
+            // 2. 중요: 상태 훅이 반응하지 않을 경우를 대비해 
+            // 강제로 인증 상태를 리셋하여 useAppInitialization이 다시 돌게 함
+            setTimeout(() => {
+              handleRestart(); // resetAuthState() 호출 -> 초기화 로직 재실행
+            }, 100);
+          }}
         />
       )}
 
@@ -268,7 +259,7 @@ export default function App() {
         <NicknameScreen
           onBack={handleRestart}
           onComplete={handleNicknameComplete}
-          userEmail={userData.email} // 훅에서 가져온 이메일
+          userEmail={userData.email}
           isDarkMode={isDarkMode}
           onToggleDarkMode={toggleDarkMode}
         />
@@ -307,8 +298,6 @@ export default function App() {
           isDarkMode={isDarkMode}
           onToggleDarkMode={toggleDarkMode}
           onRequestExit={() => setShowExitConfirm(true)}
-
-          // 약관/정책 화면 이동
           onShowTerms={() => {
             setLegalBackTarget("main");
             setShouldOpenMyPageOnMain(true);
@@ -331,8 +320,6 @@ export default function App() {
             setShouldOpenSettingsOnMyPage(true);
             setCurrentScreen("attributions");
           }}
-
-          // 상태 전달
           shouldOpenMyPageOnMain={shouldOpenMyPageOnMain}
           shouldOpenSettingsOnMyPage={shouldOpenSettingsOnMyPage}
           onMainScreenReady={() => setShouldOpenMyPageOnMain(false)}
@@ -340,7 +327,6 @@ export default function App() {
         />
       )}
 
-      {/* 약관 및 정보 화면들 */}
       {currentScreen === "privacy" && (
         <Suspense fallback={<ScreenFallback />}>
           <PrivacyPolicyScreen onBack={() => setCurrentScreen(legalBackTarget)} />
@@ -362,7 +348,6 @@ export default function App() {
         </Suspense>
       )}
 
-      {/* 오프라인 표시 */}
       {currentScreen === "main" && (
         <Suspense fallback={null}>
           <OfflineIndicator position="top" variant="toast" showReconnectButton={true} />

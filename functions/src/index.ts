@@ -630,6 +630,7 @@ async function updatePostsWithRepliesForDeletedUser(
         // 1. 게시글 자체의 작성자 정보 변경 준비
         const updates: any = {
             authorUid: null,
+            author: deletedName, // UI에서 사용하는 필드도 업데이트
             authorNickname: deletedName,
             authorDeleted: true
         };
@@ -646,6 +647,7 @@ async function updatePostsWithRepliesForDeletedUser(
                     hasChanges = true;
                     return {
                         ...reply,
+                        author: deletedName, // UI에서 사용하는 필드도 업데이트
                         authorNickname: deletedName, // 닉네임 덮어쓰기
                         authorDeleted: true
                     };
@@ -766,16 +768,61 @@ export const spendLumens = onCall({ region: "asia-northeast3" }, async (request)
 });
 
 export const checkRejoinAllowed = onCall({ region: "asia-northeast3" }, async (request) => {
+    // 1. 호출 로그 찍기 (함수가 실행되는지 확인용)
     const email = (request.data as any).email;
-    if (!email) throw new HttpsError("invalid-argument", "이메일 필요");
-    const hash = crypto.createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
-    const snap = await db.collection("deletedEmails").doc(hash).get();
+    logger.info(`[checkRejoinAllowed] 요청 수신: ${email}`);
 
-    if (!snap.exists) return { allowed: true, remainingDays: 0 };
-    const data = snap.data() as any;
-    const diffDays = (new Date().getTime() - data.deletedAt.toDate().getTime()) / (1000 * 3600 * 24);
-    if (diffDays >= (data.cooldownDays || 7)) return { allowed: true, remainingDays: 0 };
-    throw new HttpsError("failed-precondition", "쿨타임 중", { remainingDays: Math.ceil((data.cooldownDays || 7) - diffDays) });
+    if (!email) {
+        throw new HttpsError("invalid-argument", "이메일 필요");
+    }
+
+    try {
+        const hash = crypto.createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
+        const snap = await db.collection("deletedEmails").doc(hash).get();
+
+        // 2. 기록이 없으면 -> 재가입 허용
+        if (!snap.exists) {
+            logger.info(`[checkRejoinAllowed] 기록 없음 -> 허용`);
+            return { allowed: true, remainingDays: 0 };
+        }
+
+        const data = snap.data() as any;
+
+        // 3. 데이터 손상 방어 (deletedAt 필드가 없는 경우 등)
+        if (!data || !data.deletedAt) {
+            logger.warn(`[checkRejoinAllowed] 데이터 손상(deletedAt 없음) -> 안전하게 허용`);
+            return { allowed: true, remainingDays: 0 };
+        }
+
+        // 4. 날짜 계산
+        const deletedTime = data.deletedAt.toDate ? data.deletedAt.toDate().getTime() : new Date(data.deletedAt).getTime();
+        const diffDays = (new Date().getTime() - deletedTime) / (1000 * 3600 * 24);
+
+        // 쿨타임 (기본값 30일로 설정, DB에 없으면 7일)
+        const cooldownDays = data.cooldownDays || 30;
+
+        if (diffDays >= cooldownDays) {
+            logger.info(`[checkRejoinAllowed] 쿨타임 지남(${diffDays.toFixed(1)}일) -> 허용`);
+            return { allowed: true, remainingDays: 0 };
+        }
+
+        const remaining = Math.ceil(cooldownDays - diffDays);
+        logger.info(`[checkRejoinAllowed] 쿨타임 중 -> 거부 (남은기간: ${remaining}일)`);
+
+        throw new HttpsError("failed-precondition", "쿨타임 중", { remainingDays: remaining });
+
+    } catch (error: any) {
+        // 이미 HttpsError라면 그대로 던짐 (클라이언트에 전달)
+        if (error instanceof HttpsError) throw error;
+
+        // 예상치 못한 서버 에러
+        logger.error(`[checkRejoinAllowed] 서버 내부 오류`, error);
+
+        // 🚨 중요: 서버 에러가 나더라도 사용자가 영원히 로그인 못하는 걸 막기 위해 
+        // 에러를 던지는 대신 '허용'을 리턴하는 전략을 쓸 수도 있습니다.
+        // 여기서는 안전하게 에러를 던지되 로그를 남깁니다.
+        throw new HttpsError("internal", "재가입 확인 중 서버 오류 발생");
+    }
 });
 
 export const toggleLantern = onCall({ region: "asia-northeast3" }, async (request) => {
@@ -797,7 +844,7 @@ export const toggleLantern = onCall({ region: "asia-northeast3" }, async (reques
         if (exists) {
             tx.delete(lanternRef);
             // 등불 카운트 감소 (lanterns와 lanternCount 둘 다 업데이트)
-            tx.update(postRef, { 
+            tx.update(postRef, {
                 lanterns: admin.firestore.FieldValue.increment(-1),
                 lanternCount: admin.firestore.FieldValue.increment(-1)
             });
@@ -827,7 +874,7 @@ export const toggleLantern = onCall({ region: "asia-northeast3" }, async (reques
         } else {
             tx.set(lanternRef, { postId, createdAt: admin.firestore.FieldValue.serverTimestamp() });
             // 등불 카운트 증가 (lanterns와 lanternCount 둘 다 업데이트)
-            tx.update(postRef, { 
+            tx.update(postRef, {
                 lanterns: admin.firestore.FieldValue.increment(1),
                 lanternCount: admin.firestore.FieldValue.increment(1)
             });

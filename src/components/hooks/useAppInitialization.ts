@@ -89,13 +89,19 @@ export function useAppInitialization(): UseAppInitializationReturn {
                         // 쿨타임이 지나서 들어온 경우라면, 기존 '탈퇴한 사용자' 데이터를 덮어써야 합니다.
                         if (data.isDeleted) {
                             console.log("♻️ [Self-Heal] 탈퇴 후 복귀한 유저입니다. 계정을 초기화합니다.");
-                            dbNickname = authNickname;
+                            // 탈퇴 후 복귀 시: "탈퇴한 사용자"는 유효한 닉네임이 아니므로 닉네임 화면으로 보내기
+                            const firestoreNickname = data.nickname || "";
+                            if (firestoreNickname === "탈퇴한 사용자" || firestoreNickname.trim() === "") {
+                                dbNickname = ""; // 닉네임 화면으로 보내기
+                            } else {
+                                dbNickname = firestoreNickname;
+                            }
                             onboardingComplete = false; // 다시 온보딩 받도록 설정
 
                             // 유저 문서를 새 정보로 덮어쓰기 (isDeleted 플래그 제거)
                             await setDoc(userDocRef, {
-                                nickname: authNickname,
-                                nicknameLower: authNickname.toLowerCase(),
+                                nickname: data.nickname || "", // 기존 닉네임 유지, 없으면 빈 문자열
+                                nicknameLower: (data.nickname || "").toLowerCase(),
                                 email: user.email,
                                 photoURL: authPhoto,
                                 isDeleted: false, // 👈 중요: 탈퇴 상태 해제
@@ -103,32 +109,28 @@ export function useAppInitialization(): UseAppInitializationReturn {
                                 onboardingComplete: false
                             }, { merge: true });
                         } else {
-                            // 정상 유저
-                            dbNickname = data.nickname || "";
-                            onboardingComplete = data.onboardingComplete === true;
+                            // 정상 유저 - Firestore의 닉네임만 사용 (Auth displayName 무시)
+                            // "탈퇴한 사용자"는 유효한 닉네임이 아니므로 빈 문자열로 처리
+                            const firestoreNickname = data.nickname || "";
+                            if (firestoreNickname === "탈퇴한 사용자" || firestoreNickname.trim() === "") {
+                                dbNickname = ""; // 닉네임 화면으로 보내기
+                                onboardingComplete = false;
+                            } else {
+                                dbNickname = firestoreNickname;
+                                onboardingComplete = data.onboardingComplete === true;
+                            }
                         }
 
-                        // 닉네임 누락 자동 복구
+                        // 닉네임 누락 자동 복구 (Auth displayName이 있고 Firestore에 없을 때만)
                         if (!dbNickname && authNickname) {
-                            dbNickname = authNickname;
-                            setDoc(userDocRef, {
-                                nickname: authNickname,
-                                nicknameLower: authNickname.toLowerCase(),
-                                updatedAt: serverTimestamp()
-                            }, { merge: true });
+                            // Auth에만 있고 Firestore에 없으면 닉네임 화면으로 보내기 위해 빈 문자열 유지
+                            // 자동 복구는 하지 않음 (사용자가 직접 설정하도록)
+                            console.log("⚠️ Firestore에 닉네임이 없지만 Auth에 displayName이 있습니다. 닉네임 화면으로 이동합니다.");
                         }
-                    } else if (authNickname) {
-                        // 문서 없음 (신규)
-                        console.log("🆕 신규 유저 생성");
-                        dbNickname = authNickname;
-                        await setDoc(userDocRef, {
-                            nickname: authNickname,
-                            nicknameLower: authNickname.toLowerCase(),
-                            email: user.email,
-                            photoURL: authPhoto,
-                            createdAt: serverTimestamp(),
-                            onboardingComplete: false
-                        }, { merge: true });
+                    } else {
+                        // 문서 없음 (신규) - Auth displayName이 있어도 무시하고 닉네임 화면으로 보내기
+                        console.log("🆕 신규 유저 - Firestore 문서 없음. 닉네임 화면으로 이동합니다.");
+                        dbNickname = ""; // 빈 문자열로 설정하여 닉네임 화면으로 이동
                     }
 
                     // 상태 업데이트

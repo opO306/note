@@ -71,11 +71,11 @@ export async function completeOnboardingServer(): Promise<void> {
         throw new Error("로그인이 필요합니다.");
     }
 
-    // updateDoc을 사용하여 onboardingComplete 필드만 true로 변경
-    await updateDoc(doc(db, "users", user.uid), {
+    // setDoc with merge: true를 사용하여 문서가 없어도 생성하고, 있으면 업데이트
+    await setDoc(doc(db, "users", user.uid), {
         onboardingComplete: true,
         updatedAt: serverTimestamp(),
-    });
+    }, { merge: true });
 }
 
 // 내부 유틸: 닉네임으로 유저 찾기

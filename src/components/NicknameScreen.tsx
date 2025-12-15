@@ -206,9 +206,6 @@ export function NicknameScreen({
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
-      // [중요 3] 강제로 유저 상태 새로고침 (확실하게 하기 위함)
-      await user.reload();
-
       // 4. 완료 처리
       setShowConfirmPopup(false);
 

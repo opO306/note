@@ -1499,7 +1499,7 @@ function MainScreenInner({
         <div className="absolute inset-0 z-30 bg-background">
           <Suspense fallback={<ScreenFallback />}>
             <div className="w-full h-full flex flex-col">
-              <div className="flex-1 overflow-y-auto scrollbar-hide">
+              <div className="flex-1 min-h-0 overflow-hidden">
                 <TitleShop
                   onBack={handleLayerBack}
                   userLumens={lumenBalance}

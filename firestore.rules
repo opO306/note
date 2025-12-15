@@ -80,7 +80,7 @@ service cloud.firestore {
     match /postViews/{viewId} {
       allow read, write: if isSignedIn();
     }
-
+    
     // 10. 주간 통계 (weekly_stats)
     // - 로그인한 모든 유저가 읽을 수 있음 (랭킹 공개)
     // - 쓰기는 Cloud Functions만 가능

@@ -2,7 +2,6 @@ import React, { useMemo, useState, useCallback } from "react";
 import { Capacitor } from "@capacitor/core";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { Moon, Sun, Loader2 } from "lucide-react";
-// 👇 [중요] 여기서 이미 GoogleAuthProvider를 가져왔습니다.
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import { auth, functions } from "../firebase";
@@ -56,6 +55,8 @@ interface LoginScreenProps {
   onShowPrivacy: () => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
+  // 👇 [추가] 로그인 성공 시 부모에게 알리기 위한 콜백
+  onLoginSuccess?: () => void;
 }
 
 export function LoginScreen({
@@ -63,6 +64,7 @@ export function LoginScreen({
   onShowPrivacy,
   isDarkMode,
   onToggleDarkMode,
+  onLoginSuccess,
 }: LoginScreenProps) {
   const floatingSymbols = useMemo<FloatingSymbolData[]>(() => {
     return Array.from({ length: 30 }, (_, i) => ({
@@ -80,7 +82,13 @@ export function LoginScreen({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleGoogleLogin = useCallback(async () => {
-    if (!agreedToTerms || isLoggingIn) return;
+    // 1. 약관 동의 및 중복 클릭 방지
+    if (!agreedToTerms) {
+      toast.error("약관에 동의해주세요.");
+      return;
+    }
+    if (isLoggingIn) return;
+
     setIsLoggingIn(true);
 
     // 재가입 제한 확인 함수
@@ -91,6 +99,7 @@ export function LoginScreen({
       const email = userCredential.user.email;
       if (email) {
         try {
+          // ⚠️ 만약 여기서 무한 로딩이 걸린다면 이 줄을 주석 처리해보세요.
           await checkRejoinAllowed({ email });
         } catch (e: any) {
           if (e.code === 'functions/failed-precondition') {
@@ -98,27 +107,26 @@ export function LoginScreen({
             const days = e.details?.remainingDays || 0;
             throw new Error(`탈퇴 후 ${days}일 동안은 재가입할 수 없습니다.`);
           }
-          console.error("재가입 확인 중 에러:", e);
+          console.error("재가입 확인 중 에러 (무시하고 진행):", e);
         }
       }
     };
 
     try {
       if (Capacitor.isNativePlatform()) {
+        // --- 네이티브 로그인 ---
         try {
-          // 1. 네이티브 구글 로그인
           const result = await FirebaseAuthentication.signInWithGoogle();
           const idToken = result.credential?.idToken;
 
           if (idToken) {
-            // 👇 여기서 상단의 GoogleAuthProvider를 사용합니다. (에러 해결됨)
             const credential = GoogleAuthProvider.credential(idToken);
-
-            // 2. Firebase 로그인
             const userCred = await signInWithCredential(auth, credential);
 
-            // 3. 재가입 제한 확인
             await validateAndSignIn(userCred);
+
+            // 성공: 로딩 끄지 않음 (App.tsx가 화면 전환할 때까지 대기)
+            if (onLoginSuccess) onLoginSuccess();
             return;
           }
           throw new Error("No ID token found in native login result");
@@ -131,23 +139,26 @@ export function LoginScreen({
         }
       }
 
-      // 웹 환경 (또는 네이티브 실패 시 폴백)
-      // 🚨 [수정됨] 여기서 GoogleAuthProvider를 중복 선언하지 않고 signInWithPopup만 가져옵니다.
+      // --- 웹 로그인 (또는 네이티브 폴백) ---
       const { signInWithPopup } = await import("firebase/auth");
-      const provider = new GoogleAuthProvider(); // 상단 import 사용
+      const provider = new GoogleAuthProvider();
 
       const userCred = await signInWithPopup(auth, provider);
       await validateAndSignIn(userCred);
 
+      // 성공: 로딩 끄지 않음
+      if (onLoginSuccess) onLoginSuccess();
+
     } catch (err: any) {
       console.error("[LoginScreen] 로그인 실패:", err);
+      // 실패했을 때만 로딩 상태 해제
+      setIsLoggingIn(false);
+
       if (err.code !== 'auth/popup-closed-by-user' && !err.message?.includes('cancelled')) {
         toast.error(err.message || "로그인 중 오류가 발생했습니다.");
       }
-    } finally {
-      setIsLoggingIn(false);
     }
-  }, [agreedToTerms, isLoggingIn]);
+  }, [agreedToTerms, isLoggingIn, onLoginSuccess]);
 
   const handleTermsChange = useCallback((checked: boolean | string) => {
     const value = Boolean(checked);

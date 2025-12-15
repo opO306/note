@@ -383,4 +383,5 @@ export function TermsOfServiceScreen({ onBack }: TermsOfServiceScreenProps) {
       </div>
     </div>
   );
+
 }
