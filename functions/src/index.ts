@@ -411,10 +411,50 @@ export const onReportStatusChanged = onDocumentUpdated(
 
             // 1. 신뢰도 업데이트 (작성자 -10, 신고자 +1)
             if (targetAuthorUid) {
-                await updateTrustScore(tx, targetAuthorUid, -10, "report_confirmed_penalty");
+                // 트랜잭션 내에서 직접 신뢰도 업데이트
+                const targetUserRef = db.collection("users").doc(targetAuthorUid);
+                const targetUserSnap = await tx.get(targetUserRef);
+                if (targetUserSnap.exists) {
+                    const targetUserData = targetUserSnap.data();
+                    const currentScore = typeof targetUserData?.trustScore === "number" ? targetUserData.trustScore : 30;
+                    const newScore = Math.max(0, Math.min(100, currentScore - 10));
+                    if (currentScore !== newScore) {
+                        tx.update(targetUserRef, {
+                            trustScore: newScore,
+                            trustLogs: admin.firestore.FieldValue.arrayUnion({
+                                id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                                delta: -10,
+                                reason: "report_confirmed_penalty",
+                                prevScore: currentScore,
+                                newScore,
+                                createdAt: new Date(),
+                            })
+                        });
+                    }
+                }
             }
             if (reporterUid) {
-                await updateTrustScore(tx, reporterUid, 1, "report_confirmed_reward");
+                // 트랜잭션 내에서 직접 신뢰도 업데이트
+                const reporterUserRef = db.collection("users").doc(reporterUid);
+                const reporterUserSnap = await tx.get(reporterUserRef);
+                if (reporterUserSnap.exists) {
+                    const reporterUserData = reporterUserSnap.data();
+                    const currentScore = typeof reporterUserData?.trustScore === "number" ? reporterUserData.trustScore : 30;
+                    const newScore = Math.max(0, Math.min(100, currentScore + 1));
+                    if (currentScore !== newScore) {
+                        tx.update(reporterUserRef, {
+                            trustScore: newScore,
+                            trustLogs: admin.firestore.FieldValue.arrayUnion({
+                                id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                                delta: 1,
+                                reason: "report_confirmed_reward",
+                                prevScore: currentScore,
+                                newScore,
+                                createdAt: new Date(),
+                            })
+                        });
+                    }
+                }
             }
 
             // 2. 콘텐츠 숨김 처리 (hidden: true)
@@ -756,15 +796,63 @@ export const toggleLantern = onCall({ region: "asia-northeast3" }, async (reques
 
         if (exists) {
             tx.delete(lanternRef);
-            tx.update(postRef, { lanterns: admin.firestore.FieldValue.increment(-1) });
+            // 등불 카운트 감소 (lanterns와 lanternCount 둘 다 업데이트)
+            tx.update(postRef, { 
+                lanterns: admin.firestore.FieldValue.increment(-1),
+                lanternCount: admin.firestore.FieldValue.increment(-1)
+            });
             if (authorUid && authorUid !== auth.uid) {
-                await updateTrustScore(tx, authorUid, -1, "lantern_removed");
+                // 트랜잭션 내에서 직접 신뢰도 업데이트 (await 제거)
+                const userRef = db.collection("users").doc(authorUid);
+                const userSnap = await tx.get(userRef);
+                if (userSnap.exists) {
+                    const userData = userSnap.data();
+                    const currentScore = typeof userData?.trustScore === "number" ? userData.trustScore : 30;
+                    const newScore = Math.max(0, Math.min(100, currentScore - 1));
+                    if (currentScore !== newScore) {
+                        tx.update(userRef, {
+                            trustScore: newScore,
+                            trustLogs: admin.firestore.FieldValue.arrayUnion({
+                                id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                                delta: -1,
+                                reason: "lantern_removed",
+                                prevScore: currentScore,
+                                newScore,
+                                createdAt: new Date(),
+                            })
+                        });
+                    }
+                }
             }
         } else {
             tx.set(lanternRef, { postId, createdAt: admin.firestore.FieldValue.serverTimestamp() });
-            tx.update(postRef, { lanterns: admin.firestore.FieldValue.increment(1) });
+            // 등불 카운트 증가 (lanterns와 lanternCount 둘 다 업데이트)
+            tx.update(postRef, { 
+                lanterns: admin.firestore.FieldValue.increment(1),
+                lanternCount: admin.firestore.FieldValue.increment(1)
+            });
             if (authorUid && authorUid !== auth.uid) {
-                await updateTrustScore(tx, authorUid, 1, "lantern_received");
+                // 트랜잭션 내에서 직접 신뢰도 업데이트 (await 제거)
+                const userRef = db.collection("users").doc(authorUid);
+                const userSnap = await tx.get(userRef);
+                if (userSnap.exists) {
+                    const userData = userSnap.data();
+                    const currentScore = typeof userData?.trustScore === "number" ? userData.trustScore : 30;
+                    const newScore = Math.max(0, Math.min(100, currentScore + 1));
+                    if (currentScore !== newScore) {
+                        tx.update(userRef, {
+                            trustScore: newScore,
+                            trustLogs: admin.firestore.FieldValue.arrayUnion({
+                                id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                                delta: 1,
+                                reason: "lantern_received",
+                                prevScore: currentScore,
+                                newScore,
+                                createdAt: new Date(),
+                            })
+                        });
+                    }
+                }
             }
         }
     });
@@ -954,7 +1042,7 @@ export const onFollowCreated = onDocumentCreated(
         const followingUid = data.followingUid; // 너 (팔로우 당하는 사람)
 
         if (!followerUid || !followingUid) return;
-
+        const followId = event.params.followId;
         const batch = db.batch();
 
         // 1. 내(follower) '팔로잉' 숫자 +1
@@ -971,6 +1059,21 @@ export const onFollowCreated = onDocumentCreated(
         });
 
         await batch.commit();
+
+        const notifRef = db.doc(`user_notifications/${followingUid}/items/${followId}`);
+
+        try {
+            await notifRef.create({
+                type: "follow",
+                fromUid: followerUid,
+                toUid: followingUid,
+                followId,
+                read: false,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        } catch (e) {
+            logger.warn("follow notification create skipped/failed", { followId, error: String(e) });
+        }
     }
 );
 

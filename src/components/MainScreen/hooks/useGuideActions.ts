@@ -241,10 +241,10 @@ export function useGuideActions({
 
   // 내가 길잡이로 채택되었을 때 처리
   const handleGuideReceived = useCallback(() => {
-    // guideCount 증가
+    // guideCount 증가 (Firestore에만 저장, 로컬 스토리지 사용 안 함)
     setUserGuideCount((prev) => {
       const newCount = prev + 1;
-      safeLocalStorage.setItem("userGuideCount", String(newCount));
+      // 통계는 Firestore에만 저장됨
       return newCount;
     });
 

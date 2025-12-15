@@ -11,7 +11,6 @@ import { toast } from "@/toastHelper";
 import type { Post } from "../types";
 
 // 🔔 추가: 알림 도메인 서비스
-import { createNotificationForEvent } from "@/components/hooks/notificationDomainService";
 
 // 🔹 추가
 type UserActivityState = {
@@ -42,10 +41,10 @@ interface UseLanternActionsParams {
 
 export function useLanternActions({
   posts,
-  setPosts: _setPosts,
-  selectedPost: _selectedPost,
-  setSelectedPost: _setSelectedPost,
-  userNickname,
+  setPosts,
+  selectedPost,
+  setSelectedPost,
+  userNickname: _userNickname,
   userActivity: _userActivity,
   updateActivity: _updateActivity,
   userPostLanterns: _userPostLanterns,
@@ -96,7 +95,7 @@ export function useLanternActions({
       lanternedPosts.forEach((id: any) => existingLanterned.add(String(id)));
       const wasLanterned = existingLanterned.has(postIdStr);
 
-      // 2) optimistic: 토글 상태만 로컬에 표시 (카운트는 서버 집계 반영을 기다림)
+      // 2) optimistic: 토글 상태와 카운트를 즉시 업데이트
       const newLanternedPosts = new Set(existingLanterned);
       if (wasLanterned) {
         newLanternedPosts.delete(postIdStr);
@@ -105,6 +104,28 @@ export function useLanternActions({
       }
       setLanternedPosts(newLanternedPosts);
 
+      // posts 배열의 lanterns 카운트도 optimistic update
+      const delta = wasLanterned ? -1 : 1;
+      const currentPost = posts.find(p => String(p.id) === postIdStr);
+      const previousLanterns = currentPost?.lanterns ?? 0;
+
+      setPosts(prevPosts => 
+        prevPosts.map(p => {
+          if (String(p.id) === postIdStr) {
+            return { ...p, lanterns: Math.max(0, previousLanterns + delta) };
+          }
+          return p;
+        })
+      );
+
+      // selectedPost도 업데이트
+      if (selectedPost && String(selectedPost.id) === postIdStr) {
+        setSelectedPost({
+          ...selectedPost,
+          lanterns: Math.max(0, previousLanterns + delta)
+        });
+      }
+
       // 서버 함수에 위임하여 집계/검증 처리
       const callable = httpsCallable(functions, "toggleLantern");
       try {
@@ -112,6 +133,20 @@ export function useLanternActions({
       } catch (error) {
         // 실패 시 로컬 상태 되돌리기
         setLanternedPosts(existingLanterned);
+        setPosts(prevPosts => 
+          prevPosts.map(p => {
+            if (String(p.id) === postIdStr) {
+              return { ...p, lanterns: previousLanterns };
+            }
+            return p;
+          })
+        );
+        if (selectedPost && String(selectedPost.id) === postIdStr) {
+          setSelectedPost({
+            ...selectedPost,
+            lanterns: previousLanterns
+          });
+        }
         console.error("등불 토글 실패:", error);
         toast.error("등불 처리에 실패했어요. 잠시 후 다시 시도해주세요.");
         return;
@@ -119,46 +154,11 @@ export function useLanternActions({
 
       // 새로 켠 경우에만 업적/통계/알림/토스트 처리 (집계는 서버 트리거)
       if (!wasLanterned) {
-        const post = posts.find((p) => String(p.id) === postIdStr);
-
-        // 🔔 게시글 등불 알림 (내 글에 다른 사람이 등불을 켠 경우만)
-        if (post) {
-          const currentUid = auth.currentUser?.uid ?? null;
-          const postAuthorUid =
-            typeof post.authorUid === "string" ? post.authorUid : null;
-
-          if (
-            currentUid &&
-            postAuthorUid &&
-            currentUid !== postAuthorUid
-          ) {
-            try {
-              // 🔹 게시글 등불 알림 부분
-              await createNotificationForEvent({
-                toUserUid: postAuthorUid,
-                fromUserUid: currentUid,
-                type: "lantern",
-                categoryId: (post as any).categoryId ?? post.category ?? null,
-                data: {
-                  postId: post.id,             // ✅ 무조건 넣기 (string)
-                  userId: currentUid,
-                  userName: userNickname,
-                  lanternCount: 1,
-                },
-              });
-
-            } catch (notifyError) {
-              console.error("게시글 등불 알림 생성 실패:", notifyError);
-              // 알림 실패해도 등불/통계 동작은 그대로 유지
-            }
-          }
-        }
-
         toast.success("등불을 밝혔습니다! ✨");
       }
 
     },
-    [lanternedPosts, posts, userNickname]
+    [lanternedPosts, posts, setPosts, selectedPost, setSelectedPost]
   );
 
   // 답글 등불 토글
@@ -167,16 +167,85 @@ export function useLanternActions({
       const postIdStr = String(postId);
       const wasLanterned = lanternedReplies.has(replyId);
 
+      // optimistic: 등불 상태 업데이트
       const newLanternedReplies = new Set(lanternedReplies);
-
+      if (wasLanterned) {
+        newLanternedReplies.delete(replyId);
+      } else {
+        newLanternedReplies.add(replyId);
+      }
       setLanternedReplies(newLanternedReplies);
+
+      // posts 배열의 replies에서 해당 답글의 lanterns 카운트도 optimistic update
+      const delta = wasLanterned ? -1 : 1;
+      const post = posts.find(p => String(p.id) === postIdStr);
+      const reply = post?.replies?.find((r: any) => r.id === replyId);
+      const previousLanterns = reply?.lanterns ?? 0;
+
+      setPosts(prevPosts => 
+        prevPosts.map(p => {
+          if (String(p.id) === postIdStr && Array.isArray(p.replies)) {
+            return {
+              ...p,
+              replies: p.replies.map((r: any) => {
+                if (r.id === replyId) {
+                  return { ...r, lanterns: Math.max(0, previousLanterns + delta) };
+                }
+                return r;
+              })
+            };
+          }
+          return p;
+        })
+      );
+
+      // selectedPost도 업데이트
+      if (selectedPost && String(selectedPost.id) === postIdStr && Array.isArray(selectedPost.replies)) {
+        setSelectedPost({
+          ...selectedPost,
+          replies: selectedPost.replies.map((r: any) => {
+            if (r.id === replyId) {
+              return { ...r, lanterns: Math.max(0, previousLanterns + delta) };
+            }
+            return r;
+          })
+        });
+      }
 
       // 서버 함수로 위임 (집계/검증)
       const callable = httpsCallable(functions, "toggleReplyLantern");
       try {
         await callable({ postId: postIdStr, replyId });
       } catch (error) {
+        // 실패 시 롤백
         setLanternedReplies(lanternedReplies);
+        setPosts(prevPosts => 
+          prevPosts.map(p => {
+            if (String(p.id) === postIdStr && Array.isArray(p.replies)) {
+              return {
+                ...p,
+                replies: p.replies.map((r: any) => {
+                  if (r.id === replyId) {
+                    return { ...r, lanterns: previousLanterns };
+                  }
+                  return r;
+                })
+              };
+            }
+            return p;
+          })
+        );
+        if (selectedPost && String(selectedPost.id) === postIdStr && Array.isArray(selectedPost.replies)) {
+          setSelectedPost({
+            ...selectedPost,
+            replies: selectedPost.replies.map((r: any) => {
+              if (r.id === replyId) {
+                return { ...r, lanterns: previousLanterns };
+              }
+              return r;
+            })
+          });
+        }
         console.error("답글 등불 토글 실패:", error);
         toast.error("등불 처리에 실패했어요. 잠시 후 다시 시도해주세요.");
         return;
@@ -184,49 +253,10 @@ export function useLanternActions({
 
       // 새로 켠 경우에만 처리 (카운트 집계는 서버에 위임)
       if (!wasLanterned) {
-        const postIdStr = String(postId);
-        const post = posts.find((p) => p.id === postIdStr);
-        const reply = post?.replies.find((r: any) => r.id === replyId);
-
-        // 🔔 답글 등불 알림 (내 답글에 다른 사람이 등불을 켠 경우만)
-        if (post && reply) {
-          const currentUid = auth.currentUser?.uid ?? null;
-          const replyAuthorUid =
-            reply.authorUid && typeof reply.authorUid === "string"
-              ? reply.authorUid
-              : null;
-
-          if (
-            currentUid &&
-            replyAuthorUid &&
-            currentUid !== replyAuthorUid
-          ) {
-            try {
-              // 🔹 답글 등불 알림 부분
-              await createNotificationForEvent({
-                toUserUid: replyAuthorUid,
-                fromUserUid: currentUid,
-                type: "lantern",
-                categoryId: (post as any).categoryId ?? post.category ?? null,
-                data: {
-                  postId: post.id,             // ✅ 무조건 넣기
-                  replyId,
-                  userId: currentUid,
-                  userName: userNickname,
-                  lanternCount: 1,
-                },
-              });
-
-            } catch (notifyError) {
-              console.error("답글 등불 알림 생성 실패:", notifyError);
-            }
-          }
-        }
-
         toast.success("등불을 밝혔습니다! ✨");
       }
     },
-    [lanternedReplies, posts, userNickname]
+    [lanternedReplies, posts, setPosts, selectedPost, setSelectedPost]
   );
 
   // 특정 게시물이 등불 켜졌는지 확인

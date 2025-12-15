@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { auth, db } from "@/firebase";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
-import { safeLocalStorage } from "@/components/utils/storageUtils";
 
 import type { Post } from "../types";
 
@@ -30,14 +29,8 @@ export function useUserStats({ posts, userNickname }: UseUserStatsParams) {
   const [profileDescription, setProfileDescription] = useState("");
   const [profileInterests, setProfileInterests] = useState("");
 
-  // 1. 초기값 로드 (LocalStorage)
-  useEffect(() => {
-    setUserPostLanterns(safeLocalStorage.getNumber("userPostLanterns", 0));
-    setUserReplyLanterns(safeLocalStorage.getNumber("userReplyLanterns", 0));
-    setUserGuideCount(safeLocalStorage.getNumber("userGuideCount", 0));
-    setProfileDescription(safeLocalStorage.getItem("profileDescription") || "");
-    setProfileInterests(safeLocalStorage.getItem("profileInterests") || "");
-  }, []);
+  // 1. 초기값은 Firestore에서만 로드 (로컬 스토리지 사용 안 함)
+  // 모든 사용자 데이터는 Firestore에만 저장됨
 
   // 2. 내 통계 실시간 동기화 (Firestore -> State)
   useEffect(() => {
@@ -49,28 +42,23 @@ export function useUserStats({ posts, userNickname }: UseUserStatsParams) {
       if (!snap.exists()) return;
       const data = snap.data() as any;
 
-      // 통계 업데이트
+      // 통계 업데이트 (Firestore에서만 관리, 로컬 스토리지 사용 안 함)
       if (typeof data.guideCount === "number") {
         setUserGuideCount(data.guideCount);
-        safeLocalStorage.setItem("userGuideCount", String(data.guideCount));
       }
       if (typeof data.postLanternsReceived === "number") {
         setUserPostLanterns(data.postLanternsReceived);
-        safeLocalStorage.setItem("userPostLanterns", String(data.postLanternsReceived));
       }
       if (typeof data.replyLanternsReceived === "number") {
         setUserReplyLanterns(data.replyLanternsReceived);
-        safeLocalStorage.setItem("userReplyLanterns", String(data.replyLanternsReceived));
       }
 
-      // 프로필 정보 업데이트 (DB가 최신이면 덮어쓰기)
+      // 프로필 정보 업데이트 (Firestore에서만 관리, 로컬 스토리지 사용 안 함)
       if (typeof data.profileDescription === "string") {
         setProfileDescription(data.profileDescription);
-        safeLocalStorage.setItem("profileDescription", data.profileDescription);
       }
       if (typeof data.profileInterests === "string") {
         setProfileInterests(data.profileInterests);
-        safeLocalStorage.setItem("profileInterests", data.profileInterests);
       }
     }, (error) => {
       console.error("[useUserStats] 통계 구독 실패:", error);
@@ -79,10 +67,10 @@ export function useUserStats({ posts, userNickname }: UseUserStatsParams) {
     return () => unsubscribe();
   }, []);
 
-  // 3. 프로필 수정 핸들러 (Firestore 저장 추가)
+  // 3. 프로필 수정 핸들러 (Firestore에만 저장)
   const handleProfileDescriptionChange = useCallback(async (value: string) => {
     setProfileDescription(value); // UI 즉시 반영 (Optimistic UI)
-    safeLocalStorage.setItem("profileDescription", value);
+    // 프로필 정보는 Firestore에만 저장 (로컬 스토리지 사용 안 함)
 
     const uid = auth.currentUser?.uid;
     if (uid) {
@@ -96,7 +84,7 @@ export function useUserStats({ posts, userNickname }: UseUserStatsParams) {
 
   const handleProfileInterestsChange = useCallback(async (value: string) => {
     setProfileInterests(value);
-    safeLocalStorage.setItem("profileInterests", value);
+    // 프로필 정보는 Firestore에만 저장 (로컬 스토리지 사용 안 함)
 
     const uid = auth.currentUser?.uid;
     if (uid) {

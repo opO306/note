@@ -16,7 +16,6 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { createFollowNotification } from "@/components/hooks/notificationDomainService";
 
 interface UseFollowActionsParams {
   userNickname: string;
@@ -260,32 +259,6 @@ export function useFollowActions({ userNickname }: UseFollowActionsParams) {
           currentNickname: userNickname,
           targetNickname: normalizedTarget,
         });
-
-        // 🔹 팔로우 “성공적으로 켜진” 경우에만 알림 생성
-        if (result.isFollowing) {
-          try {
-            // 닉네임으로 대상 유저 UID 조회
-            const usersRef = collection(db, "users");
-            const q = query(usersRef, where("nickname", "==", normalizedTarget));
-            const snap = await getDocs(q);
-
-            if (!snap.empty) {
-              const targetUserDoc = snap.docs[0];
-              const targetUid = targetUserDoc.id;
-
-              await createFollowNotification({
-                toUserUid: targetUid,              // 팔로우 당한 사람 UID
-                fromUserUid: currentUid,           // 팔로우 건 사람 UID
-                followerNickname: userNickname,    // 나의 닉네임
-                followerAvatar:
-                  (auth.currentUser?.photoURL as string | undefined) ?? undefined,
-              });
-            }
-          } catch (err) {
-            console.error("팔로우 알림 생성 실패:", err);
-            // 여기서는 토스트까지는 안 띄우고 로깅만 하는 쪽이 안전
-          }
-        }
 
         return true;
       } catch (error: any) {

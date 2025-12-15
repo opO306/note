@@ -179,14 +179,10 @@ export default function App() {
     };
     reader.readAsDataURL(file);
 
-    // 2. 백그라운드 업로드 후 최종 URL만 저장
+    // 2. 백그라운드 업로드 후 최종 URL만 저장 (Firestore에 이미 저장됨)
     uploadAndUpdateProfileImage(file).then(finalUrl => {
       setUserProfileImage(finalUrl);
-      try {
-        localStorage.setItem("userProfileImage", finalUrl);
-      } catch (storageError) {
-        console.warn("프로필 이미지 URL을 localStorage에 저장하지 못했습니다:", storageError);
-      }
+      // 프로필 이미지는 Firestore에만 저장 (로컬 스토리지 사용 안 함)
     }).catch(error => {
       console.error("프로필 이미지 업로드 실패:", error);
       toast.error("이미지 업로드에 실패했습니다.");

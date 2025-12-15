@@ -18,6 +18,7 @@
     }
   ],
   "hosting": {
+    "site": "privacy-policy-45dcf",
     "public": "public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [

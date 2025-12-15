@@ -45,8 +45,15 @@ service cloud.firestore {
 
     // 5. 알림 (user_notifications)
  		match /user_notifications/{userId}/{document=**} {
-      allow read, update, delete: if isOwner(userId);
-      allow create: if isSignedIn();
+      // A안: 알림은 Cloud Functions(Admin SDK)만 생성
+      allow read, delete: if isOwner(userId);
+
+      // 읽음 처리만 허용 (필드명 read 가정)
+      allow update: if isOwner(userId)
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['read']);
+
+      // 클라이언트 생성 금지
+      allow create: if false;
     }
     
     // 6. 알림 설정 (user_notification_settings)
@@ -56,7 +63,10 @@ service cloud.firestore {
 
     // 7. 좋아요/등불 (user_lanterns)
     match /user_lanterns/{userId}/{document=**} {
-      allow read, write: if isOwner(userId);
+      // A안: 토글 기록만 클라이언트에서 하고, 카운터/후처리는 Functions에서
+      allow read: if isOwner(userId);
+      allow create, delete: if isOwner(userId);
+      allow update: if false;
     }
 
     // 8. 신고 (reports)
@@ -69,6 +79,14 @@ service cloud.firestore {
     // - 조회수 중복 방지를 위해 로그인한 유저는 기록을 읽고 쓸 수 있어야 함
     match /postViews/{viewId} {
       allow read, write: if isSignedIn();
+    }
+
+    // 10. 주간 통계 (weekly_stats)
+    // - 로그인한 모든 유저가 읽을 수 있음 (랭킹 공개)
+    // - 쓰기는 Cloud Functions만 가능
+    match /weekly_stats/{statsId} {
+      allow read: if isSignedIn();
+      allow write: if false;
     }
     
     // 그 외 차단
