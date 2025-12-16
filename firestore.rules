@@ -2,78 +2,90 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- 함수 정의 (기존과 동일) ---
     function isSignedIn() {
       return request.auth != null;
     }
+
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
+
     function notUpdatingSensitiveFields() {
+      // 공식 문서: diff().affectedKeys().hasAny() 패턴 :contentReference[oaicite:4]{index=4}
       return !request.resource.data.diff(resource.data).affectedKeys()
         .hasAny(['trustScore', 'role', 'isDeleted', 'lumenBalance', 'createdAt']);
     }
 
-    // 1. 사용자 정보 (users)
+    // 1) users
     match /users/{userId} {
-      // 해결: isOwner(userId) 조건만 사용하여 본인만 문서를 읽도록 제한합니다.
-      // isOwner 함수는 내부적으로 request.auth.uid를 사용하므로,
-      // 사용자가 로그인했다는 사실(isSignedIn)을 이미 포함하고 있습니다.
-      allow read: if isOwner(userId);
+      // read를 get/list로 분리 가능 (공식) :contentReference[oaicite:5]{index=5}
+      allow get: if isOwner(userId);
+      allow list: if false;
 
-      // 클라이언트에서 사용자 문서 직접 생성을 막는 것은 좋은 정책입니다.
       allow create: if false;
 
-      // 업데이트 규칙은 본인만, 그리고 민감한 필드는 수정 못하게 유지합니다.
-      allow update: if isOwner(userId) && notUpdatingSensitiveFields();
-      
-      // 하위 컬렉션 규칙은 이미 올바르게 작성되어 있으므로 그대로 둡니다.
+      // update는 "기존 문서"에 대한 쓰기이므로 resource가 존재하는 전제 강화
+      allow update: if isOwner(userId) && resource != null && notUpdatingSensitiveFields();
+
+      // 하위 컬렉션/문서들
+      // 중첩 match는 바깥 경로에 상대적으로 붙음 (공식) :contentReference[oaicite:6]{index=6}
       match /{document=**} {
         allow read, write: if isOwner(userId);
       }
     }
 
-    // --- 이하 다른 컬렉션 규칙은 기존과 동일 ---
+    // --- 이하 다른 컬렉션 규칙 (기존 의도 유지) ---
     match /posts/{postId} {
       allow read: if true;
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && (
-        resource.data.authorUid == request.auth.uid || 
+        resource.data.authorUid == request.auth.uid ||
         resource.data.uid == request.auth.uid
       );
     }
+
     match /follows/{followId} {
       allow read: if isSignedIn();
       allow create, delete: if isSignedIn();
     }
+
     match /user_bookmarks/{userId}/{document=**} {
       allow read, write: if isOwner(userId);
     }
+
     match /user_notifications/{userId}/{document=**} {
       allow read, update, delete: if isOwner(userId);
       allow create: if isOwner(userId);
     }
+
     match /user_notification_settings/{userId} {
       allow read, write: if isOwner(userId);
     }
+
     match /user_lanterns/{userId}/{document=**} {
       allow read, write: if isOwner(userId);
     }
+
     match /reports/{reportId} {
       allow create: if isSignedIn();
-      allow read, update, delete: if false; 
+      allow read, update, delete: if false;
     }
+
     match /postViews/{viewId} {
       allow read, write: if isSignedIn();
     }
+
     match /weekly_stats/{statsId} {
       allow read: if isSignedIn();
       allow write: if false;
     }
+
     match /config/{document=**} {
       allow read: if true;
       allow write: if false;
     }
+
+    // 기본 deny
     match /{document=**} {
       allow read, write: if false;
     }
