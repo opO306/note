@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { doc, updateDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import app, { db } from "../firebase"; // ✅ app까지 같이 가져오기
+import { app, auth, db } from "../firebase";
 import { TitleShop } from "../components/TitleShop";
 
 interface TitleShopScreenProps {

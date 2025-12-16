@@ -18,7 +18,7 @@ import {
   AlertTriangle,
   MessageSquare
 } from "lucide-react";
-import app, { auth, db } from "../firebase";
+import { app, auth, db } from "../firebase";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import {
   doc,

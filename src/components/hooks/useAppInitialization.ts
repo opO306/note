@@ -3,7 +3,6 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { getToken } from "firebase/app-check";
-// 🔹 [수정됨] 'appCheck' 대신 'getAppCheck' 함수를 import 합니다.
 import { auth, db, functions, getAppCheck } from "@/firebase";
 import { toast } from "@/toastHelper";
 
@@ -19,17 +18,13 @@ interface UseAppInitializationReturn {
     resetAuthState: () => Promise<void>;
 }
 
-// 재가입 제한 확인 함수 (클라우드 함수 호출)
-async function callCheckRejoinAllowed(email: string): Promise<{ allowed: boolean; remainingDays: number }> {
-    // 🚨 [최종 수정] 호출하는 함수 이름을 'checkRejoinAllowed'에서 'verifyLogin'으로 변경합니다.
-    const verifyLoginFn = httpsCallable<{ email: string }, { allowed: boolean; remainingDays: number }>(
-        functions,
-        "verifyLogin"
-    );
-    // 에러 발생 시 여기서 catch하지 않고 밖으로 던져서 처리
-    const { data } = await verifyLoginFn({ email });
-    return data;
-}
+// 🚨 [수정 1] 함수 이름과 타입을 실제 Cloud Function('verifyLogin')과 일치시킵니다.
+// 서버는 { success: boolean, isNewUser: boolean }를 반환합니다.
+const callVerifyLogin = httpsCallable<
+    { email: string },
+    { success: boolean; isNewUser: boolean }
+>(functions, "verifyLogin");
+
 
 export function useAppInitialization(): UseAppInitializationReturn {
     const [isLoading, setIsLoading] = useState(true);
@@ -37,6 +32,7 @@ export function useAppInitialization(): UseAppInitializationReturn {
     const [userData, setUserData] = useState({ nickname: "", email: "", profileImage: "" });
     const [globalError, setGlobalError] = useState<string | null>(null);
 
+    // 연속적인 인증 상태 변경을 방지하기 위한 쿨다운 Ref
     const authStateCooldown = useRef(false);
 
     useEffect(() => {
@@ -45,135 +41,116 @@ export function useAppInitialization(): UseAppInitializationReturn {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             console.log("✅ [2] User 감지:", user?.uid);
 
-            if (!user && authStateCooldown.current) {
+            if (authStateCooldown.current) {
+                console.log("🔁 Auth 쿨다운으로 인해 리스너 실행을 건너뜁니다.");
                 return;
             }
 
             if (user && user.email) {
+                // 쿨다운 시작
                 authStateCooldown.current = true;
                 setTimeout(() => { authStateCooldown.current = false; }, 2000);
 
                 setGlobalError(null);
                 try {
+                    // 1. App Check 및 재가입 제한 확인
+                    let isNewUser = false;
                     try {
-                        // 🔹 [수정됨] getAppCheck() 함수를 호출하여 appCheck 인스턴스를 가져옵니다.
                         const appCheck = getAppCheck();
-
-                        // Capacitor 네이티브 플랫폼이 아닐 때 (즉, 웹일 때) App Check을 명시적으로 확인합니다.
                         if (appCheck) {
                             console.log("⏳ [Web] App Check 토큰 유효성 재확인 중...");
                             await getToken(appCheck, false);
                             console.log("✅ [Web] App Check 토큰 유효함.");
                         }
 
-                        await callCheckRejoinAllowed(user.email);
+                        // ✨ [개선 1] 서버 검증을 호출하고 'isNewUser' 결과를 변수에 저장합니다.
+                        const { data } = await callVerifyLogin({ email: user.email });
+                        isNewUser = data.isNewUser;
+                        console.log(`✅ 서버 검증 통과. 신규 유저 여부: ${isNewUser}`);
 
                     } catch (e: any) {
                         if (e.code === 'functions/failed-precondition') {
-                            console.warn("🚫 재가입 쿨타임 또는 App Check 실패로 강제 로그아웃 처리합니다.", e);
-                            await signOut(auth);
-                            setInitialScreen("login");
-                            setIsLoading(false);
-                            return;
+                            toast.error(e.message || "재가입 대기 기간이 남아있어 로그인할 수 없습니다.");
+                            console.warn("🚫 재가입 쿨타임으로 강제 로그아웃 처리합니다.", e);
+                        } else {
+                            toast.error("로그인 검증 중 오류가 발생했습니다.");
+                            console.error("🚫 로그인 검증(AppCheck/재가입) 실패:", e);
                         }
-                        console.error("재가입 확인 실패:", e);
+                        await signOut(auth);
+                        setInitialScreen("login");
+                        setIsLoading(false);
+                        return;
                     }
 
-                    console.log("✅ [5b] Firestore 데이터 조회 중...");
-                    const userDocRef = doc(db, "users", user.uid);
-                    const snap = await getDoc(userDocRef);
+                    // ✨ [개선 2] 서버에서 받은 isNewUser 값에 따라 로직을 분기합니다.
+                    if (isNewUser) {
+                        // 2-A. 신규 유저인 경우 (DB 조회 불필요)
+                        console.log("🆕 신규 유저입니다. 닉네임 화면으로 바로 이동합니다.");
+                        setUserData({
+                            nickname: "", // 닉네임이 없으므로 비워둠
+                            email: user.email || "",
+                            profileImage: user.photoURL || ""
+                        });
+                        setInitialScreen("nickname");
 
-                    const authNickname = user.displayName || "";
-                    const authPhoto = user.photoURL || "";
+                    } else {
+                        // 2-B. 기존 유저인 경우에만 Firestore 문서를 조회합니다.
+                        console.log("🤝 기존 유저입니다. Firestore 데이터 조회 중...");
+                        const userDocRef = doc(db, "users", user.uid);
+                        const snap = await getDoc(userDocRef);
 
-                    let dbNickname = "";
-                    let onboardingComplete = false;
-
-                    if (snap.exists()) {
-                        const data = snap.data();
-
-                        if (data.isDeleted) {
-                            console.log("♻️ [Self-Heal] 탈퇴 후 복귀한 유저입니다. 계정을 초기화합니다.");
-                            const firestoreNickname = data.nickname || "";
-                            if (firestoreNickname === "탈퇴한 사용자" || firestoreNickname.trim() === "") {
-                                dbNickname = "";
-                            } else {
-                                dbNickname = firestoreNickname;
-                            }
-                            onboardingComplete = false;
-
-                            await setDoc(userDocRef, {
-                                nickname: data.nickname || "",
-                                nicknameLower: (data.nickname || "").toLowerCase(),
-                                email: user.email,
-                                photoURL: authPhoto,
-                                isDeleted: false,
-                                rejoinedAt: serverTimestamp(),
-                                onboardingComplete: false
-                            }, { merge: true });
+                        if (!snap.exists()) {
+                            // 이 경우는 서버와 클라이언트의 상태가 일치하지 않는 엣지 케이스입니다.
+                            // (예: verifyLogin 실행 직후 DB에서 문서가 삭제된 경우)
+                            // 안전하게 신규 유저처럼 처리합니다.
+                            console.warn("⚠️ 서버는 기존 유저라 했지만 Firestore 문서가 없습니다. 신규 유저로 처리합니다.");
+                            setInitialScreen("nickname");
                         } else {
-                            const firestoreNickname = data.nickname || "";
-                            if (firestoreNickname === "탈퇴한 사용자" || firestoreNickname.trim() === "") {
+                            const data = snap.data();
+                            let dbNickname = data.nickname || "";
+                            let onboardingComplete = data.onboardingComplete || false;
+
+                            // 탈퇴 후 복귀한 유저 'Self-healing' 로직
+                            if (data.isDeleted || dbNickname === "탈퇴한 사용자") {
+                                console.log("♻️ [Self-Heal] 탈퇴 후 복귀한 유저입니다. 계정을 초기화합니다.");
                                 dbNickname = "";
                                 onboardingComplete = false;
-                            } else {
-                                dbNickname = firestoreNickname;
-                                onboardingComplete = data.onboardingComplete === true;
+                                await setDoc(userDocRef, {
+                                    isDeleted: false,
+                                    rejoinedAt: serverTimestamp(),
+                                    onboardingComplete: false
+                                }, { merge: true });
                             }
-                        }
 
-                        if (!dbNickname && authNickname) {
-                            console.log("⚠️ Firestore에 닉네임이 없지만 Auth에 displayName이 있습니다. 닉네임 화면으로 이동합니다.");
-                        }
-                    } else {
-                        console.log("🆕 신규 유저 - Firestore 문서 없음. 닉네임 화면으로 이동합니다.");
-                        dbNickname = "";
-                    }
+                            setUserData({
+                                nickname: dbNickname,
+                                email: user.email || "",
+                                profileImage: user.photoURL || ""
+                            });
 
-                    setUserData({
-                        nickname: dbNickname,
-                        email: user.email || "",
-                        profileImage: authPhoto
-                    });
-
-                    let finalScreen = "nickname";
-                    if (dbNickname) {
-                        if (onboardingComplete) {
-                            finalScreen = "main";
-                        } else {
-                            finalScreen = "guidelines";
+                            // 최종 화면 결정
+                            let finalScreen = "main";
+                            if (!dbNickname) {
+                                finalScreen = "nickname";
+                            } else if (!onboardingComplete) {
+                                finalScreen = "guidelines";
+                            }
+                            console.log("✅ 최종 화면 결정:", finalScreen);
+                            setInitialScreen(finalScreen);
                         }
                     }
-
-                    console.log("✅ [7] 최종 화면 결정:", finalScreen);
-                    setInitialScreen(finalScreen);
-
                 } catch (err: any) {
-                    console.error("🔴 초기화 에러:", err);
-
-                    const code = String(err?.code ?? "");
-                    const message = String(err?.message ?? "");
-
-                    const isPermissionDenied =
-                        code === "permission-denied" ||
-                        code === "firestore/permission-denied" ||
-                        message.includes("Missing or insufficient permissions");
-
-                    if (isPermissionDenied) {
-                        const msg =
-                            "서버 접근 권한이 막혀서 초기화에 실패했습니다. (App Check/Firestore 권한 문제)\n" +
-                            "앱을 완전히 종료 후 다시 실행해주세요.";
-                        setGlobalError(msg);
-                        toast.error(msg);
-                    } else {
-                        setGlobalError("초기화 중 오류가 발생했습니다.");
-                        toast.error("초기화 중 오류가 발생했습니다.");
-                        await signOut(auth);
-                    }
+                    // Firestore 조회 실패 등 기타 에러 처리
+                    console.error("🔴 초기화 과정 중 심각한 에러 발생:", err);
+                    const msg = "서버와 통신 중 오류가 발생했습니다. 앱을 다시 시작해주세요.";
+                    setGlobalError(msg);
+                    toast.error(msg);
+                    await signOut(auth);
                 } finally {
                     setIsLoading(false);
                 }
             } else {
+                // 로그아웃 상태
                 setUserData({ nickname: "", email: "", profileImage: "" });
                 setInitialScreen("login");
                 setIsLoading(false);

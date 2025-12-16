@@ -409,15 +409,20 @@ function MainScreenInner({
   // 3. 분리된 훅들 연결
   // ========================================
 
+  const lumenActions = useLumens();
+
+  // ✨ [해결] 이제 타입이 완벽하게 일치합니다.
   const {
     clampedTrust,
     updateTrust,
     addLumensWithTrust,
-  } = useTrustScore({ addLumens });
+  } = useTrustScore({
+    addLumens: lumenActions.addLumens // 직접 전달
+  });
 
   const titleActions = useTitleActions({
-    lumenBalance,
-    spendLumens,
+    lumenBalance: lumenActions.balance,
+    spendLumens: lumenActions.spendLumens // 직접 전달
   });
 
   const { userActivity, updateActivity } = useAchievements(
