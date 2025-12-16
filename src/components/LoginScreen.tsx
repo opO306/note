@@ -111,29 +111,26 @@ export function LoginScreen({
 
       console.log("✅ [LoginScreen] Firebase Auth 성공");
 
-      // 2. 🚀 서버 검증 함수 호출 (여기로 모든 체크 위임)
+      // 2) 서버 검증
       const verifyLoginFn = httpsCallable(functions, "verifyLogin");
+      console.log("verifyLogin call start");
       await verifyLoginFn();
+      console.log("verifyLogin call end");
 
-      console.log("✅ [LoginScreen] 서버 검증 통과 -> 화면 전환");
 
-      // 3. 검증 통과 시 성공 콜백
       if (onLoginSuccess) onLoginSuccess();
-
     } catch (err: any) {
       console.error("❌ [LoginScreen] 로그인/검증 실패:", err);
 
-      // 실패 시 로그아웃 처리 (잘못된 상태로 남지 않게)
       try { await auth.signOut(); } catch (e) { }
 
-      // 에러 메시지 처리
       const message = err.message || "";
       if (message.includes("재가입할 수 없습니다")) {
         toast.error(message);
-      } else if (err.code !== 'auth/popup-closed-by-user' && !message.includes('cancelled')) {
+      } else if (err.code !== "auth/popup-closed-by-user" && !message.includes("cancelled")) {
         toast.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.");
       }
-
+    } finally {
       setIsLoggingIn(false);
     }
   }, [agreedToTerms, isLoggingIn, onLoginSuccess]);

@@ -29,6 +29,7 @@
     android:supportsRtl="true"
     android:theme="@style/AppTheme"
     android:enableOnBackInvokedCallback="true"
+    android:usesCleartextTraffic="true"
   > <!-- ✅ 2. 로그 경고 해결 (뒤로가기 제스처) -->
 
         <activity

@@ -1,14 +1,13 @@
 // src/firebase.ts
 
 import { initializeApp } from "firebase/app";
-import { getAuth, connectAuthEmulator } from "firebase/auth";
-import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
-import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
-// ✨ [수정 1] getStorage와 connectStorageEmulator를 import 합니다.
-import { getStorage, connectStorageEmulator } from "firebase/storage";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
+import { getStorage } from "firebase/storage";
 import { initializeAppCheck, ReCaptchaV3Provider, AppCheck } from "firebase/app-check";
 
-// Your web app's Firebase configuration
+// Firebase 설정 (기존 키 그대로 사용)
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -18,45 +17,34 @@ const firebaseConfig = {
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Firebase 앱 및 서비스들을 먼저 초기화하고 export 합니다.
+// 1. 앱 및 서비스 초기화
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+// Asia 리전 설정 확인 (functions 사용 시)
 const functions = getFunctions(app, "asia-northeast3");
-// ✨ [수정 2] Storage 서비스를 초기화합니다.
 const storage = getStorage(app);
 
-// App Check 인스턴스를 저장할 변수
 let appCheckInstance: AppCheck | null = null;
 
-/**
- * main.tsx에서 호출할 비동기 초기화 함수
- */
+// 2. 초기화 함수 (핵심: 에뮬레이터 연결 코드 제거됨)
 export async function initFirebase() {
-    if (import.meta.env.DEV) {
-        console.log("🛠️ 개발 모드: Firebase 에뮬레이터에 연결합니다.");
-        const host = window.location.hostname;
+    console.log("🚀 [System] 실제 Firebase 서버에 연결합니다.");
 
-        connectAuthEmulator(auth, `http://${host}:9099`);
-        connectFirestoreEmulator(db, host, 8080);
-        connectFunctionsEmulator(functions, host, 5001);
-        // ✨ [수정 3] Storage 에뮬레이터에 연결합니다.
-        connectStorageEmulator(storage, host, 9199);
+    // 에뮬레이터 연결 함수(connectAuthEmulator 등)가 없으므로
+    // 무조건 실제 Firebase 프로젝트와 통신하게 됩니다.
 
-    } else {
-        console.log("🚀 프로덕션 모드: App Check을 초기화합니다.");
-        appCheckInstance = initializeAppCheck(app, {
-            provider: new ReCaptchaV3Provider(import.meta.env.VITE_RECAPTCHA_SITE_KEY),
-            isTokenAutoRefreshEnabled: true,
-        });
+    // (선택) 프로덕션 환경에서만 App Check 활성화
+    if (!import.meta.env.DEV) {
+        if (import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
+            console.log("🛡️ [Security] App Check을 활성화합니다.");
+            appCheckInstance = initializeAppCheck(app, {
+                provider: new ReCaptchaV3Provider(import.meta.env.VITE_RECAPTCHA_SITE_KEY),
+                isTokenAutoRefreshEnabled: true,
+            });
+        }
     }
-    console.log("✅ Firebase 초기 설정 완료.");
 }
 
-/**
- * 초기화된 App Check 인스턴스를 반환하는 함수.
- */
 export const getAppCheck = () => appCheckInstance;
-
-// ✨ [수정 4] 초기화된 storage 인스턴스를 export 목록에 추가합니다.
 export { app, auth, db, functions, storage };

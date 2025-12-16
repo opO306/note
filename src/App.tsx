@@ -161,6 +161,11 @@ export default function App() {
           onShowPrivacy={() => { setLegalBackTarget("login"); setCurrentScreen("privacy"); }}
           isDarkMode={isDarkMode}
           onToggleDarkMode={toggleDarkMode}
+          onLoginSuccess={() => {
+            // 로그인 성공 직후에는 AppInit이 곧 initialScreen을 계산합니다.
+            // 여기서는 화면만 “로그인 → initialScreen”으로 넘겨줍니다.
+            setCurrentScreen(initialScreen as any);
+          }}
         />
       )}
 

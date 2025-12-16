@@ -28,20 +28,63 @@ service cloud.firestore {
       allow update: if isOwner(userId) && resource != null && notUpdatingSensitiveFields();
 
       // 하위 컬렉션/문서들
-      // 중첩 match는 바깥 경로에 상대적으로 붙음 (공식) :contentReference[oaicite:6]{index=6}
+      // 구매한 칭호(purchasedTitles)는 서버(Cloud Functions)에서만 작성/수정됩니다.
+      // 클라이언트는 자신의 구매 내역을 조회만 할 수 있습니다.
+      match /purchasedTitles/{titleId} {
+        allow get, list: if isOwner(userId);
+        allow create, update, delete: if false;
+      }
+
+      // 기타 모든 서브컬렉션은 기본적으로 소유자만 접근할 수 있습니다.
+      // 이 규칙은 위에서 정의한 더 구체적인 규칙(예: purchasedTitles)을 우선합니다.
       match /{document=**} {
         allow read, write: if isOwner(userId);
       }
     }
 
-    // --- 이하 다른 컬렉션 규칙 (기존 의도 유지) ---
+    // --- 이하 다른 컬렉션 규칙 (수정: 게시글은 로그인한 사용자만 조회 가능하며,
+    // 작성자 본인만 수정/삭제할 수 있도록 제한합니다. 또한 서버에서
+    // 관리해야 하는 집계 필드(등불, 길잡이, 댓글/조회수 등)는
+    // 클라이언트가 수정하지 못하도록 방어합니다.
+
+    /**
+     * 게시글 관련 규칙
+     * - 읽기: 로그인한 사용자만 허용합니다.
+     * - 작성(create): 로그인한 사용자만 허용합니다.
+     * - 수정(update): 작성자 본인이면서 집계 필드를 변경하지 않는 경우에만 허용합니다.
+     *   집계 필드(lanternCount, guideReplyId, guideReplyAuthorUid, replyCount,
+     *   comments, views)는 Cloud Function에서만 수정하도록 금지합니다.
+     * - 삭제(delete): 작성자 본인만 허용합니다.
+     */
+    function notUpdatingPostSensitiveFields() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'lanternCount', 'guideReplyId', 'guideReplyAuthorUid',
+        'replyCount', 'comments', 'views'
+      ]);
+    }
+
     match /posts/{postId} {
-      allow read: if true;
+      // 로그인한 사용자만 게시글을 조회할 수 있습니다.
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+
+      // 로그인한 사용자만 게시글을 작성할 수 있습니다.
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (
-        resource.data.authorUid == request.auth.uid ||
-        resource.data.uid == request.auth.uid
-      );
+
+      // 작성자 본인이면서 집계 필드를 수정하지 않는 경우에만 업데이트를 허용합니다.
+      allow update: if isSignedIn()
+        && request.auth.uid == resource.data.authorUid
+        && notUpdatingPostSensitiveFields();
+
+      // 작성자 본인만 삭제할 수 있습니다.
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.authorUid;
+
+      // 하위 replies 컬렉션은 서버에서만 관리하므로 클라이언트는 읽기만 허용합니다.
+      match /replies/{replyId} {
+        allow get, list: if isSignedIn();
+        // 댓글 쓰기/수정/삭제는 Cloud Functions를 통해 처리됩니다.
+        allow create, update, delete: if false;
+      }
     }
 
     match /follows/{followId} {
@@ -63,7 +106,10 @@ service cloud.firestore {
     }
 
     match /user_lanterns/{userId}/{document=**} {
-      allow read, write: if isOwner(userId);
+      // 등불 기록은 서버(Cloud Functions)를 통해서만 기록되므로
+      // 클라이언트는 읽기만 허용합니다.
+      allow get, list: if isOwner(userId);
+      allow create, update, delete: if false;
     }
 
     match /reports/{reportId} {
