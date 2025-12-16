@@ -1,10 +1,10 @@
-// src/components/hooks/useAppInitialization.ts
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
-import { auth, db, functions } from "@/firebase";
+import { getToken } from "firebase/app-check";
+// 🔹 [수정됨] 'appCheck' 대신 'getAppCheck' 함수를 import 합니다.
+import { auth, db, functions, getAppCheck } from "@/firebase";
 import { toast } from "@/toastHelper";
 
 interface UseAppInitializationReturn {
@@ -21,12 +21,13 @@ interface UseAppInitializationReturn {
 
 // 재가입 제한 확인 함수 (클라우드 함수 호출)
 async function callCheckRejoinAllowed(email: string): Promise<{ allowed: boolean; remainingDays: number }> {
-    const checkRejoin = httpsCallable<{ email: string }, { allowed: boolean; remainingDays: number }>(
+    // 🚨 [최종 수정] 호출하는 함수 이름을 'checkRejoinAllowed'에서 'verifyLogin'으로 변경합니다.
+    const verifyLoginFn = httpsCallable<{ email: string }, { allowed: boolean; remainingDays: number }>(
         functions,
-        "checkRejoinAllowed"
+        "verifyLogin"
     );
     // 에러 발생 시 여기서 catch하지 않고 밖으로 던져서 처리
-    const { data } = await checkRejoin({ email });
+    const { data } = await verifyLoginFn({ email });
     return data;
 }
 
@@ -54,21 +55,27 @@ export function useAppInitialization(): UseAppInitializationReturn {
 
                 setGlobalError(null);
                 try {
-                    // 🚨 [핵심 수정 1] 주석 해제 & 재가입 제한 확인 로직 적용
-                    // LoginScreen뿐만 아니라 앱 진입점에서도 반드시 체크해야 뚫리지 않습니다.
                     try {
+                        // 🔹 [수정됨] getAppCheck() 함수를 호출하여 appCheck 인스턴스를 가져옵니다.
+                        const appCheck = getAppCheck();
+
+                        // Capacitor 네이티브 플랫폼이 아닐 때 (즉, 웹일 때) App Check을 명시적으로 확인합니다.
+                        if (appCheck) {
+                            console.log("⏳ [Web] App Check 토큰 유효성 재확인 중...");
+                            await getToken(appCheck, false);
+                            console.log("✅ [Web] App Check 토큰 유효함.");
+                        }
+
                         await callCheckRejoinAllowed(user.email);
+
                     } catch (e: any) {
-                        // 쿨타임 중이면 강제 로그아웃
                         if (e.code === 'functions/failed-precondition') {
-                            console.warn("🚫 재가입 쿨타임 중인 계정입니다. 로그아웃 처리합니다.");
+                            console.warn("🚫 재가입 쿨타임 또는 App Check 실패로 강제 로그아웃 처리합니다.", e);
                             await signOut(auth);
                             setInitialScreen("login");
-                            // 에러 메시지는 LoginScreen에서 Toast로 보여줄 것이므로 여기선 조용히 리턴
                             setIsLoading(false);
                             return;
                         }
-                        // 그 외 에러는 일단 진행 (서버 오류 등)
                         console.error("재가입 확인 실패:", e);
                     }
 
@@ -85,35 +92,29 @@ export function useAppInitialization(): UseAppInitializationReturn {
                     if (snap.exists()) {
                         const data = snap.data();
 
-                        // 🚨 [핵심 수정 2] 탈퇴한 유저(isDeleted)인지 확인
-                        // 쿨타임이 지나서 들어온 경우라면, 기존 '탈퇴한 사용자' 데이터를 덮어써야 합니다.
                         if (data.isDeleted) {
                             console.log("♻️ [Self-Heal] 탈퇴 후 복귀한 유저입니다. 계정을 초기화합니다.");
-                            // 탈퇴 후 복귀 시: "탈퇴한 사용자"는 유효한 닉네임이 아니므로 닉네임 화면으로 보내기
                             const firestoreNickname = data.nickname || "";
                             if (firestoreNickname === "탈퇴한 사용자" || firestoreNickname.trim() === "") {
-                                dbNickname = ""; // 닉네임 화면으로 보내기
+                                dbNickname = "";
                             } else {
                                 dbNickname = firestoreNickname;
                             }
-                            onboardingComplete = false; // 다시 온보딩 받도록 설정
+                            onboardingComplete = false;
 
-                            // 유저 문서를 새 정보로 덮어쓰기 (isDeleted 플래그 제거)
                             await setDoc(userDocRef, {
-                                nickname: data.nickname || "", // 기존 닉네임 유지, 없으면 빈 문자열
+                                nickname: data.nickname || "",
                                 nicknameLower: (data.nickname || "").toLowerCase(),
                                 email: user.email,
                                 photoURL: authPhoto,
-                                isDeleted: false, // 👈 중요: 탈퇴 상태 해제
+                                isDeleted: false,
                                 rejoinedAt: serverTimestamp(),
                                 onboardingComplete: false
                             }, { merge: true });
                         } else {
-                            // 정상 유저 - Firestore의 닉네임만 사용 (Auth displayName 무시)
-                            // "탈퇴한 사용자"는 유효한 닉네임이 아니므로 빈 문자열로 처리
                             const firestoreNickname = data.nickname || "";
                             if (firestoreNickname === "탈퇴한 사용자" || firestoreNickname.trim() === "") {
-                                dbNickname = ""; // 닉네임 화면으로 보내기
+                                dbNickname = "";
                                 onboardingComplete = false;
                             } else {
                                 dbNickname = firestoreNickname;
@@ -121,26 +122,20 @@ export function useAppInitialization(): UseAppInitializationReturn {
                             }
                         }
 
-                        // 닉네임 누락 자동 복구 (Auth displayName이 있고 Firestore에 없을 때만)
                         if (!dbNickname && authNickname) {
-                            // Auth에만 있고 Firestore에 없으면 닉네임 화면으로 보내기 위해 빈 문자열 유지
-                            // 자동 복구는 하지 않음 (사용자가 직접 설정하도록)
                             console.log("⚠️ Firestore에 닉네임이 없지만 Auth에 displayName이 있습니다. 닉네임 화면으로 이동합니다.");
                         }
                     } else {
-                        // 문서 없음 (신규) - Auth displayName이 있어도 무시하고 닉네임 화면으로 보내기
                         console.log("🆕 신규 유저 - Firestore 문서 없음. 닉네임 화면으로 이동합니다.");
-                        dbNickname = ""; // 빈 문자열로 설정하여 닉네임 화면으로 이동
+                        dbNickname = "";
                     }
 
-                    // 상태 업데이트
                     setUserData({
                         nickname: dbNickname,
                         email: user.email || "",
                         profileImage: authPhoto
                     });
 
-                    // 화면 결정
                     let finalScreen = "nickname";
                     if (dbNickname) {
                         if (onboardingComplete) {
@@ -153,10 +148,28 @@ export function useAppInitialization(): UseAppInitializationReturn {
                     console.log("✅ [7] 최종 화면 결정:", finalScreen);
                     setInitialScreen(finalScreen);
 
-                } catch (err) {
+                } catch (err: any) {
                     console.error("🔴 초기화 에러:", err);
-                    setGlobalError("초기화 중 오류가 발생했습니다.");
-                    await signOut(auth);
+
+                    const code = String(err?.code ?? "");
+                    const message = String(err?.message ?? "");
+
+                    const isPermissionDenied =
+                        code === "permission-denied" ||
+                        code === "firestore/permission-denied" ||
+                        message.includes("Missing or insufficient permissions");
+
+                    if (isPermissionDenied) {
+                        const msg =
+                            "서버 접근 권한이 막혀서 초기화에 실패했습니다. (App Check/Firestore 권한 문제)\n" +
+                            "앱을 완전히 종료 후 다시 실행해주세요.";
+                        setGlobalError(msg);
+                        toast.error(msg);
+                    } else {
+                        setGlobalError("초기화 중 오류가 발생했습니다.");
+                        toast.error("초기화 중 오류가 발생했습니다.");
+                        await signOut(auth);
+                    }
                 } finally {
                     setIsLoading(false);
                 }

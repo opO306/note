@@ -12,6 +12,9 @@ import { Card, CardContent } from "./ui/card";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 
+// ... (기존 FloatingSymbolData, CURSIVE_SYMBOLS, FloatingSymbolItem 코드는 그대로 두거나 복사해오세요. UI 관련이라 생략하지 않고 유지하시면 됩니다.)
+// 편의를 위해 UI 관련 부분은 기존 코드를 그대로 유지한다고 가정합니다.
+
 interface FloatingSymbolData {
   id: number;
   symbol: string;
@@ -55,7 +58,6 @@ interface LoginScreenProps {
   onShowPrivacy: () => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
-  // 👇 [추가] 로그인 성공 시 부모에게 알리기 위한 콜백
   onLoginSuccess?: () => void;
 }
 
@@ -82,7 +84,6 @@ export function LoginScreen({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleGoogleLogin = useCallback(async () => {
-    // 1. 약관 동의 및 중복 클릭 방지
     if (!agreedToTerms) {
       toast.error("약관에 동의해주세요.");
       return;
@@ -91,72 +92,49 @@ export function LoginScreen({
 
     setIsLoggingIn(true);
 
-    // 재가입 제한 확인 함수
-    const checkRejoinAllowed = httpsCallable(functions, "checkRejoinAllowed");
-
-    // 로그인 후 검증 로직
-    const validateAndSignIn = async (userCredential: any) => {
-      const email = userCredential.user.email;
-      if (email) {
-        try {
-          // ⚠️ 만약 여기서 무한 로딩이 걸린다면 이 줄을 주석 처리해보세요.
-          await checkRejoinAllowed({ email });
-        } catch (e: any) {
-          if (e.code === 'functions/failed-precondition') {
-            await auth.signOut();
-            const days = e.details?.remainingDays || 0;
-            throw new Error(`탈퇴 후 ${days}일 동안은 재가입할 수 없습니다.`);
-          }
-          console.error("재가입 확인 중 에러 (무시하고 진행):", e);
-        }
-      }
-    };
-
     try {
+      // 1. Google 로그인 (Auth 토큰 확보)
+      let credential;
+
       if (Capacitor.isNativePlatform()) {
-        // --- 네이티브 로그인 ---
-        try {
-          const result = await FirebaseAuthentication.signInWithGoogle();
-          const idToken = result.credential?.idToken;
-
-          if (idToken) {
-            const credential = GoogleAuthProvider.credential(idToken);
-            const userCred = await signInWithCredential(auth, credential);
-
-            await validateAndSignIn(userCred);
-
-            // 성공: 로딩 끄지 않음 (App.tsx가 화면 전환할 때까지 대기)
-            if (onLoginSuccess) onLoginSuccess();
-            return;
-          }
-          throw new Error("No ID token found in native login result");
-
-        } catch (nativeErr: any) {
-          if (nativeErr.message?.includes("재가입할 수 없습니다")) {
-            throw nativeErr;
-          }
-          console.warn("[LoginScreen] 네이티브 로그인 실패, 웹으로 폴백:", nativeErr);
-        }
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        const idToken = result.credential?.idToken;
+        if (!idToken) throw new Error("Google ID Token not found");
+        credential = GoogleAuthProvider.credential(idToken);
+        // 네이티브는 여기서 Firebase Auth 로그인까지 수행
+        await signInWithCredential(auth, credential);
+      } else {
+        const { signInWithPopup } = await import("firebase/auth");
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(auth, provider);
       }
 
-      // --- 웹 로그인 (또는 네이티브 폴백) ---
-      const { signInWithPopup } = await import("firebase/auth");
-      const provider = new GoogleAuthProvider();
+      console.log("✅ [LoginScreen] Firebase Auth 성공");
 
-      const userCred = await signInWithPopup(auth, provider);
-      await validateAndSignIn(userCred);
+      // 2. 🚀 서버 검증 함수 호출 (여기로 모든 체크 위임)
+      const verifyLoginFn = httpsCallable(functions, "verifyLogin");
+      await verifyLoginFn();
 
-      // 성공: 로딩 끄지 않음
+      console.log("✅ [LoginScreen] 서버 검증 통과 -> 화면 전환");
+
+      // 3. 검증 통과 시 성공 콜백
       if (onLoginSuccess) onLoginSuccess();
 
     } catch (err: any) {
-      console.error("[LoginScreen] 로그인 실패:", err);
-      // 실패했을 때만 로딩 상태 해제
-      setIsLoggingIn(false);
+      console.error("❌ [LoginScreen] 로그인/검증 실패:", err);
 
-      if (err.code !== 'auth/popup-closed-by-user' && !err.message?.includes('cancelled')) {
-        toast.error(err.message || "로그인 중 오류가 발생했습니다.");
+      // 실패 시 로그아웃 처리 (잘못된 상태로 남지 않게)
+      try { await auth.signOut(); } catch (e) { }
+
+      // 에러 메시지 처리
+      const message = err.message || "";
+      if (message.includes("재가입할 수 없습니다")) {
+        toast.error(message);
+      } else if (err.code !== 'auth/popup-closed-by-user' && !message.includes('cancelled')) {
+        toast.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.");
       }
+
+      setIsLoggingIn(false);
     }
   }, [agreedToTerms, isLoggingIn, onLoginSuccess]);
 
@@ -182,17 +160,8 @@ export function LoginScreen({
     <div className="relative w-full h-full flex flex-col items-center justify-center p-6 overflow-hidden bg-background text-foreground transition-colors duration-300">
       {onToggleDarkMode && (
         <div className="absolute top-4 right-4 z-50">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggleDarkMode}
-            className="rounded-full hover:bg-accent transition-colors"
-          >
-            {isDarkMode ? (
-              <Sun className="w-5 h-5 text-yellow-500" />
-            ) : (
-              <Moon className="w-5 h-5 text-slate-700 dark:text-slate-300" />
-            )}
+          <Button variant="ghost" size="icon" onClick={onToggleDarkMode} className="rounded-full hover:bg-accent transition-colors">
+            {isDarkMode ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-slate-700 dark:text-slate-300" />}
           </Button>
         </div>
       )}
@@ -282,7 +251,7 @@ export function LoginScreen({
               {isLoggingIn ? (
                 <div className="flex items-center justify-center gap-2">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>로그인 중...</span>
+                  <span>로그인 확인 중...</span>
                 </div>
               ) : (
                 <div className="flex items-center justify-center gap-2">
