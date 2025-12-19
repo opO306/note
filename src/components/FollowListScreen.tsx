@@ -57,18 +57,15 @@ const UserCard = memo(function UserCard({
       <CardContent className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* 프로필 이미지가 있으면 이미지, 없으면 이니셜 아바타 */}
-          {avatarUrl ? (
-            <OptimizedAvatar
-              src={avatarUrl}
-              alt={displayName}
-              size={40} // 10 * 4
-              fallbackText={initial}
-            />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-              {initial}
-            </div>
-          )}
+          <OptimizedAvatar
+            src={avatarUrl || undefined}
+            alt={displayName}
+            nickname={nickname}
+            fallbackText={initial}
+            size={40}
+            loading="lazy"
+            decoding="async"
+          />
           <div className="flex flex-col min-w-0">
             {/* 닉네임 + 칭호 한 줄 */}
             <div className="flex items-center gap-1 max-w-[180px]">

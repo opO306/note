@@ -86,74 +86,28 @@ export function LoginScreen({
     setIsLoggingIn(true);
 
     try {
-      console.log("🔐 [Login] Google 로그인 플로우 시작 (native:", Capacitor.isNativePlatform(), ")");
+      // 1) 네이티브 구글 로그인
+      const result = await FirebaseAuthentication.signInWithGoogle();
 
-      // 네이티브만 허용
-      if (!Capacitor.isNativePlatform()) {
-        toast.error("이 앱은 모바일 앱에서만 로그인을 지원합니다.");
+      // 2) 네이티브 로그인 결과를 설치본에서도 바로 확인
+      const idToken = result.credential?.idToken ?? "";
+      const accessToken = result.credential?.accessToken ?? "";
+
+      // 3) 토큰이 없으면 에러 처리
+      if (!idToken && !accessToken) {
+        toast.error("로그인에 실패했습니다. 다시 시도해주세요.");
         return;
       }
 
-      // 1) 네이티브 구글 로그인 시작
-      const result = await FirebaseAuthentication.signInWithGoogle();
-      console.log("✅ [Login] FirebaseAuthentication.signInWithGoogle 결과:", {
-        hasUser: !!result.user,
-        providerId: result.user?.providerId,
-        idTokenExists: !!result.credential?.idToken,
-        accessTokenExists: !!result.credential?.accessToken,
-      });
-
-      // 2) 토큰 확보: signInWithGoogle() 결과만 사용 (getIdToken() 호출 금지)
-      const idToken = result.credential?.idToken;
-      const accessToken = result.credential?.accessToken;
-
-      // 둘 다 없으면 "로그인 성공"이 아니라 그냥 실패로 처리
-      if (!idToken && !accessToken) {
-        throw new Error("Google token not found (idToken/accessToken 모두 없음)");
-      }
-
-      // 3) WebView(Firebase JS SDK)에도 로그인 붙이기
+      // 4) Web SDK credential 생성 + 로그인 시도
       const credential = GoogleAuthProvider.credential(
-        idToken ?? undefined,
-        accessToken ?? undefined
+        idToken || undefined,
+        accessToken || undefined
       );
-      const userCred = await signInWithCredential(auth, credential);
 
-      console.log("✅ [Login] Firebase JS Auth 완료 uid =", userCred.user.uid);
+      await signInWithCredential(auth, credential);
     } catch (err: any) {
-      const code = err?.code ?? err?.error?.code ?? "unknown";
-      const message = err?.message ?? err?.error?.message ?? "";
-
-      console.error("❌ [Login] Google 로그인 실패 상세:", {
-        code,
-        message,
-        raw: err,
-      });
-
-      try {
-        await auth.signOut();
-      } catch {
-        // ignore
-      }
-
-      let userMessage = "로그인 중 오류가 발생했습니다.";
-      if (code === "auth/network-request-failed") {
-        userMessage = "네트워크 연결을 확인한 후 다시 시도해주세요.";
-      } else if (code === "auth/invalid-credential") {
-        userMessage = "구글 로그인 인증에 실패했습니다. 잠시 후 다시 시도해주세요.";
-      } else if (
-        code === "auth/user-disabled" ||
-        code === "auth/user-deleted"
-      ) {
-        userMessage = "해당 계정으로는 더 이상 로그인할 수 없습니다.";
-      } else if (
-        code === "auth/popup-closed-by-user" ||
-        code === "auth/cancelled-popup-request"
-      ) {
-        userMessage = "로그인이 취소되었어요. 다시 시도해주세요.";
-      }
-
-      toast.error(userMessage);
+      toast.error("로그인에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setIsLoggingIn(false);
     }
@@ -173,7 +127,7 @@ export function LoginScreen({
         }
       }
     } catch (e) {
-      console.warn("LocalStorage access failed", e);
+      // LocalStorage 접근 실패는 무시 (선택적 기능)
     }
   }, []);
 
@@ -211,8 +165,8 @@ export function LoginScreen({
 
       <div className="relative z-10 w-full max-w-sm animate-in fade-in zoom-in duration-500">
         <Card className="w-full border-border/60 shadow-2xl bg-background/95 backdrop-blur-sm">
-          <CardContent className="pt-8 pb-7 px-6 space-y-8">
-            <div className="flex flex-col items-center space-y-3">
+          <CardContent className="pt-6 pb-7 px-4 sm:px-6 space-y-8">
+            <div className="flex flex-col items-center space-y-3 mt-6">
               <div className="text-center space-y-1">
                 <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent dark:from-white dark:to-gray-400">
                   비유노트
@@ -241,10 +195,10 @@ export function LoginScreen({
                   >
                     서비스 이용약관 동의 (필수)
                   </Label>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground whitespace-nowrap -ml-1 sm:ml-0">
                     <button
                       type="button"
-                      className="underline decoration-muted-foreground/50 hover:text-primary hover:decoration-primary underline-offset-2 transition-all mr-1"
+                      className="underline decoration-muted-foreground/50 hover:text-primary hover:decoration-primary underline-offset-2 transition-all mr-0.5 sm:mr-1"
                       onClick={(e) => { e.stopPropagation(); onShowTerms(); }}
                     >
                       이용약관
@@ -252,7 +206,7 @@ export function LoginScreen({
                     과
                     <button
                       type="button"
-                      className="underline decoration-muted-foreground/50 hover:text-primary hover:decoration-primary underline-offset-2 transition-all mx-1"
+                      className="underline decoration-muted-foreground/50 hover:text-primary hover:decoration-primary underline-offset-2 transition-all mx-0.5 sm:mx-1"
                       onClick={(e) => { e.stopPropagation(); onShowPrivacy(); }}
                     >
                       개인정보처리방침

@@ -365,6 +365,7 @@ export function UserProfileDialog({
             <OptimizedAvatar
               src={undefined}
               alt={displayName}
+              nickname={DELETED_USER_NAME}
               size={64}
               fallbackText="탈퇴"
             />
@@ -479,6 +480,7 @@ export function UserProfileDialog({
                 <OptimizedAvatar
                   src={userAvatar}
                   alt={displayName}
+                  nickname={displayName}
                   size={64}
                   fallbackText={displayName.charAt(0).toUpperCase()}
                 />

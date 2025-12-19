@@ -3,7 +3,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useScrollRestoration } from "./hooks/useScrollRestoration";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { OptimizedAvatar } from "./OptimizedAvatar";
 import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ArrowLeft, Crown, Award, Flame, TrendingUp, Star, Zap, Calendar } from "lucide-react";
@@ -56,12 +56,15 @@ const RankRow = React.memo(function RankRow({
             <div className="flex-shrink-0">
                 <RankIcon index={index} />
             </div>
-            <Avatar className="w-10 h-10">
-                <AvatarImage />
-                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                    {item.author?.charAt(0)?.toUpperCase() || "?"}
-                </AvatarFallback>
-            </Avatar>
+            <OptimizedAvatar
+                src={undefined}
+                alt={item.author || "랭킹 사용자"}
+                nickname={item.author}
+                fallbackText={item.author?.charAt(0)?.toUpperCase() || "?"}
+                className="w-10 h-10"
+                size={40}
+                loading="lazy"
+            />
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                     <p className="font-medium text-sm truncate">{item.author}</p>

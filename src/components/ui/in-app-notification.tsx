@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Card } from "./card";
-import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
+import { OptimizedAvatar } from "../OptimizedAvatar";
 import { Button } from "./button";
 import { X } from "lucide-react";
 import { cn } from "./utils";
@@ -161,13 +161,16 @@ function InAppNotificationItem({
       >
         <div className="flex items-start gap-3">
           {/* 아이콘 또는 아바타 */}
-          {notification.data?.userAvatar ? (
-            <Avatar className="w-10 h-10">
-              <AvatarImage src={notification.data.userAvatar} />
-              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                {notification.data.userName?.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+          {notification.data?.userAvatar || notification.data?.userName ? (
+            <OptimizedAvatar
+              src={notification.data?.userAvatar}
+              alt={notification.data?.userName || "알림 사용자"}
+              nickname={notification.data?.userName}
+              fallbackText={notification.data?.userName?.charAt(0).toUpperCase() || "?"}
+              className="w-10 h-10"
+              size={40}
+              loading="lazy"
+            />
           ) : (
             <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
               {getIcon()}

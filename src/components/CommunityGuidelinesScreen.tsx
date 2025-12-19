@@ -96,7 +96,7 @@ export function CommunityGuidelinesScreen({
               )}
               <h1 className="flex items-center gap-2 font-semibold">
                 <Users className="w-5 h-5" style={ICON_STYLE} />
-                비유노트 커뮤니티 가이드라인
+                커뮤니티 가이드라인
               </h1>
             </div>
             {/* 🔹 다크모드 토글 버튼 (헤더 우측) */}

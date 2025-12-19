@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
 import { Button } from "./button";
-import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
+import { OptimizedAvatar } from "../OptimizedAvatar";
 import { Badge } from "./badge";
 import { Separator } from "./separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
@@ -284,13 +284,16 @@ function NotificationItem({
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             {/* 아이콘 또는 아바타 */}
-            {notification.data?.userAvatar ? (
-              <Avatar className="w-10 h-10 flex-shrink-0">
-                <AvatarImage src={notification.data.userAvatar} />
-                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                  {notification.data.userName?.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+            {notification.data?.userAvatar || notification.data?.userName ? (
+              <OptimizedAvatar
+                src={notification.data?.userAvatar}
+                alt={notification.data?.userName || "알림 사용자"}
+                nickname={notification.data?.userName}
+                fallbackText={notification.data?.userName?.charAt(0).toUpperCase() || "?"}
+                className="w-10 h-10 flex-shrink-0"
+                size={40}
+                loading="lazy"
+              />
             ) : (
               <div
                 className={cn(
@@ -330,17 +333,17 @@ function NotificationItem({
                 {/* 우선순위 뱃지 */}
                 {(notification.priority === "high" ||
                   notification.priority === "urgent") && (
-                  <Badge
-                    variant={
-                      notification.priority === "urgent"
-                        ? "destructive"
-                        : "default"
-                    }
-                    className="text-xs px-1.5 py-0"
-                  >
-                    {notification.priority === "urgent" ? "긴급" : "중요"}
-                  </Badge>
-                )}
+                    <Badge
+                      variant={
+                        notification.priority === "urgent"
+                          ? "destructive"
+                          : "default"
+                      }
+                      className="text-xs px-1.5 py-0"
+                    >
+                      {notification.priority === "urgent" ? "긴급" : "중요"}
+                    </Badge>
+                  )}
               </div>
             </div>
 

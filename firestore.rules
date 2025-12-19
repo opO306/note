@@ -2,142 +2,85 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // 1. 공통 함수
     function isSignedIn() {
       return request.auth != null;
     }
-
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
-
-    function notUpdatingSensitiveFields() {
-      // 공식 문서: diff().affectedKeys().hasAny() 패턴 :contentReference[oaicite:4]{index=4}
+    function notUpdatingUserSensitiveFields() {
       return !request.resource.data.diff(resource.data).affectedKeys()
         .hasAny(['trustScore', 'role', 'isDeleted', 'lumenBalance', 'createdAt']);
     }
+    function isViewIncrementOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']);
+    }
 
-    // 1) users
-    match /users/{userId} {
-      // read를 get/list로 분리 가능 (공식) :contentReference[oaicite:5]{index=5}
-      allow get: if isOwner(userId);
-      allow list: if false;
-
-      // 클라이언트에서 "최초 로그인 시" 본인 사용자 문서 생성은 허용합니다.
-      // (민감 필드: trustScore/role/isDeleted/lumenBalance/createdAt 은 서버에서만 관리)
-      allow create: if isOwner(userId)
-        && !request.resource.data.keys().hasAny([
-          'trustScore', 'role', 'isDeleted', 'lumenBalance', 'createdAt'
+    // 🚨 [핵심 수정] 답글 작성 시 업데이트될 수 있는 필드 모두 허용
+    function isReplyUpdateOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly([
+          'replies', 'replyCount', 
+          'updatedAt', 'lastReplyAt', 
+          'lastReplyAuthor', 'lastReplyNickname', 'lastReplyAuthorUid', 'lastReplyProfileImage',
+          'participants' 
         ]);
-
-      // update는 "기존 문서"에 대한 쓰기이므로 resource가 존재하는 전제 강화
-      allow update: if isOwner(userId) && resource != null && notUpdatingSensitiveFields();
-
-      // 하위 컬렉션/문서들
-      // 구매한 칭호(purchasedTitles)는 서버(Cloud Functions)에서만 작성/수정됩니다.
-      // 클라이언트는 자신의 구매 내역을 조회만 할 수 있습니다.
-      match /purchasedTitles/{titleId} {
-        allow get, list: if isOwner(userId);
-        allow create, update, delete: if false;
-      }
-
-      // 기타 모든 서브 컬렉션은 기본적으로 소유자만 접근할 수 있습니다.
-      // 이 규칙은 위에서 정의한 더 구체적인 규칙(예: purchasedTitles)을 우선합니다.
-      match /{document=**} {
-        allow read, write: if isOwner(userId);
-      }
     }
 
-    // --- 이하 다른 컬렉션 규칙 (수정: 게시글은 로그인한 사용자만 조회 가능하며,
-    // 작성자 본인만 수정/삭제할 수 있도록 제한합니다. 또한 서버에서
-    // 관리해야 하는 집계 필드(등불, 길잡이, 댓글/조회수 등)는
-    // 클라이언트가 수정하지 못하도록 방어합니다.
+    // 2. 컬렉션 규칙
 
-    /**
-     * 게시글 관련 규칙
-     * - 읽기: 로그인한 사용자만 허용합니다.
-     * - 작성(create): 로그인한 사용자만 허용합니다.
-     * - 수정(update): 작성자 본인이면서 집계 필드를 변경하지 않는 경우에만 허용합니다.
-     *   집계 필드(lanternCount, guideReplyId, guideReplyAuthorUid, replyCount,
-     *   comments, views)는 Cloud Function에서만 수정하도록 금지합니다.
-     * - 삭제(delete): 작성자 본인만 허용합니다.
-     */
-    function notUpdatingPostSensitiveFields() {
-      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-        'lanternCount', 'guideReplyId', 'guideReplyAuthorUid',
-        'replyCount', 'comments', 'views'
-      ]);
-    }
-
-    match /posts/{postId} {
-      // 로그인한 사용자만 게시글을 조회할 수 있습니다.
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-
-      // 로그인한 사용자만 게시글을 작성할 수 있습니다.
-      allow create: if isSignedIn();
-
-      // 작성자 본인이면서 집계 필드를 수정하지 않는 경우에만 업데이트를 허용합니다.
-      allow update: if isSignedIn()
-        && request.auth.uid == resource.data.authorUid
-        && notUpdatingPostSensitiveFields();
-
-      // 작성자 본인만 삭제할 수 있습니다.
-      allow delete: if isSignedIn() && request.auth.uid == resource.data.authorUid;
-
-      // 하위 replies 컬렉션은 서버에서만 관리하므로 클라이언트는 읽기만 허용합니다.
-      match /replies/{replyId} {
-        allow get, list: if isSignedIn();
-        // 댓글 쓰기/수정/삭제는 Cloud Functions를 통해 처리됩니다.
-        allow create, update, delete: if false;
-      }
-    }
-
-    match /follows/{followId} {
+    // 유저 정보
+    match /users/{userId} {
       allow read: if isSignedIn();
-      allow create, delete: if isSignedIn();
+      allow create: if false; 
+      allow update: if isOwner(userId) && notUpdatingUserSensitiveFields();
+      match /{document=**} { allow read, write: if isOwner(userId); }
     }
 
-    match /user_bookmarks/{userId}/{document=**} {
-      allow read, write: if isOwner(userId);
+    // 게시글 (Posts)
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      
+      // ✅ [수정됨] 답글 관련 필드 허용 범위 대폭 확대
+      allow update: if isSignedIn() && (
+        resource.data.authorUid == request.auth.uid || 
+        isViewIncrementOnly() || 
+        isReplyUpdateOnly()
+      );
+      
+      allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
     }
 
+    // 알림 (Notifications)
+    // 🚨 [수정됨] 알림 생성 경로를 더 유연하게 허용
     match /user_notifications/{userId}/{document=**} {
       allow read, update, delete: if isOwner(userId);
+      // 남이 내 알림함에 '생성'하는 것 허용 (댓글 알림 등)
+      allow create: if isSignedIn(); 
     }
 
-    match /user_notification_settings/{userId} {
-      allow read, write: if isOwner(userId);
+    // 기타 컬렉션들
+    match /weekly_quizzes/{quizId} { allow read: if isSignedIn(); allow write: if false; }
+    match /daily_quizzes/{quizId} { allow read: if isSignedIn(); }
+    match /dailyQuizzes/{quizId} { allow read: if isSignedIn(); }
+    match /quizzes/{quizId} { allow read: if isSignedIn(); }
+
+    match /quiz_attempts/{attemptId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource == null);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
-    match /user_lanterns/{userId}/{document=**} {
-      // 등불 기록은 서버(Cloud Functions)를 통해서만 기록되므로
-      // 클라이언트는 읽기만 허용합니다.
-      allow get, list: if isOwner(userId);
-      allow create, update, delete: if false;
-    }
-
-    match /reports/{reportId} {
-      allow create: if isSignedIn();
-      allow read, update, delete: if false;
-    }
-
-    match /postViews/{viewId} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /weekly_stats/{statsId} {
-      allow read: if isSignedIn();
-      allow write: if false;
-    }
-
-    match /config/{document=**} {
-      allow read: if true;
-      allow write: if false;
-    }
-
-    // 기본 deny
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    match /postViews/{viewId} { allow read, write: if isSignedIn(); }
+    match /follows/{followId} { allow read: if isSignedIn(); allow create, delete: if isSignedIn(); }
+    match /user_bookmarks/{userId}/{document=**} { allow read, write: if isOwner(userId); }
+    match /user_lanterns/{userId}/{document=**} { allow read, write: if isOwner(userId); }
+    match /user_notification_settings/{userId} { allow read, write: if isOwner(userId); }
+    match /reports/{reportId} { allow create: if isSignedIn(); allow read, update, delete: if false; }
+    match /weekly_stats/{statsId} { allow read: if isSignedIn(); allow write: if false; }
+    match /config/{document=**} { allow read: if true; allow write: if false; }
+    match /{document=**} { allow read, write: if false; }
   }
 }

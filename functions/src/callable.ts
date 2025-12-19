@@ -42,8 +42,7 @@ export const finalizeOnboarding = onCall({ region: "asia-northeast3" }, async (r
         const payload: any = {
             nickname,
             nicknameLower,
-            onboardingComplete: true,
-            communityGuidelinesAgreed: true,
+            // onboardingComplete와 communityGuidelinesAgreed는 각각 가이드라인/웰컴 화면에서 설정됨
             updatedAt: now,
         };
 
@@ -53,10 +52,11 @@ export const finalizeOnboarding = onCall({ region: "asia-northeast3" }, async (r
             payload.trustScore = 30;
         }
 
-        const picture = auth.token?.picture;
-        if (picture && !userSnap.data()?.photoURL) {
-            payload.photoURL = picture;
-        }
+        // 구글 프로필 이미지는 사용하지 않음 (Dicebear만 사용)
+        // const picture = auth.token?.picture;
+        // if (picture && !userSnap.data()?.photoURL) {
+        //     payload.photoURL = picture;
+        // }
 
         if (auth.token.email) {
             payload.email = auth.token.email;
@@ -166,10 +166,9 @@ export const verifyLogin = onCall({ region: "asia-northeast3" }, async (request)
 
 
 /**
- * 4. 게시글 등불 켜기/끄기 (좋아요 기능)
+ * 4. 게시글 등불 켜기/끄기 (좋아요 기능) - 수정된 버전
  */
 export const toggleLantern = onCall({ region: "asia-northeast3" }, async (request) => {
-    // ... (이전과 동일한 코드, 이제 updateTrustScore를 찾을 수 있음)
     const { auth, data } = request;
     if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
     const postId = data?.postId as string;
@@ -179,26 +178,58 @@ export const toggleLantern = onCall({ region: "asia-northeast3" }, async (reques
     const lanternRef = db.collection("user_lanterns").doc(auth.uid).collection("posts").doc(postId);
 
     await db.runTransaction(async (tx) => {
+        // =========================================================
+        // [Phase 1] 모든 읽기 (READS) - 먼저 다 읽어옵니다.
+        // =========================================================
+
+        // 1. 게시글 읽기
         const postSnap = await tx.get(postRef);
         if (!postSnap.exists) throw new HttpsError("not-found", "게시글을 찾을 수 없습니다.");
-
         const authorUid = postSnap.data()?.authorUid;
+
+        // 2. 내 등불 여부 읽기
         const lanternSnap = await tx.get(lanternRef);
 
+        // 3. (중요) 작성자 정보 미리 읽기 (updateTrustScore 내부 로직을 밖으로 꺼냄)
+        // 작성자가 있고 본인이 아닐 경우에만 유저 정보를 읽습니다.
+        let authorRef: admin.firestore.DocumentReference | null = null;
+        let authorSnap: admin.firestore.DocumentSnapshot | null = null;
+
+        if (authorUid && authorUid !== auth.uid) {
+            authorRef = db.collection("users").doc(authorUid);
+            authorSnap = await tx.get(authorRef);
+        }
+
+        // =========================================================
+        // [Phase 2] 모든 쓰기 (WRITES) - 읽기가 끝난 후 실행합니다.
+        // =========================================================
+
         if (lanternSnap.exists) {
+            // [끄기]
             tx.delete(lanternRef);
             tx.update(postRef, { lanternCount: admin.firestore.FieldValue.increment(-1) });
-            if (authorUid && authorUid !== auth.uid) {
-                await updateTrustScore(tx, authorUid, -1, "lantern_removed");
+
+            // 신뢰도 차감 (수동 업데이트)
+            if (authorRef && authorSnap && authorSnap.exists) {
+                // updateTrustScore 함수 대신 직접 업데이트하여 트랜잭션 규칙 준수
+                tx.update(authorRef, {
+                    trustScore: admin.firestore.FieldValue.increment(-1)
+                });
             }
         } else {
+            // [켜기]
             tx.set(lanternRef, { postId, createdAt: admin.firestore.FieldValue.serverTimestamp() });
             tx.update(postRef, { lanternCount: admin.firestore.FieldValue.increment(1) });
-            if (authorUid && authorUid !== auth.uid) {
-                await updateTrustScore(tx, authorUid, 1, "lantern_received");
+
+            // 신뢰도 증가 (수동 업데이트)
+            if (authorRef && authorSnap && authorSnap.exists) {
+                tx.update(authorRef, {
+                    trustScore: admin.firestore.FieldValue.increment(1)
+                });
             }
         }
     });
+
     return { success: true };
 });
 
@@ -246,12 +277,19 @@ export const selectGuide = onCall({ region: "asia-northeast3" }, async (request)
     await checkRateLimit(auth.uid, "selectGuide");
 
     const { postId, replyId } = data as any;
-    if (!postId || !replyId) throw new HttpsError("invalid-argument", "postId와 replyId가 필요합니다.");
+
+    // postId / replyId 유효성 및 문자열 캐스팅 (Firestore 문서 ID는 문자열이어야 함)
+    const postIdStr = String(postId ?? "").trim();
+    const replyIdStr = String(replyId ?? "").trim();
+
+    if (!postIdStr || !replyIdStr) {
+        throw new HttpsError("invalid-argument", "postId와 replyId가 필요합니다.");
+    }
 
     const GUIDE_REWARD = 5;
 
-    const postRef = db.collection("posts").doc(postId);
-    const replyRef = postRef.collection("replies").doc(replyId);
+    const postRef = db.collection("posts").doc(postIdStr);
+    const replyRef = postRef.collection("replies").doc(replyIdStr);
 
     await db.runTransaction(async (tx) => {
         const [postSnap, replySnap] = await Promise.all([tx.get(postRef), tx.get(replyRef)]);

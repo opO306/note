@@ -5,11 +5,12 @@ import { Switch } from "./ui/switch";
 import { Separator } from "./ui/separator";
 import { toast } from "@/toastHelper";
 import { Settings, Bell } from "lucide-react";
+import { cn } from "./ui/utils";
 
 // Firestore
 import { auth, db } from "../firebase";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
-import { AppPage } from "./layout/AppPage";
+import { AppHeader } from "./layout/AppHeader";
 
 // Safe localStorage helper
 const safeLocalStorage = {
@@ -324,29 +325,34 @@ export function NotificationSettingsDialog({
   }, [enabledCategories]);
 
   if (!settingsLoaded) {
-    // 로딩 상태도 AppPage 사용 (헤더 포함)
+    // 로딩 상태
     return (
-      <AppPage
-        title="알림 설정"
-        icon={<Settings className="w-5 h-5" />}
-        onBack={onBack}
-      >
-        <div className="w-full h-full flex items-center justify-center">
+      <div className="w-full h-full bg-background text-foreground flex flex-col">
+        <AppHeader
+          title="알림 설정"
+          icon={<Settings className="w-5 h-5" />}
+          onBack={onBack}
+        />
+        <div className="flex-1 flex items-center justify-center">
           <span className="text-sm text-muted-foreground">
             알림 설정을 불러오는 중...
           </span>
         </div>
-      </AppPage>
+      </div>
     );
   }
 
   return (
-    <AppPage
-      title="알림 설정"
-      icon={<Settings className="w-5 h-5" />}
-      onBack={onBack}
-    >
-      <div className="p-4 space-y-6">
+    <div className="w-full h-full bg-background text-foreground flex flex-col">
+      {/* 상단 헤더 */}
+      <AppHeader
+        title="알림 설정"
+        icon={<Settings className="w-5 h-5" />}
+        onBack={onBack}
+      />
+
+      {/* 스크롤 가능한 컨텐츠 영역 */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-6">
         {/* 전체 알림 설정 */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -367,10 +373,10 @@ export function NotificationSettingsDialog({
         <Separator />
 
         {/* 카테고리별 알림 설정 */}
-        {allNotificationsEnabled && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium">카테고리별 알림</h3>
+        <div className={cn("space-y-4", !allNotificationsEnabled && "opacity-60")}>
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium">카테고리별 알림</h3>
+            {allNotificationsEnabled && (
               <div className="space-x-2">
                 <Button
                   variant="outline"
@@ -389,35 +395,43 @@ export function NotificationSettingsDialog({
                   전체 해제
                 </Button>
               </div>
-            </div>
+            )}
+          </div>
 
-            <p className="text-sm text-muted-foreground">
-              관심 있는 카테고리만 선택하여 알림을 받을 수 있습니다
-            </p>
+          <p className="text-sm text-muted-foreground">
+            {allNotificationsEnabled
+              ? "관심 있는 카테고리만 선택하여 알림을 받을 수 있습니다"
+              : "전체 알림을 활성화하면 카테고리별 알림 설정을 변경할 수 있습니다"}
+          </p>
 
-            <div className="space-y-3">
-              {filteredCategories.map((category) => (
-                <div
-                  key={category.id}
-                  className="flex items-center justify-between p-3 border border-border rounded-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    {getIconComponent(category.icon)}
-                    <div>
-                      <p className="font-medium">{category.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {category.count}개 게시글
-                      </p>
-                    </div>
+          <div className="space-y-3">
+            {filteredCategories.map((category) => (
+              <div
+                key={category.id}
+                className={cn(
+                  "flex items-center justify-between p-3 border border-border rounded-lg",
+                  !allNotificationsEnabled && "pointer-events-none"
+                )}
+              >
+                <div className="flex items-center space-x-3">
+                  {getIconComponent(category.icon)}
+                  <div>
+                    <p className="font-medium">{category.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {category.count}개 게시글
+                    </p>
                   </div>
-                  <Switch
-                    checked={enabledCategories.has(category.id)}
-                    onCheckedChange={createCategoryToggleHandler(category.id)}
-                  />
                 </div>
-              ))}
-            </div>
+                <Switch
+                  checked={enabledCategories.has(category.id)}
+                  onCheckedChange={createCategoryToggleHandler(category.id)}
+                  disabled={!allNotificationsEnabled}
+                />
+              </div>
+            ))}
+          </div>
 
+          {allNotificationsEnabled && (
             <div className="mt-4 p-3 bg-muted/50 rounded-lg">
               <div className="flex items-center space-x-2 text-sm">
                 <Bell className="w-4 h-4" />
@@ -430,17 +444,16 @@ export function NotificationSettingsDialog({
                 </span>
               </div>
             </div>
-          </div>
-        )}
-
-        <Separator />
-
-        <div className="pt-2">
-          <Button onClick={_handleClose} className="w-full">
-            완료
-          </Button>
+          )}
         </div>
       </div>
-    </AppPage>
+
+      {/* 하단 고정 버튼 (safe area 적용) */}
+      <div className="bg-background/95 backdrop-blur-xl border-t border-border p-4 safe-nav-bottom flex-shrink-0">
+        <Button onClick={_handleClose} className="w-full">
+          완료
+        </Button>
+      </div>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 // PostListItem.tsx
 import React, { useCallback } from "react";
 import { Card, CardContent } from "./ui/card";
-import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+import { OptimizedAvatar } from "./OptimizedAvatar";
 import { Badge } from "./ui/badge";
 
 type PostListItemProps = {
@@ -27,16 +27,15 @@ function PostListItemComponent({ post, userNickname, userProfileImage, onSelect 
         <Card className="cursor-pointer border-border/60 shadow-sm hover:shadow-md bg-card/60 transition-all duration-200">
             <CardContent className="p-4" onClick={handleClick}>
                 <div className="flex items-center gap-3">
-                    <Avatar className="w-10 h-10 ring-2 ring-border/30 flex-shrink-0">
-                        {showMyAvatar ? (
-                            <AvatarImage src={userProfileImage} />
-                        ) : post?.authorAvatar ? (
-                            <AvatarImage src={post.authorAvatar} />
-                        ) : null}
-                        <AvatarFallback className="bg-muted text-foreground font-medium">
-                            {String(author).charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                    </Avatar>
+                    <OptimizedAvatar
+                        src={showMyAvatar ? userProfileImage : (post?.authorAvatar || undefined)}
+                        alt={author ? `${author}님의 프로필` : "프로필 이미지"}
+                        nickname={author}
+                        fallbackText={String(author).charAt(0).toUpperCase()}
+                        className="w-10 h-10 ring-2 ring-border/30 flex-shrink-0"
+                        size={40}
+                        loading="lazy"
+                    />
 
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">

@@ -38,21 +38,19 @@ export function TitlesCollectionScreen({
 
     const handleTitleEquip = async (titleId: string) => {
         const userRef = doc(db, "users", userId);
-    
+
         // 1) 내가 가진 칭호가 아니면 장착 시도 안 함 (방어 코드)
         if (!userTitles.includes(titleId)) {
-            console.warn("[titles] 소유하지 않은 칭호는 장착할 수 없습니다.", {
-                titleId,
-            });
+            // 소유하지 않은 칭호는 장착할 수 없습니다 (로그 제거)
             return;
         }
-    
+
         // 2) 기존 장착 상태를 기억해 둔다 (오류 발생 시 되돌리기용)
         const previous = equippedTitle;
-    
+
         // 3) 화면 먼저 바꾸고, 서버 저장 시도
         setEquippedTitle(titleId);
-    
+
         try {
             await updateDoc(userRef, {
                 currentTitle: titleId,
@@ -63,13 +61,13 @@ export function TitlesCollectionScreen({
             setEquippedTitle(previous);
         }
     };
-    
+
     const handleTitleUnequip = async () => {
         const userRef = doc(db, "users", userId);
-    
+
         const previous = equippedTitle;
         setEquippedTitle("");
-    
+
         try {
             await updateDoc(userRef, {
                 currentTitle: "",
@@ -79,7 +77,7 @@ export function TitlesCollectionScreen({
             // 실패하면 원래 장착 상태로 되돌리기
             setEquippedTitle(previous);
         }
-    };    
+    };
 
     return (
         <TitlesCollection

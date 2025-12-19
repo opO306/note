@@ -259,7 +259,7 @@ function MainScreenInner({
   const [reportingReply, setReportingReply] = useState<Reply | null>(null);
 
   // 카테고리 데이터
-  const [categories] = useState(initialCategories);
+  const [categories, setCategories] = useState(initialCategories);
   const [userProfileSection, setUserProfileSection] = useState<
     "profile" | "followers" | "following" | "posts" | "replies"
   >("profile");
@@ -293,6 +293,45 @@ function MainScreenInner({
       return !safeBlockedIds.includes(authorId);
     });
   }, [posts, blockedUserIds]);
+
+  // 🔹 카테고리 카운트 계산 및 업데이트
+  useEffect(() => {
+    if (visiblePosts.length === 0) {
+      // 게시글이 없으면 카운트를 0으로 초기화
+      setCategories(initialCategories);
+      return;
+    }
+
+    setCategories((prevCategories) => {
+      return prevCategories.map((category) => {
+        // 전체 카테고리 카운트
+        const totalCount = category.id === "전체" ? visiblePosts.length : 0;
+
+        // 해당 카테고리의 게시글 수 계산
+        const categoryPosts = visiblePosts.filter(
+          (post) => post.category === category.id
+        );
+        const categoryCount = category.id === "전체" ? totalCount : categoryPosts.length;
+
+        // 서브카테고리별 카운트 계산
+        const updatedSubCategories = category.subCategories.map((subCategory) => {
+          if (subCategory.id === "전체") {
+            return { ...subCategory, count: categoryCount };
+          }
+          const subCategoryCount = categoryPosts.filter(
+            (post) => post.subCategory === subCategory.id
+          ).length;
+          return { ...subCategory, count: subCategoryCount };
+        });
+
+        return {
+          ...category,
+          count: categoryCount,
+          subCategories: updatedSubCategories,
+        };
+      });
+    });
+  }, [visiblePosts]);
 
   // Firestore에서 posts가 바뀌면, 현재 열려있는 글(selectedPost)도 자동으로 최신 상태로 맞춰주기
   useEffect(() => {
@@ -350,7 +389,7 @@ function MainScreenInner({
         });
       } catch (error: any) {
         autoReplyTriggeredRef.current.delete(targetId);
-        console.warn("[MainScreen] aiAutoReply 실패", { code: error?.code, message: error?.message });
+        // aiAutoReply 실패 (로그 제거)
       }
     },
     [posts],
@@ -460,7 +499,7 @@ function MainScreenInner({
         setProfileDescription(desc);
       },
       (error) => {
-        console.error("[MainScreen] users.profileDescription 구독 에러:", error);
+        // users.profileDescription 구독 에러 (로그 제거)
       }
     );
 
@@ -629,8 +668,10 @@ function MainScreenInner({
   );
 
   const handleNotificationSettingsClick = useCallback(() => {
+    // 알림 팝오버 닫기
+    notificationActions.setShowNotifications(false);
     setRoute({ name: "notificationSettings" });
-  }, [setRoute]);
+  }, [setRoute, notificationActions]);
 
   const handleCategoryClick = useCallback(() => {
     setRoute({ name: "category" });
@@ -662,7 +703,6 @@ function MainScreenInner({
         toast.success("최신 목록을 불러왔어요");
       }
     } catch (error) {
-      console.error("새로고침 실패", error);
       toast.error("목록을 불러오지 못했습니다");
     } finally {
       setIsRefreshing(false);
@@ -943,7 +983,7 @@ function MainScreenInner({
           setCurrentScreen("home");
         });
       } catch (error) {
-        console.error("[MainScreen] backButton listener 등록 실패:", error);
+        // backButton listener 등록 실패 (로그 제거)
       }
     };
 
@@ -1819,7 +1859,6 @@ function MainScreenInner({
                 });
                 toast.success("신고가 접수되었어요. 검토 후 조치하겠습니다.");
               } catch (error) {
-                console.error("[report] 게시글 신고 저장 실패", error);
                 toast.error("신고 처리 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
               } finally {
                 setReportingPost(null);
@@ -1855,7 +1894,7 @@ function MainScreenInner({
                 });
                 toast.success("신고가 접수되었어요. 검토 후 조치하겠습니다.");
               } catch (error) {
-                console.error("[report] 답글 신고 저장 실패", error);
+                // 답글 신고 저장 실패 (로그 제거)
                 toast.error("신고 처리 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
               } finally {
                 setReportingReply(null);

@@ -1,15 +1,12 @@
-// MainScreen/hooks/useGuideActions.ts
-// 길잡이(채택) 관련 로직을 관리하는 훅
-
 import { useState, useEffect, useCallback } from "react";
-import { db } from "@/firebase";
+import { db, auth, functions } from "@/firebase"; // auth, functions 추가
 import { doc, updateDoc, increment, setDoc } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import { toast } from "@/toastHelper";
 import { safeLocalStorage } from "@/components/utils/storageUtils";
 import type { Post } from "../types";
-// 맨 위 다른 import들 아래에 추가
-import { createNotificationForEvent } from "@/components/hooks/notificationDomainService";
-import { auth } from "@/firebase";  // 이미 위에서 import 안 되어 있으면 같이
+// ✅ Firestore 읽기/쓰기 분리 문제를 해결한 함수를 import 합니다.
+import { createNotificationForEvent } from "@/components/utils/notificationUtils"; // 경로를 실제 파일 위치에 맞게 수정하세요
 
 const GUIDE_LUMEN_REWARD = 3;
 
@@ -38,13 +35,9 @@ export function useGuideActions({
   updateActivity,
   updateTrust,
 }: UseGuideActionsParams) {
-  // 길잡이로 채택된 답글 ID 목록
   const [guideReplies, setGuideReplies] = useState<Set<number>>(new Set());
-
-  // 각 게시물별 채택된 답글 ID (하나만 채택 가능)
   const [postGuides, setPostGuides] = useState<Map<string, number>>(new Map());
 
-  // localStorage에서 상태 복원
   useEffect(() => {
     const savedGuideReplies = safeLocalStorage.getJSON("guideReplies", []);
     if (Array.isArray(savedGuideReplies)) {
@@ -59,45 +52,32 @@ export function useGuideActions({
     }
   }, []);
 
-  // 길잡이 채택
   const handleGuideSelect = useCallback(
     async (replyId: number, replyAuthor: string, postId: string | number) => {
       const postIdStr = String(postId);
-
-      // 글 정보 찾기
       const post = posts.find((p) => String(p.id) === postIdStr);
+
       if (!post) {
         toast.error("게시글 정보를 찾을 수 없습니다.");
         return;
       }
 
-      // 이미 이 글에 채택된 답글이 있는지 확인
-      const existingGuideFromMap = postGuides.get(postIdStr);
-      const existingGuideFromPost = (post as any).guideReplyId;
-
-      if (
-        existingGuideFromMap !== undefined ||
-        typeof existingGuideFromPost === "number"
-      ) {
+      if (postGuides.get(postIdStr) !== undefined || (post as any).guideReplyId) {
         toast.error("이미 길잡이가 채택된 글입니다.");
         return;
       }
 
-      // 자기 자신의 답글은 채택 불가
       if (replyAuthor === userNickname) {
         toast.error("자신의 답글은 채택할 수 없습니다.");
         return;
       }
 
-      // 글 작성자만 채택 가능
       if (post.author !== userNickname) {
         toast.error("글 작성자만 길잡이를 채택할 수 있습니다.");
         return;
       }
 
-      // ===========================
-      // 1) 로컬 상태 업데이트
-      // ===========================
+      // --- 1) 로컬 상태 즉시 업데이트 (Optimistic UI) ---
       const newGuideReplies = new Set(guideReplies);
       newGuideReplies.add(replyId);
       setGuideReplies(newGuideReplies);
@@ -106,195 +86,97 @@ export function useGuideActions({
       newPostGuides.set(postIdStr, replyId);
       setPostGuides(newPostGuides);
 
-      // localStorage 저장
       safeLocalStorage.setJSON("guideReplies", Array.from(newGuideReplies));
       safeLocalStorage.setJSON("postGuides", Object.fromEntries(newPostGuides));
 
-      // 이 글에 대한 replies 배열에서 isGuide 플래그 업데이트
       const updatedPosts = posts.map((p) => {
         if (String(p.id) === postIdStr) {
           const updatedReplies = (p.replies || []).map((reply: any) => ({
             ...reply,
             isGuide: reply.id === replyId,
           }));
-          return { ...p, replies: updatedReplies };
+          return { ...p, replies: updatedReplies, guideReplyId: replyId };
         }
         return p;
       });
       setPosts(updatedPosts);
 
-      // selectedPost도 같이 반영
       if (selectedPost && String(selectedPost.id) === postIdStr) {
-        const updatedSelectedPost = updatedPosts.find(
-          (p) => String(p.id) === postIdStr
-        );
-        if (updatedSelectedPost) {
-          setSelectedPost(updatedSelectedPost);
-        }
-      }
-
-      // Firestore에 반영할 updatedReplies 찾아두기
-      // ===========================
-      // 2) Firestore 업데이트 + 알림 생성
-      // ===========================
-      try {
-        // 1) 이 글의 답글 배열에 isGuide 플래그 적용
-        const updatedReplies = (post.replies || []).map((r: any) => ({
-          ...r,
-          isGuide: r.id === replyId,
-        }));
-
-        // 2) 길잡이로 선택된 답글 작성자 uid 찾기
-        const guideReply = updatedReplies.find((r) => r.id === replyId);
-        const replyAuthorUid =
-          guideReply && typeof guideReply.authorUid === "string"
-            ? guideReply.authorUid
-            : null;
-
-        // 3) 사용자 문서 업데이트 (guideCount + 루멘)
-        if (replyAuthorUid) {
-          const userDocRef = doc(db, "users", replyAuthorUid);
-          try {
-            await updateDoc(userDocRef, {
-              guideCount: increment(1),
-              lumenBalance: increment(GUIDE_LUMEN_REWARD),
-              lumenTotalEarned: increment(GUIDE_LUMEN_REWARD),
-            });
-          } catch (e: any) {
-            if (typeof e?.message === "string" && e.message.includes("No document")) {
-              // 문서가 없으면 기본 문서를 만든 뒤 다시 증가
-              await setDoc(
-                userDocRef,
-                {
-                  guideCount: 0,
-                  followerCount: 0,
-                  followingCount: 0,
-                  lumenBalance: 0,
-                  lumenTotalEarned: 0,
-                  createdAt: new Date().toISOString(),
-                },
-                { merge: true }
-              );
-              await updateDoc(userDocRef, {
-                guideCount: increment(1),
-                lumenBalance: increment(GUIDE_LUMEN_REWARD),
-                lumenTotalEarned: increment(GUIDE_LUMEN_REWARD),
-              });
-            } else {
-              throw e;
-            }
-          }
-        }
-
-        // 4) 게시글 문서 업데이트 (guide 정보 + replies 전체)
-        const postDocId =
-          typeof post.id === "string" ? post.id : String(post.id);
-
-        await updateDoc(doc(db, "posts", postDocId), {
-          guideReplyId: replyId,
-          guideReplyAuthor: replyAuthor,
-          replies: updatedReplies,
-        });
-
-        // 5) 🔔 알림 생성 (길잡이로 채택된 사람에게)
-        if (replyAuthorUid) {
-          const currentUid = auth.currentUser?.uid ?? null;
-
-          await createNotificationForEvent({
-            toUserUid: replyAuthorUid,       // 길잡이로 채택된 사람
-            fromUserUid: currentUid ?? undefined, // 채택한 사람(글 작성자)
-            type: "guide",
-            // 카테고리 기반 알림 설정을 위해 categoryId 도 같이 넘겨줌
-            categoryId: (post as any).categoryId ?? post.category ?? null,
-            data: {
-              // post.id 가 string 이든 number 든 그대로 넣기
-              postId:
-                typeof post.id === "string" || typeof post.id === "number"
-                  ? post.id
-                  : undefined,
-              replyId,
-              userId: currentUid ?? undefined,     // 채택한 사람 uid
-              userName: userNickname,              // 채택한 사람 닉네임
-              titleName: replyAuthor,              // 길잡이로 채택된 답글 작성자 닉네임
-              lumenReward: GUIDE_LUMEN_REWARD,
-            },
-          });
-        }
-
-      } catch (error) {
-        console.error("길잡이 채택 Firestore/알림 업데이트 실패:", error);
+        const updatedSelectedPost = updatedPosts.find((p) => String(p.id) === postIdStr);
+        if (updatedSelectedPost) setSelectedPost(updatedSelectedPost);
       }
 
       toast.success(`${replyAuthor}님을 길잡이로 채택했습니다! 🌟`);
 
+      // --- 2) Cloud Functions + Firestore 백그라운드 업데이트 ---
+      try {
+        // 2-1) Cloud Functions(selectGuide)를 호출해 서버 권한으로
+        //      posts / users / replies 를 안전하게 업데이트합니다.
+        const selectGuideFn = httpsCallable(
+          functions,
+          "selectGuide"
+        );
+        await selectGuideFn({
+          postId: postIdStr,
+          replyId,
+        });
+
+        // 2-2) 알림 발송을 위해 replyAuthorUid 를 로컬 데이터에서 가져옵니다.
+        const guideReply = (post.replies || []).find((r: any) => r.id === replyId);
+        const replyAuthorUid = guideReply?.authorUid ?? null;
+
+        // ✅ 수정된 createNotificationForEvent 함수를 사용하여 알림 생성
+        const currentUid = auth.currentUser?.uid;
+        if (replyAuthorUid && currentUid) { // 보낸 사람과 받는 사람이 모두 유효할 때만 알림 전송
+          await createNotificationForEvent({
+            toUserUid: replyAuthorUid,
+            fromUserUid: currentUid,
+            type: "guide",
+            categoryId: (post as any).categoryId ?? post.category ?? null,
+            data: {
+              postId: post.id,
+              replyId,
+              userId: currentUid,
+              userName: userNickname,
+              // 'titleName' 이나 'lumenReward' 같은 커스텀 필드는 data 객체 안에 넣는 것이 좋습니다.
+              // customData: { titleName: replyAuthor, lumenReward: GUIDE_LUMEN_REWARD }
+            },
+          });
+        }
+      } catch (error) {
+        console.error("길잡이 채택 Firestore/알림 업데이트 실패:", error);
+        toast.error("서버에 길잡이 정보를 업데이트하는 중 오류가 발생했습니다.");
+        // 여기서 로컬 상태 롤백 로직을 추가할 수도 있습니다.
+      }
     },
-    [
-      posts,
-      selectedPost,
-      userNickname,
-      guideReplies,
-      postGuides,
-      setPosts,
-      setSelectedPost,
-    ]
+    [posts, selectedPost, userNickname, guideReplies, postGuides, setPosts, setSelectedPost]
   );
 
-  // 내가 길잡이로 채택되었을 때 처리
-  const handleGuideReceived = useCallback(() => {
-    // guideCount 증가 (Firestore에만 저장, 로컬 스토리지 사용 안 함)
-    setUserGuideCount((prev) => {
-      const newCount = prev + 1;
-      // 통계는 Firestore에만 저장됨
-      return newCount;
-    });
-
-    // 루멘 보상
-    addLumensWithTrust(GUIDE_LUMEN_REWARD, "길잡이 채택 보상");
-
-    // 신뢰도 +1
-    updateTrust(1);
-
-    // 업적 업데이트
-    updateActivity({ guideCount: userGuideCount + 1 });
-  }, [
-    userGuideCount,
-    setUserGuideCount,
-    addLumensWithTrust,
-    updateTrust,
-    updateActivity,
-  ]);
+  // 특정 게시글이 이미 길잡이를 가지고 있는지 확인
+  const hasGuide = useCallback(
+    (postId: string | number): boolean => {
+      const postIdStr = String(postId);
+      // postGuides에 있거나, posts 배열에서 해당 post의 guideReplyId가 있는지 확인
+      if (postGuides.has(postIdStr)) {
+        return true;
+      }
+      const post = posts.find((p) => String(p.id) === postIdStr);
+      return !!(post && (post.guideReplyId !== undefined || (post as any).guideReplyId));
+    },
+    [postGuides, posts]
+  );
 
   // 특정 답글이 길잡이인지 확인
   const isGuideReply = useCallback(
-    (replyId: number) => {
+    (replyId: number): boolean => {
       return guideReplies.has(replyId);
     },
     [guideReplies]
   );
 
-  // 특정 게시물에 이미 채택된 길잡이가 있는지 확인
-  const hasGuide = useCallback(
-    (postId: string | number) => {
-      return postGuides.has(String(postId));
-    },
-    [postGuides]
-  );
-
-  // 특정 게시물의 채택된 길잡이 답글 ID 가져오기
-  const getGuideReplyId = useCallback(
-    (postId: string | number) => {
-      return postGuides.get(String(postId));
-    },
-    [postGuides]
-  );
-
   return {
-    guideReplies,
-    postGuides,
     handleGuideSelect,
-    handleGuideReceived,
-    isGuideReply,
     hasGuide,
-    getGuideReplyId,
+    isGuideReply,
   };
 }

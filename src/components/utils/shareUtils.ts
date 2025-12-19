@@ -265,7 +265,7 @@ export function generateQRCodeUrl(
 export async function shortenUrl(url: string): Promise<string> {
   // ì‹¤ì œë¡œëŠ” URL ë‹¨ì¶• API í˜¸ì¶œ (ì˜ˆ: bit.ly, tinyurl)
   // ì—¬ê¸°ì„œëŠ” ì˜ˆì‹œë¡œ ì›ë³¸ URL ë°˜í™˜
-  console.log("URL shortening not implemented:", url);
+  // URL shortening not implemented (로그 제거)
   return url;
 }
 
@@ -278,7 +278,7 @@ export function trackShare(
   contentId: string | number
 ) {
   // Analytics ì´ë²¤íŠ¸ ì „ì†¡ (ì˜ˆ: GA, Mixpanel)
-  console.log("Share tracked:", { platform, contentType, contentId });
+  // Share tracked (로그 제거)
 
   // ì‹¤ì œ êµ¬í˜„ ì˜ˆì‹œ:
   // if (window.gtag) {

@@ -9,6 +9,7 @@ import { Input } from "./ui/input";
 import { ArrowLeft, Bookmark, Search, MessageCircle } from "lucide-react";
 import { LanternIcon } from "./icons/Lantern";
 import { getUserTitle as getTitleLabel } from "../data/titleData";
+import { useUserProfiles } from "./MainScreen/hooks/useUserProfiles";
 
 interface Post {
   id: number;
@@ -57,6 +58,19 @@ export function BookmarkScreen({
     () => posts.filter((post) => !((post as any).hidden === true)),
     [posts]
   );
+
+  // 실시간 프로필 정보 가져오기 (프로필 이미지 업데이트 반영용)
+  const authorUids = useMemo(
+    () => Array.from(
+      new Set(
+        visiblePosts
+          .map((post) => (post as any).authorUid)
+          .filter((uid): uid is string => typeof uid === "string" && uid.length > 0)
+      )
+    ),
+    [visiblePosts]
+  );
+  const userProfiles = useUserProfiles(authorUids);
 
   // 1단계: 먼저 bookmarkedPostsList 계산 (메모)
   const bookmarkedPostsList = useMemo(
@@ -221,14 +235,19 @@ export function BookmarkScreen({
           </div>
         ) : (
           <div className="p-4 pb-24 space-y-3">
-            {visibleBookmarks.map((post) => (
-              <BookmarkCard
-                key={post.id}
-                post={post}
-                onSelect={handlePostSelect}
-                getAuthorTitle={getAuthorTitle}
-              />
-            ))}
+            {visibleBookmarks.map((post) => {
+              const authorUid = (post as any).authorUid;
+              const authorProfile = authorUid ? userProfiles[authorUid] : undefined;
+              return (
+                <BookmarkCard
+                  key={post.id}
+                  post={post}
+                  onSelect={handlePostSelect}
+                  getAuthorTitle={getAuthorTitle}
+                  authorProfile={authorProfile}
+                />
+              );
+            })}
           </div>
         )}
       </div>
@@ -240,16 +259,20 @@ interface BookmarkCardProps {
   post: Post;
   onSelect: (postId: number) => void;
   getAuthorTitle: (author: string | undefined) => string | undefined;
+  authorProfile?: { profileImage: string | null; currentTitleId: string | null };
 }
 
 const BookmarkCard = React.memo(
-  ({ post, onSelect, getAuthorTitle }: BookmarkCardProps) => {
+  ({ post, onSelect, getAuthorTitle, authorProfile }: BookmarkCardProps) => {
     const handleClick = useCallback(() => {
       onSelect(post.id);
     }, [onSelect, post.id]);
 
     const authorTitle = getAuthorTitle(post.author);
     const isBookmarked = true; // 북마크 화면이므로 항상 북마크 상태
+
+    // 🔹 실시간 프로필 이미지 우선 사용
+    const authorAvatarUrl = authorProfile?.profileImage ?? post.authorAvatar ?? "";
 
     return (
       <Card
@@ -262,8 +285,9 @@ const BookmarkCard = React.memo(
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-3 flex-1 min-w-0">
                 <OptimizedAvatar
-                  src={post.authorAvatar || undefined}
+                  src={authorAvatarUrl || undefined}
                   alt={post.author ? `${post.author}님의 프로필` : "프로필 이미지"}
+                  nickname={post.author}
                   fallbackText={post.author?.charAt(0)?.toUpperCase() || "?"}
                   className="ring-2 ring-border/20"
                   size={40}
@@ -348,6 +372,7 @@ const BookmarkCard = React.memo(
     if (prev.post.content !== next.post.content) return false;
     if (prev.post.author !== next.post.author) return false;
     if (prev.post.authorAvatar !== next.post.authorAvatar) return false;
+    if (prev.authorProfile?.profileImage !== next.authorProfile?.profileImage) return false;
     if (prev.post.timeAgo !== next.post.timeAgo) return false;
     if (prev.post.category !== next.post.category) return false;
     if (prev.post.type !== next.post.type) return false;

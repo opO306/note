@@ -62,7 +62,7 @@ export function useOtherUserFollowStats({
                 if (cancelled) return;
 
                 if (snap.empty) {
-                    console.warn("[follow] 대상 유저를 찾을 수 없습니다:", viewedNickname);
+                    // 대상 유저를 찾을 수 없습니다 (로그 제거)
                     setState({
                         followerCount: 0,
                         followingCount: 0,
