@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@capacitor-firebase/app-check": "^7.4.0",
-    "@capacitor-firebase/authentication": "^7.4.0",
+    "@capacitor-firebase/app-check": "^7.5.0",
+    "@capacitor-firebase/authentication": "^7.5.0",
     "@capacitor/app": "^7.1.0",
+    "@emotion/is-prop-valid": "^1.4.0",
     "@genkit-ai/firebase": "^1.26.0",
     "@genkit-ai/google-genai": "^1.26.0",
     "@genkit-ai/googleai": "^1.26.0",

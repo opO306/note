@@ -49,22 +49,60 @@ export default function App() {
   const [userProfileImage, setUserProfileImage] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(true);
 
-  // ✨ [해결책 1] 초기화가 완료되었는지 추적하는 Ref를 추가합니다.
+  //  [해결책 1] 초기화가 완료되었는지 추적하는 Ref를 추가합니다.
   const isInitialized = useRef(false);
 
-  // ✨ [해결책 2] 초기 화면을 설정하는 useEffect 로직을 수정합니다.
+  //  [해결책 2] 초기 화면을 설정하는 useEffect 로직을 수정합니다.
   useEffect(() => {
-    // 로딩이 끝났고, 아직 초기 화면 설정이 안된 경우에만 딱 한 번 실행합니다.
-    if (!isLoading && !isInitialized.current) {
-      console.log(`[App] 초기화 완료. 첫 화면을 '${initialScreen}'(으)로 설정합니다.`);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'App.tsx:56', message: '화면 전환 useEffect 실행', data: { isLoading, isInitialized: isInitialized.current, currentScreen, initialScreen, shouldUpdate: !isLoading && (!isInitialized.current || currentScreen === "login" || initialScreen !== currentScreen) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H' }) }).catch(() => { });
+    // #endregion
+
+    // 로딩 중이면 아무것도 하지 않음
+    if (isLoading) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'App.tsx:61', message: '로딩 중이므로 스킵', data: {}, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H' }) }).catch(() => { });
+      // #endregion
+      return;
+    }
+
+    // 화면 전환 조건:
+    // 1. 초기화되지 않았거나
+    // 2. 현재 로그인 화면이거나
+    // 3. initialScreen이 현재 화면과 다를 때 (중요: 로그인 후 화면 전환을 위해)
+    const shouldUpdate = !isInitialized.current ||
+      currentScreen === "login" ||
+      (initialScreen !== currentScreen && initialScreen !== "login");
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'App.tsx:70', message: '화면 전환 조건 평가', data: { shouldUpdate, isInitialized: isInitialized.current, currentScreen, initialScreen }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H' }) }).catch(() => { });
+    // #endregion
+
+    if (shouldUpdate) {
+      console.log(`[App] 화면 동기화: '${currentScreen}' → '${initialScreen}'`);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'App.tsx:75', message: '화면 전환 실행', data: { from: currentScreen, to: initialScreen }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H' }) }).catch(() => { });
+      // #endregion
       setCurrentScreen(initialScreen as AppScreen);
       setUserNickname(userData.nickname);
       setUserProfileImage(userData.profileImage);
 
-      // 플래그를 true로 설정하여 이 로직이 다시는 실행되지 않도록 합니다.
-      isInitialized.current = true;
+      if (!isInitialized.current) {
+        isInitialized.current = true;
+      }
+    } else {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'App.tsx:85', message: '화면 전환 스킵', data: { reason: '조건 불만족', currentScreen, initialScreen }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H' }) }).catch(() => { });
+      // #endregion
     }
-  }, [isLoading, initialScreen, userData]);
+  }, [
+    isLoading,
+    initialScreen,
+    currentScreen,
+    userData.nickname,
+    userData.profileImage,
+  ]);
+
 
 
   useEffect(() => {
@@ -161,11 +199,6 @@ export default function App() {
           onShowPrivacy={() => { setLegalBackTarget("login"); setCurrentScreen("privacy"); }}
           isDarkMode={isDarkMode}
           onToggleDarkMode={toggleDarkMode}
-          onLoginSuccess={() => {
-            // 로그인 성공 직후에는 AppInit이 곧 initialScreen을 계산합니다.
-            // 여기서는 화면만 “로그인 → initialScreen”으로 넘겨줍니다.
-            setCurrentScreen(initialScreen as any);
-          }}
         />
       )}
 

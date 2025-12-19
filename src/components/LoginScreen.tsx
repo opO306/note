@@ -3,8 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { Moon, Sun, Loader2 } from "lucide-react";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
-import { httpsCallable } from "firebase/functions";
-import { auth, functions } from "../firebase";
+import { auth } from "../firebase";
 import { toast } from "../toastHelper";
 
 import { Button } from "./ui/button";
@@ -58,7 +57,6 @@ interface LoginScreenProps {
   onShowPrivacy: () => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
-  onLoginSuccess?: () => void;
 }
 
 export function LoginScreen({
@@ -66,7 +64,6 @@ export function LoginScreen({
   onShowPrivacy,
   isDarkMode,
   onToggleDarkMode,
-  onLoginSuccess,
 }: LoginScreenProps) {
   const floatingSymbols = useMemo<FloatingSymbolData[]>(() => {
     return Array.from({ length: 30 }, (_, i) => ({
@@ -84,56 +81,83 @@ export function LoginScreen({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleGoogleLogin = useCallback(async () => {
-    if (!agreedToTerms) {
-      toast.error("약관에 동의해주세요.");
-      return;
-    }
+    if (!agreedToTerms) return toast.error("약관에 동의해주세요.");
     if (isLoggingIn) return;
-
     setIsLoggingIn(true);
 
     try {
-      // 1. Google 로그인 (Auth 토큰 확보)
-      let credential;
+      console.log("🔐 [Login] Google 로그인 플로우 시작 (native:", Capacitor.isNativePlatform(), ")");
 
-      if (Capacitor.isNativePlatform()) {
-        const result = await FirebaseAuthentication.signInWithGoogle();
-        const idToken = result.credential?.idToken;
-        if (!idToken) throw new Error("Google ID Token not found");
-        credential = GoogleAuthProvider.credential(idToken);
-        // 네이티브는 여기서 Firebase Auth 로그인까지 수행
-        await signInWithCredential(auth, credential);
-      } else {
-        const { signInWithPopup } = await import("firebase/auth");
-        const provider = new GoogleAuthProvider();
-        await signInWithPopup(auth, provider);
+      // 네이티브만 허용
+      if (!Capacitor.isNativePlatform()) {
+        toast.error("이 앱은 모바일 앱에서만 로그인을 지원합니다.");
+        return;
       }
 
-      console.log("✅ [LoginScreen] Firebase Auth 성공");
+      // 1) 네이티브 구글 로그인 시작
+      const result = await FirebaseAuthentication.signInWithGoogle();
+      console.log("✅ [Login] FirebaseAuthentication.signInWithGoogle 결과:", {
+        hasUser: !!result.user,
+        providerId: result.user?.providerId,
+        idTokenExists: !!result.credential?.idToken,
+        accessTokenExists: !!result.credential?.accessToken,
+      });
 
-      // 2) 서버 검증
-      const verifyLoginFn = httpsCallable(functions, "verifyLogin");
-      console.log("verifyLogin call start");
-      await verifyLoginFn();
-      console.log("verifyLogin call end");
+      // 2) 토큰 확보: signInWithGoogle() 결과만 사용 (getIdToken() 호출 금지)
+      const idToken = result.credential?.idToken;
+      const accessToken = result.credential?.accessToken;
 
+      // 둘 다 없으면 "로그인 성공"이 아니라 그냥 실패로 처리
+      if (!idToken && !accessToken) {
+        throw new Error("Google token not found (idToken/accessToken 모두 없음)");
+      }
 
-      if (onLoginSuccess) onLoginSuccess();
+      // 3) WebView(Firebase JS SDK)에도 로그인 붙이기
+      const credential = GoogleAuthProvider.credential(
+        idToken ?? undefined,
+        accessToken ?? undefined
+      );
+      const userCred = await signInWithCredential(auth, credential);
+
+      console.log("✅ [Login] Firebase JS Auth 완료 uid =", userCred.user.uid);
     } catch (err: any) {
-      console.error("❌ [LoginScreen] 로그인/검증 실패:", err);
+      const code = err?.code ?? err?.error?.code ?? "unknown";
+      const message = err?.message ?? err?.error?.message ?? "";
 
-      try { await auth.signOut(); } catch (e) { }
+      console.error("❌ [Login] Google 로그인 실패 상세:", {
+        code,
+        message,
+        raw: err,
+      });
 
-      const message = err.message || "";
-      if (message.includes("재가입할 수 없습니다")) {
-        toast.error(message);
-      } else if (err.code !== "auth/popup-closed-by-user" && !message.includes("cancelled")) {
-        toast.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.");
+      try {
+        await auth.signOut();
+      } catch {
+        // ignore
       }
+
+      let userMessage = "로그인 중 오류가 발생했습니다.";
+      if (code === "auth/network-request-failed") {
+        userMessage = "네트워크 연결을 확인한 후 다시 시도해주세요.";
+      } else if (code === "auth/invalid-credential") {
+        userMessage = "구글 로그인 인증에 실패했습니다. 잠시 후 다시 시도해주세요.";
+      } else if (
+        code === "auth/user-disabled" ||
+        code === "auth/user-deleted"
+      ) {
+        userMessage = "해당 계정으로는 더 이상 로그인할 수 없습니다.";
+      } else if (
+        code === "auth/popup-closed-by-user" ||
+        code === "auth/cancelled-popup-request"
+      ) {
+        userMessage = "로그인이 취소되었어요. 다시 시도해주세요.";
+      }
+
+      toast.error(userMessage);
     } finally {
       setIsLoggingIn(false);
     }
-  }, [agreedToTerms, isLoggingIn, onLoginSuccess]);
+  }, [agreedToTerms, isLoggingIn]);
 
   const handleTermsChange = useCallback((checked: boolean | string) => {
     const value = Boolean(checked);

@@ -164,6 +164,7 @@ export const verifyLogin = onCall({ region: "asia-northeast3" }, async (request)
     return { success: true, isNewUser: !userSnap.exists };
 });
 
+
 /**
  * 4. 게시글 등불 켜기/끄기 (좋아요 기능)
  */

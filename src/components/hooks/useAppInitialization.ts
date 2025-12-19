@@ -39,10 +39,16 @@ export function useAppInitialization(): UseAppInitializationReturn {
         console.log("✅ [1] AppInit: 인증 상태 리스너 등록");
 
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'useAppInitialization.ts:42', message: 'onAuthStateChanged 트리거', data: { hasUser: !!user, uid: user?.uid, email: user?.email, cooldownActive: authStateCooldown.current }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'D' }) }).catch(() => { });
+            // #endregion
             console.log("✅ [2] User 감지:", user?.uid);
 
             if (authStateCooldown.current) {
                 console.log("🔁 Auth 쿨다운으로 인해 리스너 실행을 건너뜁니다.");
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'useAppInitialization.ts:46', message: '쿨다운으로 스킵', data: { uid: user?.uid }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'D' }) }).catch(() => { });
+                // #endregion
                 return;
             }
 
@@ -50,6 +56,9 @@ export function useAppInitialization(): UseAppInitializationReturn {
                 // 쿨다운 시작
                 authStateCooldown.current = true;
                 setTimeout(() => { authStateCooldown.current = false; }, 2000);
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'useAppInitialization.ts:52', message: '쿨다운 시작', data: { uid: user.uid }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'D' }) }).catch(() => { });
+                // #endregion
 
                 setGlobalError(null);
                 try {
@@ -64,8 +73,14 @@ export function useAppInitialization(): UseAppInitializationReturn {
                         }
 
                         // ✨ [개선 1] 서버 검증을 호출하고 'isNewUser' 결과를 변수에 저장합니다.
+                        // #region agent log
+                        fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'useAppInitialization.ts:67', message: 'verifyLogin 호출 시작', data: { email: user.email, uid: user.uid }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) }).catch(() => { });
+                        // #endregion
                         const { data } = await callVerifyLogin({ email: user.email });
                         isNewUser = data.isNewUser;
+                        // #region agent log
+                        fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'useAppInitialization.ts:70', message: 'verifyLogin 완료', data: { isNewUser, email: user.email }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) }).catch(() => { });
+                        // #endregion
                         console.log(`✅ 서버 검증 통과. 신규 유저 여부: ${isNewUser}`);
 
                     } catch (e: any) {
@@ -75,10 +90,16 @@ export function useAppInitialization(): UseAppInitializationReturn {
                         } else {
                             toast.error("로그인 검증 중 오류가 발생했습니다.");
                             console.error("🚫 로그인 검증(AppCheck/재가입) 실패:", e);
+                            // #region agent log
+                            fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'useAppInitialization.ts:78', message: 'verifyLogin 에러 처리', data: { errorCode: e?.code, errorMessage: e?.message, uid: user?.uid }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'J' }) }).catch(() => { });
+                            // #endregion
                         }
                         await signOut(auth);
                         setInitialScreen("login");
                         setIsLoading(false);
+                        // #region agent log
+                        fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'useAppInitialization.ts:85', message: '에러로 인한 로그아웃 및 로그인 화면으로 복귀', data: {}, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'J' }) }).catch(() => { });
+                        // #endregion
                         return;
                     }
 
@@ -91,7 +112,13 @@ export function useAppInitialization(): UseAppInitializationReturn {
                             email: user.email || "",
                             profileImage: user.photoURL || ""
                         });
+                        // #region agent log
+                        fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'useAppInitialization.ts:94', message: '신규 유저 - initialScreen 설정', data: { screen: 'nickname', uid: user.uid }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'I' }) }).catch(() => { });
+                        // #endregion
                         setInitialScreen("nickname");
+                        // #region agent log
+                        fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'useAppInitialization.ts:97', message: 'setInitialScreen 호출 완료 (신규)', data: { screen: 'nickname' }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'I' }) }).catch(() => { });
+                        // #endregion
 
                     } else {
                         // 2-B. 기존 유저인 경우에만 Firestore 문서를 조회합니다.
@@ -136,7 +163,13 @@ export function useAppInitialization(): UseAppInitializationReturn {
                                 finalScreen = "guidelines";
                             }
                             console.log("✅ 최종 화면 결정:", finalScreen);
+                            // #region agent log
+                            fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'useAppInitialization.ts:139', message: 'initialScreen 설정 (기존 유저)', data: { finalScreen, uid: user.uid, hasNickname: !!dbNickname, onboardingComplete }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'I' }) }).catch(() => { });
+                            // #endregion
                             setInitialScreen(finalScreen);
+                            // #region agent log
+                            fetch('http://127.0.0.1:7243/ingest/b58ac113-7ceb-4460-8814-adf2be82318f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'useAppInitialization.ts:142', message: 'setInitialScreen 호출 완료', data: { finalScreen }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'I' }) }).catch(() => { });
+                            // #endregion
                         }
                     }
                 } catch (err: any) {

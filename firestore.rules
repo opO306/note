@@ -22,7 +22,12 @@ service cloud.firestore {
       allow get: if isOwner(userId);
       allow list: if false;
 
-      allow create: if false;
+      // 클라이언트에서 "최초 로그인 시" 본인 사용자 문서 생성은 허용합니다.
+      // (민감 필드: trustScore/role/isDeleted/lumenBalance/createdAt 은 서버에서만 관리)
+      allow create: if isOwner(userId)
+        && !request.resource.data.keys().hasAny([
+          'trustScore', 'role', 'isDeleted', 'lumenBalance', 'createdAt'
+        ]);
 
       // update는 "기존 문서"에 대한 쓰기이므로 resource가 존재하는 전제 강화
       allow update: if isOwner(userId) && resource != null && notUpdatingSensitiveFields();
@@ -35,7 +40,7 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
-      // 기타 모든 서브컬렉션은 기본적으로 소유자만 접근할 수 있습니다.
+      // 기타 모든 서브 컬렉션은 기본적으로 소유자만 접근할 수 있습니다.
       // 이 규칙은 위에서 정의한 더 구체적인 규칙(예: purchasedTitles)을 우선합니다.
       match /{document=**} {
         allow read, write: if isOwner(userId);
@@ -98,7 +103,6 @@ service cloud.firestore {
 
     match /user_notifications/{userId}/{document=**} {
       allow read, update, delete: if isOwner(userId);
-      allow create: if isOwner(userId);
     }
 
     match /user_notification_settings/{userId} {
