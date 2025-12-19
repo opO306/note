@@ -276,7 +276,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     if (!uid) return;
 
     try {
-      const _snap = await getDoc(settingsDoc(uid)); // 단순히 호출해서 에러 체크 (실제 삭제는 onSnapshot 쿼리에서 처리해도 되고)
+      await getDoc(settingsDoc(uid)); // 단순히 호출해서 에러 체크 (실제 삭제는 onSnapshot 쿼리에서 처리해도 되고)
       // 여기서는 모든 삭제를 클라이언트에서 직접 돌리는 대신,
       // setNotifications([])만 하고, 서버 정리는 나중에 Cloud Functions로 옮길 수도 있음.
     } catch (error) {

@@ -2,9 +2,17 @@ import React, { createContext, useContext, useMemo, useRef, useState, useCallbac
 import type { MainRoute } from "../routes";
 import type { CurrentScreen, ScreenVisibility } from "../types";
 
+export type WriteDraft = {
+  title: string;
+  body: string;
+  postType?: "question" | "guide"; // ✅ WriteScreen과 동일하게
+};
+
 // 레이어 타입: 뒤로가기 스택에서 관리되는 화면 단위
 export type Layer =
   | "write"
+  | "questionCompose"
+  | "notes"
   | "postDetail"
   | "titlesCollection"
   | "titleShop"
@@ -13,6 +21,7 @@ export type Layer =
   | "myContentList"
   | "followList"
   | "myPage"
+  | "noteDetail"
   | "guidelines"
   | "category"
   | "notificationSettings"
@@ -44,7 +53,10 @@ interface NavigationStoreValue {
   goPostDetail: (postId: string, source: MainRoute["name"] extends "postDetail" ? never : any) => void;
   goAdminReports: () => void;
   goNotificationSettings: () => void;
-
+  // 글쓰기 초안 주입 (노트 → 글쓰기 이어서)
+  writeDraft: WriteDraft | null;
+  setWriteDraft: React.Dispatch<React.SetStateAction<WriteDraft | null>>;
+  // layer stack
   layerStackRef: React.MutableRefObject<Layer[]>;
   pushLayer: (layer: Layer) => void;
   removeLayer: (layer: Layer) => void;
@@ -57,6 +69,7 @@ const NavigationStoreContext = createContext<NavigationStoreValue | null>(null);
 export function NavigationStoreProvider({ children }: { children: React.ReactNode }) {
   const [route, setRoute] = useState<MainRoute>({ name: "home" });
   const [currentScreen, setCurrentScreen] = useState<CurrentScreen>("home");
+  const [writeDraft, setWriteDraft] = useState<WriteDraft | null>(null);
 
   const layerStackRef = useRef<Layer[]>([]);
 
@@ -248,6 +261,8 @@ export function NavigationStoreProvider({ children }: { children: React.ReactNod
       removeLayer,
       clearLayers,
       popLayer,
+      writeDraft,
+      setWriteDraft,
     }),
     [
       route,
@@ -273,6 +288,11 @@ export function NavigationStoreProvider({ children }: { children: React.ReactNod
       removeLayer,
       clearLayers,
       popLayer,
+      writeDraft,
+      setWriteDraft,
+      layerStackRef,
+      currentScreen,
+      setCurrentScreen,
     ]
   );
 

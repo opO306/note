@@ -7,9 +7,6 @@ import {
     doc,
     getDoc,
     setDoc,
-    updateDoc,
-    increment,
-    arrayUnion,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { toast } from '../toastHelper'; // 👈 토스트 헬퍼 import 추가
@@ -126,10 +123,10 @@ export function useLumens() {
         try {
             const result = await awardLumensFn({ amount, reason, achievementId });
             if (!result.data.success) throw new Error("서버에서 루멘 추가를 거부했습니다.");
-            console.log(`[Lumen] ${amount} 루멘 추가 성공: ${reason}`);
+            // 루멘 추가 성공 (로그 제거)
         } catch (error) {
             // ✨ [개선 1] 롤백 로직: 서버 요청 실패 시 로컬 상태를 원래대로 되돌림
-            console.error('[Lumen] addLumens Cloud Function 호출 실패:', error);
+            // addLumens Cloud Function 호출 실패 (로그 제거)
             toast.error(`"${reason}" 보상 획득에 실패했습니다. 다시 시도해주세요.`);
             setLumenData(prevData); // 상태를 이전으로 복원
         }
@@ -167,18 +164,18 @@ export function useLumens() {
             if (titleId) {
                 const result = await purchaseTitleFn({ titleId });
                 if (!result.data.success) throw new Error("서버에서 칭호 구매를 거부했습니다.");
-                console.log(`[Lumen] ${amount} 루멘 사용 성공 (칭호): ${titleId}`);
+                // 루멘 사용 성공 (로그 제거)
                 toast.success("칭호를 성공적으로 구매했습니다!");
             } else {
                 // TODO: 일반 루멘 사용 Cloud Function이 있다면 여기에 호출 로직 추가
                 // 예: const result = await spendGeneralLumensFn({ amount, reason });
                 // 현재는 칭호 구매만 서버 함수를 사용한다고 가정
-                console.warn("[Lumen] 칭호 구매 외의 루멘 사용은 현재 클라이언트에서만 처리됩니다.");
+                // 칭호 구매 외의 루멘 사용은 현재 클라이언트에서만 처리됩니다 (로그 제거)
             }
             return true;
         } catch (error: any) {
             // ✨ [개선 2] 롤백 로직
-            console.error('[Lumen] spendLumens Cloud Function 호출 실패:', error);
+            // spendLumens Cloud Function 호출 실패 (로그 제거)
             // HttpsError의 경우 서버에서 보낸 메시지를 표시
             const message = error.details?.message || "아이템 구매에 실패했습니다. 잠시 후 다시 시도해주세요.";
             toast.error(message);

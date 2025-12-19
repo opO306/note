@@ -30,9 +30,9 @@ export default defineConfig({
       },
     },
   },
-  // 콘솔 로그 제거 (선택 사항)
+  // 프로덕션 빌드에서만 콘솔 로그 제거 (개발 환경에서는 유지)
   esbuild: {
-    drop: ['console', 'debugger'],
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
   },
   server: {
     port: 3000,

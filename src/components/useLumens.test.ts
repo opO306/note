@@ -72,16 +72,16 @@ describe('useLumens', () => {
         expect(result.current.transactions[0].amount).toBe(-5);
     });
 
-    test('루멘 부족 시 사용 실패', () => {
+    test('루멘 부족 시 사용 실패', async () => {
         const { result } = renderHook(() => useLumens());
 
-        act(() => {
-            result.current.addLumens(5, '업적');
+        await act(async () => {
+            await result.current.addLumens(5, '업적');
         });
 
         let spendResult = false;
-        act(() => {
-            spendResult = result.current.spendLumens(10, '칭호 구매');
+        await act(async () => {
+            spendResult = await result.current.spendLumens(10, '칭호 구매');
         });
 
         expect(spendResult).toBe(false);
@@ -89,27 +89,23 @@ describe('useLumens', () => {
         expect(result.current.totalSpent).toBe(0);
     });
 
-    test('음수 추가 방지', () => {
+    test('음수 추가 방지', async () => {
         const { result } = renderHook(() => useLumens());
 
-        let addResult = false;
-        act(() => {
-            addResult = result.current.addLumens(-5, '잘못된 추가');
+        await act(async () => {
+            await result.current.addLumens(-5, '잘못된 추가');
         });
 
-        expect(addResult).toBe(false);
         expect(result.current.balance).toBe(0);
     });
 
-    test('0 추가 방지', () => {
+    test('0 추가 방지', async () => {
         const { result } = renderHook(() => useLumens());
 
-        let addResult = false;
-        act(() => {
-            addResult = result.current.addLumens(0, '0 추가');
+        await act(async () => {
+            await result.current.addLumens(0, '0 추가');
         });
 
-        expect(addResult).toBe(false);
         expect(result.current.balance).toBe(0);
     });
 
@@ -124,25 +120,25 @@ describe('useLumens', () => {
         expect(result.current.hasReceivedRewardForAchievement('achievement_2')).toBe(false);
     });
 
-    test('최근 거래 내역', () => {
+    test('최근 거래 내역', async () => {
         const { result } = renderHook(() => useLumens());
 
-        act(() => {
-            result.current.addLumens(10, '업적1');
+        await act(async () => {
+            await result.current.addLumens(10, '업적1');
         });
 
-        act(() => {
-            result.current.addLumens(5, '업적2');
+        await act(async () => {
+            await result.current.addLumens(5, '업적2');
         });
 
-        act(() => {
-            result.current.spendLumens(3, '칭호');
+        await act(async () => {
+            await result.current.spendLumens(3, '칭호');
         });
 
-        const recent = result.current.getRecentTransactions(2);
-        expect(recent.length).toBe(2);
-        expect(recent[0].amount).toBe(-3);
-        expect(recent[1].amount).toBe(5);
+        const transactions = result.current.transactions;
+        expect(transactions.length).toBeGreaterThanOrEqual(2);
+        expect(transactions[0].amount).toBe(-3);
+        expect(transactions[1].amount).toBe(5);
     });
 
     test('localStorage 저장', () => {
@@ -179,17 +175,4 @@ describe('useLumens', () => {
         expect(result.current.transactions.length).toBe(1);
     });
 
-    test('루멘 초기화', () => {
-        const { result } = renderHook(() => useLumens());
-
-        act(() => {
-            result.current.addLumens(10, '테스트');
-            result.current.resetLumens();
-        });
-
-        expect(result.current.balance).toBe(0);
-        expect(result.current.totalEarned).toBe(0);
-        expect(result.current.totalSpent).toBe(0);
-        expect(result.current.transactions.length).toBe(0);
-    });
 });

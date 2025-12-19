@@ -6,7 +6,6 @@ import {
   useRankingViewModel,
   type RankingMap,
 } from "./hooks/useRankingViewModel";
-import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { EmptyStateCard } from "./ui/empty-state";
 import { OptimizedAvatar } from "@/components/OptimizedAvatar";
@@ -15,7 +14,6 @@ import { type UserProfileLite } from "@/components/MainScreen/hooks/useUserProfi
 import { getTitleLabelById } from "@/data/titleData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import {
-  ArrowLeft,
   Crown,
   Award,
   Flame,
@@ -25,6 +23,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { db } from "../firebase";
+import { AppHeader } from "./layout/AppHeader";
 
 interface RankingScreenProps {
   onBack: () => void;
@@ -156,24 +155,16 @@ export const RankingScreen = React.memo(function RankingScreen({
   });
 
   return (
-    <div className="w-full h-full bg-background text-foreground flex flex-col">
+    <div className="w-full h-full bg-background text-foreground flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-card/95 backdrop-blur-xl border-b border-border flex-shrink-0 safe-top">
-        <div className="px-4 py-3">
-          <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="icon" onClick={onBack}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="flex items-center space-x-2">
-              <TrendingUp className="w-5 h-5 text-primary" />
-              <h1 className="font-medium">랭킹</h1>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        title="랭킹"
+        icon={<TrendingUp className="w-5 h-5 text-primary" />}
+        onBack={onBack}
+      />
 
       {/* Content */}
-      <div ref={handleScrollRef} className="flex-1 scroll-container">
+      <div ref={handleScrollRef} className="flex-1 min-h-0 overflow-y-auto scroll-container">
         <div className="p-4 pb-24">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-3 !h-8">
@@ -383,8 +374,11 @@ const RankingCard = React.memo(function RankingCard({ item, index, type, profile
 
   return (
     <Card
-      className={`list-optimized ${index < 3 ? "bg-gradient-to-r from-muted/50 to-muted/30" : ""
+      className={`list-optimized ${index < 3
+        ? "bg-gradient-to-r from-muted/50 to-muted/30"
+        : ""
         }`}
+      style={index >= 3 ? { backgroundColor: 'var(--card)' } : undefined}
     >
       <CardContent className="p-4">
         <div className="flex items-center space-x-3">
@@ -392,6 +386,7 @@ const RankingCard = React.memo(function RankingCard({ item, index, type, profile
           <OptimizedAvatar
             src={avatarSrc || undefined}
             alt={item.author ? `${item.author}님의 프로필` : "프로필 이미지"}
+            nickname={item.author}
             fallbackText={item.author?.charAt(0)?.toUpperCase() || "?"}
             className="w-10 h-10"
             size={40}

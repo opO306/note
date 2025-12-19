@@ -28,6 +28,7 @@ function AlertDialogPortal({
   );
 }
 
+// 👇 여기가 핵심입니다! Overlay에서 bg-black/... 관련 클래스를 모두 뺐습니다.
 function AlertDialogOverlay({
   className,
   ...props
@@ -36,8 +37,8 @@ function AlertDialogOverlay({
     <AlertDialogPrimitive.Overlay
       data-slot="alert-dialog-overlay"
       className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
-        className,
+        "fixed inset-0 z-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        className
       )}
       {...props}
     />

@@ -275,7 +275,7 @@ export function SearchAutocomplete({
                     </div>
 
                     {/* 제안 항목 */}
-                    {items.map((suggestion, index) => {
+                    {items.map((suggestion) => {
                       const globalIndex = suggestions.findIndex(
                         (s) => s.id === suggestion.id
                       );

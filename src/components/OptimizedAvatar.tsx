@@ -9,6 +9,8 @@ export interface OptimizedAvatarProps {
     alt?: string;
     /** 프로필 글자 (닉네임 첫 글자 등) */
     fallbackText: string;
+    /** 전체 닉네임 (Dicebear API seed로 사용) */
+    nickname?: string;
     /** Avatar 전체에 줄 클래스 (테두리, 그림자 등) */
     className?: string;
     /** 이미지에 추가로 줄 클래스 (object-cover 등) */
@@ -39,11 +41,13 @@ export interface OptimizedAvatarProps {
  * - 이미지 로딩 전: .image-skeleton (globals.css)
  * - 로딩 후: .lazy-image-loaded 로 부드럽게 등장
  * - fetchpriority로 로딩 우선순위 관리
+ * - 기본 프로필: src가 없으면 Dicebear API 사용
  */
 export function OptimizedAvatar({
     src,
     alt,
     fallbackText,
+    nickname,
     className = "",
     imageClassName = "",
     size,
@@ -65,11 +69,23 @@ export function OptimizedAvatar({
     const [loaded, setLoaded] = useState(false);
     const [shouldLoad, setShouldLoad] = useState(loading === "eager");
 
+    // Dicebear API 기본 프로필 이미지 URL 생성
+    const defaultAvatarUrl = useMemo(() => {
+        const seed = nickname || fallbackText || "user";
+        return `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(seed)}&backgroundColor=transparent`;
+    }, [nickname, fallbackText]);
+
+    // src가 있으면 사용, 없으면 Dicebear 기본 이미지 사용
     const normalizedSrc = useMemo(() => {
-        if (typeof src !== "string") return undefined;
-        const trimmed = src.trim();
-        return trimmed.length > 0 ? optimizeImageUrl(trimmed, cacheVersion) : undefined;
-    }, [src, cacheVersion]);
+        if (typeof src === "string") {
+            const trimmed = src.trim();
+            if (trimmed.length > 0) {
+                return optimizeImageUrl(trimmed, cacheVersion);
+            }
+        }
+        // src가 없으면 Dicebear 기본 이미지 사용
+        return defaultAvatarUrl;
+    }, [src, cacheVersion, defaultAvatarUrl]);
 
     const { targetRef, isIntersecting } = useIntersectionObserver<HTMLDivElement>({
         threshold,

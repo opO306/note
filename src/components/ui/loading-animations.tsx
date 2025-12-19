@@ -106,13 +106,6 @@ function BarsLoader({
   size: "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
-  const barHeights = {
-    sm: "h-4",
-    md: "h-6",
-    lg: "h-8",
-    xl: "h-10",
-  };
-
   const barWidth = {
     sm: "w-0.5",
     md: "w-1",
@@ -120,7 +113,6 @@ function BarsLoader({
     xl: "w-2",
   };
 
-  const height = barHeights[size];
   const width = barWidth[size];
 
   return (
@@ -346,9 +338,9 @@ export function ProgressBar({
             "h-full rounded-full",
             variant === "default" && "bg-primary",
             variant === "gradient" &&
-              "bg-gradient-to-r from-primary to-primary/60",
+            "bg-gradient-to-r from-primary to-primary/60",
             variant === "striped" &&
-              "bg-primary bg-[length:1rem_1rem] bg-[linear-gradient(45deg,rgba(255,255,255,.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.15)_50%,rgba(255,255,255,.15)_75%,transparent_75%,transparent)]"
+            "bg-primary bg-[length:1rem_1rem] bg-[linear-gradient(45deg,rgba(255,255,255,.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.15)_50%,rgba(255,255,255,.15)_75%,transparent_75%,transparent)]"
           )}
           initial={{ width: 0 }}
           animate={{ width: `${Math.min(Math.max(progress, 0), 100)}%` }}

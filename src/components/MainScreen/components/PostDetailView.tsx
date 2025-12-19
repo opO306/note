@@ -76,6 +76,10 @@ interface PostDetailViewProps {
 
   // 신뢰도 체크
   canSubmitReply: boolean;
+
+  // 노트 저장 관련 (optional)
+  onSaveNote?: () => void;
+  hideSaveNote?: boolean;
 }
 
 // 상대시간 전용 컴포넌트로 타이머 리렌더 범위 국소화
@@ -127,16 +131,36 @@ export function PostDetailView({
     key: `post-detail-${post.id}`,
   });
 
+  // 🔹 자신의 게시글인지 먼저 확인
+  const isOwnPost = post.author === userNickname;
+
   const {
     userProfiles,
-    postAuthorProfileImage,
+    postAuthorProfileImage: _postAuthorProfileImage,
     postAuthorName,
     isPostAuthorDeleted,
     authorTitle,
     postCreatedAtText,
     postCreatedAtDate,
     visibleReplies,
-  } = usePostDetailViewModel({ post, userNickname, currentTitle });
+  } = usePostDetailViewModel({
+    post,
+    userNickname,
+    currentTitle,
+    userProfileImage: isOwnPost ? _userProfileImage : undefined
+  });
+
+  // 🔹 자신의 게시글일 때는 무조건 userProfileImage 사용 (실시간 프로필 완전히 무시)
+  const postAuthorProfileImage = useMemo(() => {
+    if (isOwnPost) {
+      // 자신의 게시글일 때는 userProfileImage만 사용 (값이 없어도 undefined/null 전달)
+      return _userProfileImage && _userProfileImage.trim().length > 0
+        ? _userProfileImage
+        : null;
+    }
+    // 다른 사람의 게시글일 때는 usePostDetailViewModel에서 계산한 값 사용
+    return _postAuthorProfileImage;
+  }, [isOwnPost, _userProfileImage, _postAuthorProfileImage]);
 
   // 답글 입력 엔터 처리 (조건부 호출 방지를 위해 early return 전에 정의)
   const handleKeyDown = useCallback(
@@ -170,7 +194,7 @@ export function PostDetailView({
   return (
     <div className="h-full flex flex-col">
       {/* 헤더 */}
-      <div className="bg-card/95 border-b border-border p-4 flex-shrink-0">
+      <div className="bg-card/95 border-b border-border p-4 flex-shrink-0 safe-top">
         <div className="flex items-center space-x-3">
           <Button variant="ghost" size="icon" onClick={onClose}>
             <ArrowLeft className="w-5 h-5" />
@@ -196,6 +220,7 @@ export function PostDetailView({
                           ? `${postAuthorName}님의 프로필`
                           : "프로필 이미지"
                       }
+                      nickname={isPostAuthorDeleted ? undefined : (post.author || postAuthorName)}
                       fallbackText={
                         postAuthorName.charAt(0)?.toUpperCase() || "?"
                       }
@@ -279,9 +304,9 @@ export function PostDetailView({
                 {/* 게시물 제목 및 내용 */}
                 <div>
                   <h1 className="text-xl font-medium mb-3">{post.title}</h1>
-                  <p className="text-muted-foreground leading-relaxed">
+                  <div className="text-base text-foreground/90 leading-7 break-words [&>div:not(:first-child)]:mt-5 [&>div:not(:last-child)]:mb-0">
                     {renderContentWithMentions(post.content)}
-                  </p>
+                  </div>
                 </div>
 
                 {/* 태그 */}
@@ -372,7 +397,7 @@ export function PostDetailView({
             <CardContent className="p-4">
               <div className="space-y-4">
                 <Textarea
-                  ref={replyInputRef}
+                  ref={replyInputRef as React.RefObject<HTMLTextAreaElement>}
                   placeholder={
                     canSubmitReply
                       ? "이 글에 대한 생각을 나눠보세요."
@@ -574,10 +599,10 @@ const ReplyCard = React.memo(function ReplyCard({
   const liveReplyTitleId = replyAuthorProfile?.currentTitleId ?? null;
   const liveReplyTitle = getTitleLabelById(liveReplyTitleId);
 
-  // 🔹 1순위: users 컬렉션 (실시간 프로필)
-  // 🔹 2순위: 댓글에 저장된 authorAvatar (옛 데이터/백업용)
-  const replyProfileImage =
-    replyAuthorProfile?.profileImage ?? reply.authorAvatar ?? null;
+  // 🔹 자신의 댓글일 때는 userProfileImage 우선, 그 외에는 실시간 프로필 이미지 우선 (댓글에 저장된 authorAvatar는 fallback)
+  const replyProfileImage = isOwnReply && _userProfileImage
+    ? _userProfileImage
+    : (replyAuthorProfile?.profileImage ?? reply.authorAvatar ?? null);
 
   // 🔹 프로필 정보가 아직 없거나, uid가 없는 경우를 위한 예비용
   const replyTitleFallback = getUserTitle(
@@ -659,6 +684,7 @@ const ReplyCard = React.memo(function ReplyCard({
                     ? `${replyAuthorName}님의 프로필`
                     : "프로필 이미지"
                 }
+                nickname={isReplyAuthorDeleted ? undefined : (reply.author || replyAuthorName)}
                 fallbackText={
                   replyAuthorName.charAt(0)?.toUpperCase() || "?"
                 }
@@ -765,9 +791,9 @@ const ReplyCard = React.memo(function ReplyCard({
           </div>
 
           {/* 답글 내용 */}
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <div className="text-sm text-foreground/90 leading-6 break-words [&>div:not(:first-child)]:mt-4 [&>div:not(:last-child)]:mb-0">
             {renderContentWithMentions(reply.content)}
-          </p>
+          </div>
 
           {/* 등불 + 오른쪽 하단 시간 */}
           <div className="flex items-center justify-between pt-2">

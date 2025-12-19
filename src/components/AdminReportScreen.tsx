@@ -1,7 +1,7 @@
 // src/components/AdminReportScreen.tsx
 // 운영자용 신고 관리 화면
 
-import React, {
+import {
     useEffect,
     useMemo,
     useState,

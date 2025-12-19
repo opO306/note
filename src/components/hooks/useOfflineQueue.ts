@@ -181,6 +181,7 @@ export function useAutoSync(
       const timer = setTimeout(sync, 1000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [isOnline, wasOffline, queue.length, processQueue, handler, options]);
 
   return {

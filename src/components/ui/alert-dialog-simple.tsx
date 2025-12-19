@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Button } from "./button";
 import { Checkbox } from "./checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
@@ -48,7 +47,7 @@ export function AlertDialogSimple({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50  flex items-center justify-center p-4 animate-in fade-in duration-200">
       <Card className="w-full max-w-md shadow-lg scale-100">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-lg">{title}</CardTitle>

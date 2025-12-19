@@ -195,7 +195,6 @@ export function MyPageScreen({
       toast.success("로그아웃 되었습니다.");
 
     } catch (error) {
-      console.error("로그아웃 실패:", error);
       toast.error("로그아웃 중 오류가 발생했습니다.");
     }
   }, [onLogout]);
@@ -306,7 +305,6 @@ export function MyPageScreen({
       setShowDescriptionDialog(false);
       setTempDescription("");
     } catch (error) {
-      console.error("[MyPage] 프로필 설명 업데이트 실패", error);
       toast.error("프로필 설명을 저장하지 못했어요. 잠시 후 다시 시도해주세요.");
     }
   }, [tempDescription, onProfileDescriptionChange]);
@@ -442,7 +440,8 @@ export function MyPageScreen({
                   src={userProfileImage}
                   alt={userNickname ? `${userNickname}님의 프로필` : "프로필 이미지"}
                   fallbackText={userNickname?.charAt(0)?.toUpperCase() || "?"}
-                  className="w-20 h-20 rounded-full overflow-hidden"
+                  nickname={userNickname}
+                  className="w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-xl"
                 />
 
                 <div className="absolute -bottom-1 -right-1">
@@ -948,6 +947,7 @@ export function MyPageScreen({
           </div>
         </div>
       )}
+
     </div>
   );
 }

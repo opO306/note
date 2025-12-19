@@ -1,7 +1,7 @@
 // MainScreen/components/QuizScreen.tsx
 // 주간 퀴즈 화면 컴포넌트
 /* eslint-disable react/jsx-no-bind, react-perf/jsx-no-new-function-as-prop */
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

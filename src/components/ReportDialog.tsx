@@ -64,6 +64,7 @@ export function ReportDialog({
       };
     } else {
       document.body.style.overflow = "unset";
+      return undefined;
     }
   }, [dialogOpen, setDialogOpen]);
 

@@ -1,9 +1,9 @@
 // 예시 경로: src/screens/TitleShopScreen.tsx
 /* eslint-disable react/jsx-no-bind, react-perf/jsx-no-new-function-as-prop */
-import React, { useState } from "react";
+import { useState } from "react";
 import { doc, updateDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { app, auth, db } from "../firebase";
+import { app, db } from "../firebase";
 import { TitleShop } from "../components/TitleShop";
 
 interface TitleShopScreenProps {

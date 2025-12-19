@@ -246,8 +246,13 @@ function NotificationItem({ notification, onNotificationClick, onDelete }: Notif
     const deltaX = x - startXRef.current;
     const deltaY = Math.abs(y - startYRef.current);
 
-    if (Math.abs(deltaX) > MIN_SWIPE_DISTANCE && deltaY < 50) {
+    // 수평 스와이프가 수직 스크롤보다 크면 스와이프로 판단
+    if (Math.abs(deltaX) > MIN_SWIPE_DISTANCE && Math.abs(deltaX) > deltaY * 1.5) {
       isSwipingRef.current = true;
+      swipeOffsetRef.current = deltaX;
+      setSwipeOffset(deltaX);
+    } else if (isSwipingRef.current && Math.abs(deltaX) > 0) {
+      // 이미 스와이프 중이면 계속 업데이트
       swipeOffsetRef.current = deltaX;
       setSwipeOffset(deltaX);
     }
@@ -342,7 +347,7 @@ function NotificationItem({ notification, onNotificationClick, onDelete }: Notif
         transform: `translateX(${swipeOffset}px)`,
         opacity,
         transition: swipeOffset === 0 ? "transform 0.2s ease-out, opacity 0.2s ease-out" : "none",
-        touchAction: "pan-y",
+        touchAction: Math.abs(swipeOffset) > 0 ? "pan-x" : "pan-y",
       }}
     >
       {showDeleteBackground && (

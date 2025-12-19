@@ -117,7 +117,7 @@ export function usePosts(options?: UsePostsOptions) {
             setPosts(visiblePosts);
 
         } catch (error) {
-            console.error("🔥 [usePosts] Fetch Error:", error);
+            // usePosts Fetch Error (로그 제거)
         } finally {
             setLoading(false);
         }

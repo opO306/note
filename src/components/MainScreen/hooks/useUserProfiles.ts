@@ -1,6 +1,6 @@
 // MainScreen/hooks/useUserProfiles.ts
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { auth, db } from "@/firebase";
 import { doc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
@@ -105,7 +105,8 @@ function subscribeToFirestore(uid: string) {
             const data = snap.data() as any;
             const profile: UserProfileLite = {
                 nickname: typeof data.nickname === "string" ? data.nickname : "알 수 없음",
-                profileImage: typeof data.profileImage === "string" ? data.profileImage : null,
+                // photoURL과 profileImage 둘 다 확인 (호환성)
+                profileImage: typeof data.photoURL === "string" ? data.photoURL : (typeof data.profileImage === "string" ? data.profileImage : null),
                 currentTitleId: typeof data.currentTitle === "string" ? data.currentTitle : null,
                 profileDescription: typeof data.profileDescription === "string" ? data.profileDescription : null,
                 role: (data.role === "admin" || data.role === "user") ? data.role : "user",
@@ -120,7 +121,7 @@ function subscribeToFirestore(uid: string) {
             firestoreUnsubscribers.delete(uid);
             return;
         }
-        console.error(`Error fetching user ${uid}:`, error);
+        // 사용자 프로필 조회 실패 (로그 제거)
     });
     firestoreUnsubscribers.set(uid, unsubscribe);
 }
@@ -281,7 +282,8 @@ export function useUserProfileByNickname(nickname?: string | null) {
             const data = snap.docs[0].data() as any;
             setProfile({
                 nickname: data.nickname ?? "",
-                profileImage: data.profileImage ?? null,
+                // photoURL과 profileImage 둘 다 확인 (호환성)
+                profileImage: typeof data.photoURL === "string" ? data.photoURL : (data.profileImage ?? null),
                 currentTitleId: data.currentTitle ?? null,
                 profileDescription: data.profileDescription ?? null,
                 role: (data.role === "admin" || data.role === "user") ? data.role : "user",

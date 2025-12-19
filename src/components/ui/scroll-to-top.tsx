@@ -30,8 +30,8 @@ export function ScrollToTop({
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const container = containerRef?.current || window;
-    
+    containerRef?.current || window;
+
     const handleScroll = () => {
       if (containerRef?.current) {
         // 컨테이너가 있는 경우
@@ -119,7 +119,7 @@ export function ScrollProgressButton({
 
   useEffect(() => {
     const container = containerRef?.current;
-    
+
     const handleScroll = () => {
       if (container) {
         const scrollTop = container.scrollTop;
@@ -127,7 +127,7 @@ export function ScrollProgressButton({
         const clientHeight = container.clientHeight;
         const totalScrollable = scrollHeight - clientHeight;
         const progress = (scrollTop / totalScrollable) * 100;
-        
+
         setScrollProgress(Math.min(progress, 100));
         setIsVisible(scrollTop > threshold);
       } else {
@@ -136,7 +136,7 @@ export function ScrollProgressButton({
         const clientHeight = document.documentElement.clientHeight;
         const totalScrollable = scrollHeight - clientHeight;
         const progress = (scrollTop / totalScrollable) * 100;
-        
+
         setScrollProgress(Math.min(progress, 100));
         setIsVisible(scrollTop > threshold);
       }

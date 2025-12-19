@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { auth, db, functions } from "@/firebase";
+import { auth, db } from "@/firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { toast } from "@/toastHelper";
 import { safeLocalStorage } from "@/components/utils/storageUtils";
 
 interface UseTrustScoreParams {
@@ -21,7 +19,7 @@ export function useTrustScore({ addLumens }: UseTrustScoreParams) {
   const lumenMultiplier = useMemo(() => (clampedTrust <= 10 ? 0.5 : 1), [clampedTrust]);
   const canWrite = clampedTrust > 0;
 
-  const updateTrust = useCallback((delta: number) => { /* ... 기존과 동일 ... */ }, []);
+  const updateTrust = useCallback((_delta: number) => { /* ... 기존과 동일 ... */ }, []);
 
   // ✨ [해결 2] addLumensWithTrust 함수를 async로 만들고, addLumens를 await로 호출합니다.
   const addLumensWithTrust = useCallback(

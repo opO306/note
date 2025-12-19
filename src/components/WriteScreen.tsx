@@ -9,6 +9,7 @@ import { Card, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Badge } from "./ui/badge";
+import { useNavigation } from "./MainScreen/contexts/NavigationContext";
 import { AlertDialogSimple } from "./ui/alert-dialog-simple";
 import {
   ArrowLeft,
@@ -115,9 +116,12 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
       console.error("Failed to load userSettings in WriteScreen:", error);
     }
   }, []);
-
+  const { writeDraft, setWriteDraft } = useNavigation();
   // 임시저장 데이터 로드
   useEffect(() => {
+    // ✅ 노트/질문정리에서 넘어온 초안이 있으면, 임시저장은 로드하지 않음
+    if (writeDraft) return;
+
     const savedDraft = safeLocalStorage.getItem("draftPost");
     if (!savedDraft) return;
 
@@ -154,7 +158,28 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
     } catch (error) {
       console.error("Failed to load draft:", error);
     }
-  }, []);
+  }, [writeDraft]);
+  // ✅ store hook 이름은 프로젝트 기준에 맞추세요.
+  // (너 프로젝트는 useNavigationStore가 표준이면 그걸 쓰는 게 안전)
+
+
+  useEffect(() => {
+    if (!writeDraft) return;
+
+    // 1) 초안 주입
+    setTitle(writeDraft.title ?? "");
+    setContent(writeDraft.body ?? "");
+
+    // 2) postType 반영 (노트=guide, 질문정리=question)
+    setPostType(writeDraft.postType ?? "question");
+
+    // 3) 임시저장 관련 UI 상태 정리(선택이지만 권장)
+    setLastSaved(null);
+
+    // 4)  1회성 소비
+    setWriteDraft(null);
+  }, [writeDraft, setWriteDraft]);
+
 
   // 임시저장 함수
   const saveDraft = useCallback(() => {
@@ -561,7 +586,7 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
               <div className="space-y-3">
                 <label className="text-sm font-medium">제목</label>
                 <Input
-                  ref={titleRef}
+                  ref={titleRef as React.RefObject<HTMLInputElement>}
                   value={title}
                   onChange={handleTitleChange}
                   placeholder="제목을 입력하세요"
@@ -581,7 +606,7 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
               <div className="space-y-3">
                 <label className="text-sm font-medium">내용</label>
                 <Textarea
-                  ref={contentRef}
+                  ref={contentRef as React.RefObject<HTMLTextAreaElement>}
                   value={content}
                   onChange={handleContentChange}
                   placeholder="내용을 입력하세요"
@@ -622,7 +647,7 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
                 {showTagInput && (
                   <div className="flex space-x-2">
                     <Input
-                      ref={tagInputRef}
+                      ref={tagInputRef as React.RefObject<HTMLInputElement>}
                       value={tagInput}
                       onChange={handleTagInputChange}
                       onKeyPress={handleKeyPress}

@@ -15,17 +15,25 @@
   --font-size: 16px;
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
-  
+
   /* Typography scale */
-  --text-xs: 0.75rem;     /* 12px */
-  --text-sm: 0.875rem;    /* 14px */
-  --text-base: 1rem;      /* 16px */
-  --text-lg: 1.125rem;    /* 18px */
-  --text-xl: 1.25rem;     /* 20px */
-  --text-2xl: 1.5rem;     /* 24px */
-  --text-3xl: 1.875rem;   /* 30px */
-  --text-4xl: 2.25rem;    /* 36px */
-  
+  --text-xs: 0.75rem;
+  /* 12px */
+  --text-sm: 0.875rem;
+  /* 14px */
+  --text-base: 1rem;
+  /* 16px */
+  --text-lg: 1.125rem;
+  /* 18px */
+  --text-xl: 1.25rem;
+  /* 20px */
+  --text-2xl: 1.5rem;
+  /* 24px */
+  --text-3xl: 1.875rem;
+  /* 30px */
+  --text-4xl: 2.25rem;
+  /* 36px */
+
   --background: #fafbfc;
   --foreground: #1a1d23;
   --card: #ffffff;
@@ -169,12 +177,15 @@
 
   /* 스크롤바 전역 숨김 (스크롤 가능은 유지) */
   * {
-    scrollbar-width: none; /* Firefox */
+    scrollbar-width: none;
+    /* Firefox */
   }
+
   *::-webkit-scrollbar {
     width: 0;
     height: 0;
-    display: none; /* WebKit */
+    display: none;
+    /* WebKit */
   }
 
   html {
@@ -344,17 +355,17 @@
   }
 
   /* 스크롤은 되지만 스크롤바는 안 보이게 하는 공통 클래스 */
-.no-scrollbar {
-  /* Firefox */
-  scrollbar-width: none;
-  /* IE, Edge */
-  -ms-overflow-style: none;
-}
+  .no-scrollbar {
+    /* Firefox */
+    scrollbar-width: none;
+    /* IE, Edge */
+    -ms-overflow-style: none;
+  }
 
-.no-scrollbar::-webkit-scrollbar {
-  /* Chrome, Safari, 모바일 웹뷰 */
-  display: none;
-}
+  .no-scrollbar::-webkit-scrollbar {
+    /* Chrome, Safari, 모바일 웹뷰 */
+    display: none;
+  }
 
 
   /* Scroll snap for better UX */
@@ -396,10 +407,10 @@
     padding-top: calc(var(--safe-area-inset-top) + 0.75rem);
   }
 
-.safe-nav-bottom {
-  /* 기기 환경에서 제공하는 안전 영역 + 네비게이션 바 높이만큼 여유(약 3.5rem) */
-  padding-bottom: calc(var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)) + 3.5rem);
-}
+  .safe-nav-bottom {
+    /* 기기 환경에서 제공하는 안전 영역만 사용 (추가 여유 제거) */
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  }
 
   /* Navigation button styling */
   .nav-button {
@@ -495,10 +506,12 @@
       opacity: 0.8;
       transform: scale(0.95);
     }
+
     50% {
       opacity: 0.6;
       transform: scale(1);
     }
+
     100% {
       opacity: 0;
       transform: scale(1.05);
@@ -510,10 +523,12 @@
       opacity: 0.9;
       transform: scale(0.9);
     }
+
     50% {
       opacity: 0.7;
       transform: scale(1);
     }
+
     100% {
       opacity: 0;
       transform: scale(1.1);
@@ -524,15 +539,19 @@
     0% {
       transform: translate(0, 0) rotate(0deg);
     }
+
     25% {
       transform: translate(10px, -15px) rotate(5deg);
     }
+
     50% {
       transform: translate(-5px, -25px) rotate(-3deg);
     }
+
     75% {
       transform: translate(-15px, -10px) rotate(7deg);
     }
+
     100% {
       transform: translate(0, 0) rotate(0deg);
     }
@@ -542,38 +561,59 @@
     0% {
       opacity: 0;
     }
+
     50% {
       opacity: 0.08;
     }
+
     100% {
       opacity: 0;
     }
   }
 
   @keyframes fadeInOut1 {
-    0%, 100% { opacity: 0; }
-    50% { opacity: 0.04; }
+
+    0%,
+    100% {
+      opacity: 0;
+    }
+
+    50% {
+      opacity: 0.04;
+    }
   }
 
   @keyframes fadeInOut2 {
-    0%, 100% { opacity: 0; }
-    50% { opacity: 0.06; }
+
+    0%,
+    100% {
+      opacity: 0;
+    }
+
+    50% {
+      opacity: 0.06;
+    }
   }
 
   @keyframes fadeInOut3 {
-    0%, 100% { opacity: 0; }
-    50% { opacity: 0.08; }
+
+    0%,
+    100% {
+      opacity: 0;
+    }
+
+    50% {
+      opacity: 0.08;
+    }
   }
 
   /* Image loading skeleton */
   .image-skeleton {
-    background: linear-gradient(
-      90deg,
-      var(--muted) 0%,
-      var(--muted-foreground) 20%,
-      var(--muted) 40%,
-      var(--muted) 100%
-    );
+    background: linear-gradient(90deg,
+        var(--muted) 0%,
+        var(--muted-foreground) 20%,
+        var(--muted) 40%,
+        var(--muted) 100%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite linear;
   }
@@ -598,7 +638,8 @@
   input[type="password"],
   input[type="search"],
   textarea {
-    font-size: 16px !important; /* iOS won't zoom if font-size >= 16px */
+    font-size: 16px !important;
+    /* iOS won't zoom if font-size >= 16px */
   }
 
   /* Smooth keyboard transition */
@@ -659,6 +700,7 @@
 
   /* Reduced motion support */
   @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {
@@ -673,6 +715,7 @@
     from {
       opacity: 0;
     }
+
     to {
       opacity: 1;
     }
@@ -682,6 +725,7 @@
     from {
       opacity: 1;
     }
+
     to {
       opacity: 0;
     }
@@ -692,6 +736,7 @@
       transform: translateY(20px);
       opacity: 0;
     }
+
     to {
       transform: translateY(0);
       opacity: 1;
@@ -703,6 +748,7 @@
       transform: translateX(20px);
       opacity: 0;
     }
+
     to {
       transform: translateX(0);
       opacity: 1;
@@ -714,6 +760,7 @@
       transform: translateX(-20px);
       opacity: 0;
     }
+
     to {
       transform: translateX(0);
       opacity: 1;
@@ -725,6 +772,7 @@
       transform: scale(0.9);
       opacity: 0;
     }
+
     to {
       transform: scale(1);
       opacity: 1;
@@ -736,6 +784,7 @@
       transform: scale(1);
       opacity: 1;
     }
+
     to {
       transform: scale(0.9);
       opacity: 0;
@@ -743,23 +792,28 @@
   }
 
   @keyframes bounce {
+
     0%,
     100% {
       transform: translateY(0);
     }
+
     50% {
       transform: translateY(-10px);
     }
   }
 
   @keyframes shake {
+
     0%,
     100% {
       transform: translateX(0);
     }
+
     25% {
       transform: translateX(-10px);
     }
+
     75% {
       transform: translateX(10px);
     }
@@ -769,17 +823,20 @@
     from {
       transform: rotate(0deg);
     }
+
     to {
       transform: rotate(360deg);
     }
   }
 
   @keyframes pulse {
+
     0%,
     100% {
       opacity: 1;
       transform: scale(1);
     }
+
     50% {
       opacity: 0.5;
       transform: scale(1.05);
@@ -787,13 +844,16 @@
   }
 
   @keyframes wiggle {
+
     0%,
     100% {
       transform: rotate(0deg);
     }
+
     25% {
       transform: rotate(-5deg);
     }
+
     75% {
       transform: rotate(5deg);
     }
@@ -804,6 +864,7 @@
       transform: scale(0);
       opacity: 1;
     }
+
     100% {
       transform: scale(4);
       opacity: 0;
@@ -815,6 +876,7 @@
  * Accessibility
  */
 @layer base {
+
   /* Screen reader only */
   .sr-only {
     position: absolute;
@@ -937,6 +999,7 @@
 
   /* 📱 터치 기기에서는 포커스 테두리 숨기기 (눌림 표시가 남지 않게) */
   @media (pointer: coarse) {
+
     button:focus-visible,
     a:focus-visible {
       outline: none;
@@ -946,6 +1009,7 @@
 
 
   @media (pointer: coarse) {
+
     /* 스위치(Radix)는 button role="switch" 이라 제외 */
     button:not([role="switch"]),
     a {
@@ -1096,8 +1160,8 @@
 
 /* ì¹©/í•„í„°ìš©: ìƒíƒœ ë³€í™” ì‹œì—ë„ ê¸€ìžìƒ‰ ìœ ì§€ */
 .btn-keep-text,
-.btn-keep-text * { 
-  color: inherit !important; 
+.btn-keep-text * {
+  color: inherit !important;
 }
 
 .btn-keep-text:where(:hover, :active, :focus, :focus-visible),
@@ -1112,6 +1176,7 @@
 .btn-keep-text:where(:hover, :active, :focus, :focus-visible) {
   color: var(--foreground) !important;
 }
+
 /* ì„ íƒ/í† ê¸€ ë“± ARIA ìƒíƒœë„ ì»¤ë²„ */
 .btn-keep-text[aria-pressed="true"],
 .btn-keep-text[aria-selected="true"],
@@ -1121,9 +1186,12 @@
 
 /* ë¶€ë“œëŸ¬ìš´ ê¸€ë¡œìš° */
 @keyframes soft-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
   }
+
   50% {
     box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
   }
@@ -1131,13 +1199,16 @@
 
 /* Tier 5 - ë¶ˆê½ƒ ê¸€ë¡œìš° */
 @keyframes glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.4),
-                0 0 20px rgba(239, 68, 68, 0.3);
+      0 0 20px rgba(239, 68, 68, 0.3);
   }
+
   50% {
     box-shadow: 0 0 20px rgba(239, 68, 68, 0.6),
-                0 0 30px rgba(239, 68, 68, 0.4);
+      0 0 30px rgba(239, 68, 68, 0.4);
   }
 }
 
@@ -1146,21 +1217,27 @@
   0% {
     border-color: #ef4444;
   }
+
   16.67% {
     border-color: #f59e0b;
   }
+
   33.33% {
     border-color: #eab308;
   }
+
   50% {
     border-color: #10b981;
   }
+
   66.67% {
     border-color: #3b82f6;
   }
+
   83.33% {
     border-color: #8b5cf6;
   }
+
   100% {
     border-color: #ef4444;
   }
@@ -1168,16 +1245,19 @@
 
 /* Tier 8 - ì „ì„¤ íš¨ê³¼ */
 @keyframes legendary {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 15px rgba(251, 191, 36, 0.6),
-                0 0 30px rgba(251, 191, 36, 0.4),
-                0 0 45px rgba(251, 191, 36, 0.2);
+      0 0 30px rgba(251, 191, 36, 0.4),
+      0 0 45px rgba(251, 191, 36, 0.2);
     transform: scale(1);
   }
+
   50% {
     box-shadow: 0 0 20px rgba(251, 191, 36, 0.8),
-                0 0 40px rgba(251, 191, 36, 0.6),
-                0 0 60px rgba(251, 191, 36, 0.3);
+      0 0 40px rgba(251, 191, 36, 0.6),
+      0 0 60px rgba(251, 191, 36, 0.3);
     transform: scale(1.02);
   }
 }
@@ -1190,9 +1270,12 @@
 
 /* ëª…íŒ¨ ì• ë‹ˆë©”ì´ì…˜ íš¨ê³¼ */
 @keyframes neon-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.7;
   }
@@ -1202,15 +1285,19 @@
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100%);
   }
 }
 
 @keyframes crystal-sparkle {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.3;
   }
+
   50% {
     opacity: 0.6;
   }
@@ -1218,52 +1305,76 @@
 
 :root {
   /* 기본 알림 - 흰색 배경, 검은 텍스트 */
-  --normal-bg: hsl(0 0% 100%);           /* 순백색 */
-  --normal-text: hsl(240 10% 3.9%);      /* 거의 검은색 */
-  --normal-border: hsl(240 5.9% 90%);    /* 연한 회색 테두리 */
-  
+  --normal-bg: hsl(0 0% 100%);
+  /* 순백색 */
+  --normal-text: hsl(240 10% 3.9%);
+  /* 거의 검은색 */
+  --normal-border: hsl(240 5.9% 90%);
+  /* 연한 회색 테두리 */
+
   /* ✅ 성공 알림 - 초록색 완전 제거! */
-  --success-bg: hsl(0 0% 100%);          /* 흰색 배경 */
-  --success-text: hsl(240 10% 3.9%);     /* 검은색 텍스트 */
-  --success-border: hsl(240 5.9% 10%);   /* 진한 회색 테두리로 강조 */
-  
+  --success-bg: hsl(0 0% 100%);
+  /* 흰색 배경 */
+  --success-text: hsl(240 10% 3.9%);
+  /* 검은색 텍스트 */
+  --success-border: hsl(240 5.9% 10%);
+  /* 진한 회색 테두리로 강조 */
+
   /* ❌ 에러 알림 - 빨간색 유지 (경고는 눈에 띄어야 함!) */
-  --error-bg: hsl(0 84.2% 60.2%);        /* 빨간색 배경 */
-  --error-text: hsl(0 0% 100%);          /* 흰색 텍스트 */
-  --error-border: hsl(0 84.2% 60.2%);    /* 빨간색 테두리 */
-  
+  --error-bg: hsl(0 84.2% 60.2%);
+  /* 빨간색 배경 */
+  --error-text: hsl(0 0% 100%);
+  /* 흰색 텍스트 */
+  --error-border: hsl(0 84.2% 60.2%);
+  /* 빨간색 테두리 */
+
   /* ℹ️ 정보 알림 - 중립적 */
-  --info-bg: hsl(0 0% 100%);             /* 흰색 배경 */
-  --info-text: hsl(240 10% 3.9%);        /* 검은색 텍스트 */
-  --info-border: hsl(240 5.9% 10%);      /* 진한 회색 테두리 */
-  
+  --info-bg: hsl(0 0% 100%);
+  /* 흰색 배경 */
+  --info-text: hsl(240 10% 3.9%);
+  /* 검은색 텍스트 */
+  --info-border: hsl(240 5.9% 10%);
+  /* 진한 회색 테두리 */
+
   /* ⚠️ 경고 알림 - 주황색 */
-  --warning-bg: hsl(47.9 95.8% 53.1%);   /* 노란색/주황색 배경 */
-  --warning-text: hsl(240 10% 3.9%);     /* 검은색 텍스트 */
+  --warning-bg: hsl(47.9 95.8% 53.1%);
+  /* 노란색/주황색 배경 */
+  --warning-text: hsl(240 10% 3.9%);
+  /* 검은색 텍스트 */
   --warning-border: hsl(47.9 95.8% 53.1%);
 }
 
 .dark {
   /* 기본 알림 - 어두운 배경, 밝은 텍스트 */
-  --normal-bg: hsl(240 10% 19%);         /* 어두운 회색 */
-  --normal-text: hsl(0 0% 90.9%);        /* 밝은 회색 */
-  --normal-border: hsl(240 3.7% 15.9%);  /* 더 어두운 테두리 */
-  
+  --normal-bg: hsl(240 10% 19%);
+  /* 어두운 회색 */
+  --normal-text: hsl(0 0% 90.9%);
+  /* 밝은 회색 */
+  --normal-border: hsl(240 3.7% 15.9%);
+  /* 더 어두운 테두리 */
+
   /* ✅ 성공 알림 - 초록색 제거, 대신 노란색 테두리로 강조 */
-  --success-bg: hsl(240 10% 19%);        /* 어두운 회색 배경 */
-  --success-text: hsl(0 0% 90.9%);       /* 밝은 회색 텍스트 */
-  --success-border: hsl(47.9 95.8% 53.1%); /* 노란색 테두리! */
-  
+  --success-bg: hsl(240 10% 19%);
+  /* 어두운 회색 배경 */
+  --success-text: hsl(0 0% 90.9%);
+  /* 밝은 회색 텍스트 */
+  --success-border: hsl(47.9 95.8% 53.1%);
+  /* 노란색 테두리! */
+
   /* ❌ 에러 알림 - 빨간색 유지 */
-  --error-bg: hsl(0 72.2% 50.6%);        /* 빨간색 배경 */
-  --error-text: hsl(0 0% 12.2%);         /* 어두운 텍스트 */
-  --error-border: hsl(0 72.2% 50.6%);    /* 빨간색 테두리 */
-  
+  --error-bg: hsl(0 72.2% 50.6%);
+  /* 빨간색 배경 */
+  --error-text: hsl(0 0% 12.2%);
+  /* 어두운 텍스트 */
+  --error-border: hsl(0 72.2% 50.6%);
+  /* 빨간색 테두리 */
+
   /* ℹ️ 정보 알림 - 중립적, 노란색 테두리 */
   --info-bg: hsl(240 10% 19%);
   --info-text: hsl(0 0% 90.9%);
-  --info-border: hsl(47.9 95.8% 53.1%);  /* 노란색 테두리 */
-  
+  --info-border: hsl(47.9 95.8% 53.1%);
+  /* 노란색 테두리 */
+
   /* ⚠️ 경고 알림 - 주황색 */
   --warning-bg: hsl(47.9 95.8% 53.1%);
   --warning-text: hsl(240 10% 3.9%);
@@ -1282,9 +1393,12 @@
 
 /* 알림 스와이프 제스처 최적화 */
 [data-sonner-toast] {
-  touch-action: manipulation;         /* 세로 스크롤 허용 */
-  user-select: none;            /* 텍스트 선택 방지 */
-  -webkit-user-select: none;    /* iOS 텍스트 선택 방지 */
+  touch-action: manipulation;
+  /* 세로 스크롤 허용 */
+  user-select: none;
+  /* 텍스트 선택 방지 */
+  -webkit-user-select: none;
+  /* iOS 텍스트 선택 방지 */
 }
 
 /* 알림 애니메이션 부드럽게 */
@@ -1294,19 +1408,26 @@
 
 @keyframes slideDown {
   from {
-    transform: translateY(-100%);  /* 위에서 */
-    opacity: 0;                    /* 투명하게 시작 */
+    transform: translateY(-100%);
+    /* 위에서 */
+    opacity: 0;
+    /* 투명하게 시작 */
   }
+
   to {
-    transform: translateY(0);      /* 아래로 */
-    opacity: 1;                    /* 선명하게 끝 */
+    transform: translateY(0);
+    /* 아래로 */
+    opacity: 1;
+    /* 선명하게 끝 */
   }
 }
 
 /* 다크모드/라이트모드 배경 블러 효과 */
 [data-sonner-toast] {
-  backdrop-filter: blur(8px);           /* 배경 흐림 */
-  -webkit-backdrop-filter: blur(8px);   /* iOS 배경 흐림 */
+  backdrop-filter: blur(8px);
+  /* 배경 흐림 */
+  -webkit-backdrop-filter: blur(8px);
+  /* iOS 배경 흐림 */
 }
 
 /* 동적 떠다니는 심볼용 클래스 */
@@ -1374,7 +1495,8 @@
   width: 32px !important;
   min-height: 16px !important;
   min-width: 32px !important;
-  padding: 2px !important; /* 내부 여백 추가 */
+  padding: 2px !important;
+  /* 내부 여백 추가 */
 }
 
 /* 스위치 내부 하얀 동그라미 (Thumb) */
@@ -1387,7 +1509,8 @@
 
 /* ON 상태일 때 Thumb 위치 - 정밀 계산 */
 [data-slot="switch"][data-state="checked"] [data-slot="switch-thumb"] {
-  transform: translateX(16px) !important; /* 32px(전체) - 12px(Thumb) - 4px(padding) = 16px */
+  transform: translateX(16px) !important;
+  /* 32px(전체) - 12px(Thumb) - 4px(padding) = 16px */
 }
 
 /* OFF 상태일 때 Thumb 위치 */
@@ -1402,14 +1525,15 @@
     width: 28px !important;
     padding: 0px !important;
   }
-  
+
   [data-slot="switch-thumb"] {
     width: 10px !important;
     height: 10px !important;
   }
-  
+
   [data-slot="switch"][data-state="checked"] [data-slot="switch-thumb"] {
-    transform: translateX(8px) !important; /* 28px - 10px - 4px = 14px */
+    transform: translateX(8px) !important;
+    /* 28px - 10px - 4px = 14px */
   }
 }
 
@@ -1420,14 +1544,15 @@
     width: 36px !important;
     padding: 1px !important;
   }
-  
+
   [data-slot="switch-thumb"] {
     width: 13px !important;
     height: 14px !important;
   }
-  
+
   [data-slot="switch"][data-state="checked"] [data-slot="switch-thumb"] {
-    transform: translateX(8px) !important; /* 36px - 14px - 4px = 18px */
+    transform: translateX(8px) !important;
+    /* 36px - 14px - 4px = 18px */
   }
 }
 
@@ -1445,6 +1570,7 @@
    모바일에서 버튼 눌림 자국 제거 (강제 버전)
    ============================ */
 @media (pointer: coarse) {
+
   *:focus,
   *:focus-visible {
     /* 모든 포커스 테두리/하이라이트 숨기기 */
@@ -1457,4 +1583,3 @@
     --tw-ring-offset-color: transparent !important;
   }
 }
-

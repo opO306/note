@@ -254,7 +254,7 @@ export function useFollowActions({ userNickname }: UseFollowActionsParams) {
         }
 
         // 서버 기준으로 팔로우/언팔로우 토글
-        const result = await toggleFollowByNickname({
+        await toggleFollowByNickname({
           currentUid,
           currentNickname: userNickname,
           targetNickname: normalizedTarget,

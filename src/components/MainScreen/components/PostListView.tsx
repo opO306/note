@@ -416,8 +416,29 @@ export const PostCard = React.memo(
     }, [onPostClick, post]);
 
     const handleLanternClick = useCallback(
-      (e: React.MouseEvent) => {
+      (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
         e.stopPropagation();
+        e.nativeEvent.stopImmediatePropagation();
+
+        // 현재 버튼이 클릭되었는지 확인
+        const target = e.currentTarget;
+        const buttonPostId = target.getAttribute('data-post-id');
+        if (buttonPostId !== String(post.id)) {
+          console.warn('등불 버튼 ID 불일치:', buttonPostId, post.id);
+          return;
+        }
+
+        // 한 번만 실행되도록 보장
+        if (target.hasAttribute('data-processing')) {
+          return;
+        }
+        target.setAttribute('data-processing', 'true');
+
+        setTimeout(() => {
+          target.removeAttribute('data-processing');
+        }, 1000);
+
         onLanternToggle(post.id);
       },
       [onLanternToggle, post.id]
@@ -425,6 +446,7 @@ export const PostCard = React.memo(
 
     const handleBookmarkClick = useCallback(
       (e: React.MouseEvent) => {
+        e.preventDefault();
         e.stopPropagation();
         onBookmarkToggle(post.id);
       },
@@ -447,6 +469,7 @@ export const PostCard = React.memo(
                     ? `${displayAuthorName}님의 프로필`
                     : "프로필 이미지"
                 }
+                nickname={isAuthorDeleted ? undefined : displayAuthorName}
                 fallbackText={displayAuthorName.charAt(0)?.toUpperCase() || "?"}
                 className="w-10 h-10 ring-2 ring-border/20"
                 size={40}
@@ -517,24 +540,35 @@ export const PostCard = React.memo(
             {/* 목록에서는 태그 미표시 (상세에서만 표시) */}
 
             {/* 등불 / 댓글 / 조회수 / 북마크 */}
-            <div className="flex items-center justify-between pt-2 border-t border-border/50">
-              <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+            <div
+              className="flex items-center justify-between pt-2 border-t border-border/50 relative z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center space-x-4 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                 {/* 등불 */}
                 {!isOwnPost ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleLanternClick}
-                    className={`h-8 px-2 space-x-1 ${isLanterned ? "text-amber-500" : "text-muted-foreground"
-                      }`}
-                  >
-                    {isLanterned ? (
-                      <LanternFilledIcon className="w-4 h-4" />
-                    ) : (
-                      <LanternIcon className="w-4 h-4" />
-                    )}
-                    <span className="text-xs">{post.lanterns ?? 0}</span>
-                  </Button>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleLanternClick}
+                      data-post-id={post.id}
+                      className={`h-8 px-2 space-x-1 ${isLanterned ? "text-amber-500" : "text-muted-foreground"
+                        }`}
+                    >
+                      {isLanterned ? (
+                        <LanternFilledIcon className="w-4 h-4" />
+                      ) : (
+                        <LanternIcon className="w-4 h-4" />
+                      )}
+                      <span className="text-xs">{post.lanterns ?? 0}</span>
+                    </Button>
+                  </div>
                 ) : (
                   <div className="flex items-center space-x-1">
                     <LanternIcon className="w-4 h-4" />
@@ -555,18 +589,21 @@ export const PostCard = React.memo(
               </div>
 
               {/* 북마크 */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBookmarkClick}
-                className={`h-8 px-2 ${isBookmarked ? "text-primary" : "text-muted-foreground"
-                  }`}
-              >
-                <Bookmark
-                  className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""
+              <div onClick={(e) => e.stopPropagation()}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleBookmarkClick}
+                  className={`h-8 px-2 ${isBookmarked ? "text-primary" : "text-muted-foreground"
                     }`}
-                />
-              </Button>
+                >
+                  <Bookmark
+                    className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""
+                      }`}
+                  />
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>

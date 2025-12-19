@@ -1,10 +1,8 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { Capacitor } from "@capacitor/core";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { Moon, Sun, Loader2 } from "lucide-react";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
-import { httpsCallable } from "firebase/functions";
-import { auth, functions } from "../firebase";
+import { auth } from "../firebase";
 import { toast } from "../toastHelper";
 
 import { Button } from "./ui/button";
@@ -58,7 +56,6 @@ interface LoginScreenProps {
   onShowPrivacy: () => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
-  onLoginSuccess?: () => void;
 }
 
 export function LoginScreen({
@@ -66,7 +63,6 @@ export function LoginScreen({
   onShowPrivacy,
   isDarkMode,
   onToggleDarkMode,
-  onLoginSuccess,
 }: LoginScreenProps) {
   const floatingSymbols = useMemo<FloatingSymbolData[]>(() => {
     return Array.from({ length: 30 }, (_, i) => ({
@@ -84,59 +80,38 @@ export function LoginScreen({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleGoogleLogin = useCallback(async () => {
-    if (!agreedToTerms) {
-      toast.error("약관에 동의해주세요.");
-      return;
-    }
+    if (!agreedToTerms) return toast.error("약관에 동의해주세요.");
     if (isLoggingIn) return;
-
     setIsLoggingIn(true);
 
     try {
-      // 1. Google 로그인 (Auth 토큰 확보)
-      let credential;
+      // 1) 네이티브 구글 로그인
+      const result = await FirebaseAuthentication.signInWithGoogle();
 
-      if (Capacitor.isNativePlatform()) {
-        const result = await FirebaseAuthentication.signInWithGoogle();
-        const idToken = result.credential?.idToken;
-        if (!idToken) throw new Error("Google ID Token not found");
-        credential = GoogleAuthProvider.credential(idToken);
-        // 네이티브는 여기서 Firebase Auth 로그인까지 수행
-        await signInWithCredential(auth, credential);
-      } else {
-        const { signInWithPopup } = await import("firebase/auth");
-        const provider = new GoogleAuthProvider();
-        await signInWithPopup(auth, provider);
+      // 2) 네이티브 로그인 결과를 설치본에서도 바로 확인
+      const idToken = result.credential?.idToken ?? "";
+      const accessToken = result.credential?.accessToken ?? "";
+
+      // 3) 토큰이 없으면 에러 처리
+      if (!idToken && !accessToken) {
+        toast.error("로그인에 실패했습니다. 다시 시도해주세요.");
+        return undefined;
       }
 
-      console.log("✅ [LoginScreen] Firebase Auth 성공");
+      // 4) Web SDK credential 생성 + 로그인 시도
+      const credential = GoogleAuthProvider.credential(
+        idToken || undefined,
+        accessToken || undefined
+      );
 
-      // 2. 🚀 서버 검증 함수 호출 (여기로 모든 체크 위임)
-      const verifyLoginFn = httpsCallable(functions, "verifyLogin");
-      await verifyLoginFn();
-
-      console.log("✅ [LoginScreen] 서버 검증 통과 -> 화면 전환");
-
-      // 3. 검증 통과 시 성공 콜백
-      if (onLoginSuccess) onLoginSuccess();
-
+      await signInWithCredential(auth, credential);
     } catch (err: any) {
-      console.error("❌ [LoginScreen] 로그인/검증 실패:", err);
-
-      // 실패 시 로그아웃 처리 (잘못된 상태로 남지 않게)
-      try { await auth.signOut(); } catch (e) { }
-
-      // 에러 메시지 처리
-      const message = err.message || "";
-      if (message.includes("재가입할 수 없습니다")) {
-        toast.error(message);
-      } else if (err.code !== 'auth/popup-closed-by-user' && !message.includes('cancelled')) {
-        toast.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.");
-      }
-
+      toast.error("로그인에 실패했습니다. 다시 시도해주세요.");
+    } finally {
       setIsLoggingIn(false);
     }
-  }, [agreedToTerms, isLoggingIn, onLoginSuccess]);
+    return undefined;
+  }, [agreedToTerms, isLoggingIn]);
 
   const handleTermsChange = useCallback((checked: boolean | string) => {
     const value = Boolean(checked);
@@ -152,7 +127,7 @@ export function LoginScreen({
         }
       }
     } catch (e) {
-      console.warn("LocalStorage access failed", e);
+      // LocalStorage 접근 실패는 무시 (선택적 기능)
     }
   }, []);
 
@@ -190,8 +165,8 @@ export function LoginScreen({
 
       <div className="relative z-10 w-full max-w-sm animate-in fade-in zoom-in duration-500">
         <Card className="w-full border-border/60 shadow-2xl bg-background/95 backdrop-blur-sm">
-          <CardContent className="pt-8 pb-7 px-6 space-y-8">
-            <div className="flex flex-col items-center space-y-3">
+          <CardContent className="pt-6 pb-7 px-4 sm:px-6 space-y-8">
+            <div className="flex flex-col items-center space-y-3 mt-6">
               <div className="text-center space-y-1">
                 <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent dark:from-white dark:to-gray-400">
                   비유노트
@@ -220,10 +195,10 @@ export function LoginScreen({
                   >
                     서비스 이용약관 동의 (필수)
                   </Label>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground whitespace-nowrap -ml-1 sm:ml-0">
                     <button
                       type="button"
-                      className="underline decoration-muted-foreground/50 hover:text-primary hover:decoration-primary underline-offset-2 transition-all mr-1"
+                      className="underline decoration-muted-foreground/50 hover:text-primary hover:decoration-primary underline-offset-2 transition-all mr-0.5 sm:mr-1"
                       onClick={(e) => { e.stopPropagation(); onShowTerms(); }}
                     >
                       이용약관
@@ -231,7 +206,7 @@ export function LoginScreen({
                     과
                     <button
                       type="button"
-                      className="underline decoration-muted-foreground/50 hover:text-primary hover:decoration-primary underline-offset-2 transition-all mx-1"
+                      className="underline decoration-muted-foreground/50 hover:text-primary hover:decoration-primary underline-offset-2 transition-all mx-0.5 sm:mx-1"
                       onClick={(e) => { e.stopPropagation(); onShowPrivacy(); }}
                     >
                       개인정보처리방침

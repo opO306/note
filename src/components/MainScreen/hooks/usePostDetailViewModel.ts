@@ -54,7 +54,8 @@ export function usePostDetailViewModel({
     post,
     userNickname,
     currentTitle,
-}: UsePostDetailViewModelParams): PostDetailViewModel {
+    userProfileImage,
+}: UsePostDetailViewModelParams & { userProfileImage?: string }): PostDetailViewModel {
     // 화면에 등장하는 UID 모으기
     const allUidsForThisScreen = useMemo(() => {
         const uids = new Set<string>();
@@ -79,7 +80,18 @@ export function usePostDetailViewModel({
     const postAuthorName = getDisplayName(post.author, postAuthorDeletedFlag);
     const isPostAuthorDeleted = isDeletedAuthor(post.author, postAuthorDeletedFlag);
 
-    const postAuthorProfileImage = postAuthorProfile?.profileImage ?? post.authorAvatar ?? null;
+    // 🔹 자신의 게시글일 때는 무조건 userProfileImage 사용 (실시간 프로필 무시), 그 외에는 실시간 프로필 이미지 우선
+    const isOwnPost = post.author === userNickname;
+    const postAuthorProfileImage = useMemo(() => {
+        if (isOwnPost) {
+            // 자신의 게시글일 때는 userProfileImage 우선, 없으면 실시간 프로필, 없으면 post.authorAvatar
+            return userProfileImage && userProfileImage.trim().length > 0
+                ? userProfileImage
+                : (postAuthorProfile?.profileImage ?? post.authorAvatar ?? null);
+        }
+        // 다른 사람의 게시글일 때는 실시간 프로필 우선
+        return postAuthorProfile?.profileImage ?? post.authorAvatar ?? null;
+    }, [isOwnPost, userProfileImage, postAuthorProfile?.profileImage, post.authorAvatar]);
 
     const authorTitleFallback = getUserTitle(post.author ?? "", userNickname, currentTitle);
     const authorTitle = isPostAuthorDeleted ? null : (liveAuthorTitle || authorTitleFallback);

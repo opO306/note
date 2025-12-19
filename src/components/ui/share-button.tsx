@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Button } from "./button";
 import { toast } from "@/toastHelper";
 import { useShare, ShareData } from "../hooks/useShare";
@@ -160,7 +159,6 @@ export function FloatingShareButton({
   position?: "top-right" | "top-left" | "bottom-right" | "bottom-left";
   className?: string;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
 
   const positionClasses = {
     "top-right": "top-4 right-4",
