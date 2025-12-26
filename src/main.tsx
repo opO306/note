@@ -66,9 +66,12 @@ async function bootstrap() {
             }
         };
 
-        // 초기 계산 (DOM이 준비된 후 약간의 지연을 두어 브라우저가 모든 값을 계산한 후 실행)
+        // ✅ 최적화: requestAnimationFrame 사용하여 다음 프레임에 실행 (블로킹 최소화)
         const initUpdate = () => {
-            setTimeout(updateSafeAreaInsets, 100);
+            // requestAnimationFrame을 두 번 사용하여 브라우저가 레이아웃 계산을 완료한 후 실행
+            requestAnimationFrame(() => {
+                requestAnimationFrame(updateSafeAreaInsets);
+            });
         };
 
         if (document.readyState === 'loading') {
@@ -84,8 +87,11 @@ async function bootstrap() {
         });
     }
 
-    // ✅ Cold start 최적화: Firebase 가벼운 초기화만 먼저 (앱/서비스 인스턴스 생성)
-    await initFirebase();
+    // ✅ Cold start 최적화: Firebase 초기화와 App 컴포넌트 로드를 병렬로 실행
+    const [_firebaseInit, AppModule] = await Promise.all([
+        initFirebase(),
+        import("./App")
+    ]);
 
     // ✅ AppCheck와 Authentication 리스너는 "백그라운드"에서 초기화
     //    - 첫 화면 렌더링을 막지 않도록 await 사용하지 않음
@@ -117,8 +123,8 @@ async function bootstrap() {
             // FirebaseAuthentication listener setup failed (로그 제거)
         });
 
-    // ✅ App 컴포넌트 로드 및 렌더링 (AppCheck 초기화를 기다리지 않고 즉시 시작)
-    const { default: App } = await import("./App");
+    // ✅ App 컴포넌트 로드 및 렌더링 (이미 위에서 로드됨)
+    const { default: App } = AppModule;
 
     ReactDOM.createRoot(document.getElementById("root")!).render(
         <React.StrictMode>

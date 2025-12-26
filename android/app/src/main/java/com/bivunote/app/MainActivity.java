@@ -5,13 +5,21 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.preference.PreferenceManager;
+
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.Bridge;
+
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+
 // Firebase 인증 플러그인 수동 등록을 위한 import
 import io.capawesome.capacitorjs.plugins.firebase.authentication.FirebaseAuthenticationPlugin;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +37,33 @@ public class MainActivity extends BridgeActivity {
         if (isFirstRun()) {
             requestAllPermissions();
         }
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        // WebView 설정
+        Bridge bridge = getBridge();
+        if (bridge == null)
+            return;
+
+        WebView webView = bridge.getWebView();
+        if (webView == null)
+            return;
+
+        WebSettings settings = webView.getSettings();
+
+        // localStorage 등
+        settings.setDomStorageEnabled(true);
+
+        // 캐시 정책:
+        // - LOAD_DEFAULT: HTTP 캐시 헤더를 존중 (대부분의 앱에서 안전/정상)
+        // - LOAD_CACHE_ELSE_NETWORK: 네트워크가 되어도 캐시 우선(구버전 콘텐츠 노출 위험)
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+
+        // AppCache 관련 API는 SDK에서 제거되어 컴파일 에러를 유발하므로 사용하지 않음.
+        // settings.setAppCacheEnabled(...) // 제거
     }
 
     /**
@@ -89,7 +124,7 @@ public class MainActivity extends BridgeActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         if (requestCode == PERMISSION_REQUEST_CODE) {
-            // 권한 요청 결과를 로그로 남기거나 필요시 처리
+            // 필요 시 처리 (현재는 로직 없음)
             boolean allGranted = true;
             for (int result : grantResults) {
                 if (result != PackageManager.PERMISSION_GRANTED) {
@@ -97,9 +132,6 @@ public class MainActivity extends BridgeActivity {
                     break;
                 }
             }
-
-            // 권한이 거부된 경우에도 앱은 계속 진행
-            // 사용자가 나중에 설정에서 권한을 허용할 수 있음
         }
     }
 }

@@ -10,10 +10,10 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 // App init hook
 import { useAppInitialization } from "./components/hooks/useAppInitialization";
 
-// Screens
-import { LoginScreen } from "@/components/LoginScreen";
-import { NicknameScreen } from "@/components/NicknameScreen";
-import { MainScreenRefactored as MainScreen } from '@/components/MainScreen/MainScreenRefactored';
+// Screens - Lazy loading으로 전환하여 초기 번들 크기 감소
+const LoginScreen = lazy(() => import("@/components/LoginScreen").then(m => ({ default: m.LoginScreen })));
+const NicknameScreen = lazy(() => import("@/components/NicknameScreen").then(m => ({ default: m.NicknameScreen })));
+const MainScreen = lazy(() => import('@/components/MainScreen/MainScreenRefactored').then(m => ({ default: m.MainScreenRefactored })));
 
 const CommunityGuidelinesScreen = lazy(() => import("./components/CommunityGuidelinesScreen").then(module => ({ default: module.CommunityGuidelinesScreen })));
 const WelcomeScreen = lazy(() => import("./components/WelcomeScreen").then(m => ({ default: m.WelcomeScreen })));
@@ -27,6 +27,7 @@ const AlertDialogSimple = lazy(() => import("./components/ui/alert-dialog-simple
 const OfflineIndicator = lazy(() => import("./components/ui/offline-indicator").then(m => ({ default: m.OfflineIndicator })));
 
 import { useOnlineStatus } from "./components/hooks/useOnlineStatus";
+import { DelayedLoadingOverlay } from "./components/ui/delayed-loading-overlay";
 import "./styles/globals.css";
 import { uploadAndUpdateProfileImage } from "./profileImageService";
 import { toast } from "./toastHelper";
@@ -227,44 +228,47 @@ export default function App() {
     };
   }, [currentScreen, legalBackTarget, handleRestart]);
 
-  // ✅ Cold start 최적화: isLoading이어도 기본 셸 UI를 먼저 표시
-  //    다른 앱들처럼 즉시 화면을 보여주고, 인증 상태 확인은 백그라운드로 진행
-  //    이렇게 하면 사용자가 "앱이 켜졌다"는 것을 즉시 느낄 수 있음
-
-  const ScreenFallback = () => (
-    <div className="w-full h-screen flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-    </div>
+  // ✅ 초기 로딩: 다이얼로그 스타일 (200ms 이상 걸릴 때만 표시)
+  // ✅ 화면 전환 로딩: 동일한 다이얼로그 스타일 사용 (일관된 UX)
+  const LoadingFallback = () => (
+    <DelayedLoadingOverlay delay={200} variant="blur" />
   );
 
   return (
     <div className={`w-full h-screen ${isDarkMode ? "dark bg-background text-foreground" : "bg-white text-gray-900"}`}>
-      {/* ✅ 로딩 중이거나 초기 화면이 login일 때는 즉시 로그인 화면 표시 */}
-      {(isLoading || currentScreen === "login") && (
-        <LoginScreen
-          onShowTerms={() => { setLegalBackTarget("login"); setCurrentScreen("terms"); }}
-          onShowPrivacy={() => { setLegalBackTarget("login"); setCurrentScreen("privacy"); }}
-          isDarkMode={isDarkMode}
-          onToggleDarkMode={toggleDarkMode}
-        />
+      {/* ✅ 초기 로딩: 다이얼로그 스타일 (200ms 이상 걸릴 때만 표시) */}
+      {isLoading && <LoadingFallback />}
+
+      {/* 로그인 화면 */}
+      {!isLoading && currentScreen === "login" && (
+        <Suspense fallback={<LoadingFallback />}>
+          <LoginScreen
+            onShowTerms={() => { setLegalBackTarget("login"); setCurrentScreen("terms"); }}
+            onShowPrivacy={() => { setLegalBackTarget("login"); setCurrentScreen("privacy"); }}
+            isDarkMode={isDarkMode}
+            onToggleDarkMode={toggleDarkMode}
+          />
+        </Suspense>
       )}
 
-      {/* 로딩이 완료되고 login이 아닐 때만 다른 화면 표시 */}
+      {/* 로그인 화면이 아닐 때 다른 화면 표시 */}
       {!isLoading && currentScreen !== "login" && (
         <>
 
           {currentScreen === "nickname" && (
-            <NicknameScreen
-              onBack={handleRestart}
-              onComplete={handleNicknameComplete}
-              userEmail={initUserData.email}
-              isDarkMode={isDarkMode}
-              onToggleDarkMode={toggleDarkMode}
-            />
+            <Suspense fallback={<LoadingFallback />}>
+              <NicknameScreen
+                onBack={handleRestart}
+                onComplete={handleNicknameComplete}
+                userEmail={initUserData.email}
+                isDarkMode={isDarkMode}
+                onToggleDarkMode={toggleDarkMode}
+              />
+            </Suspense>
           )}
 
           {currentScreen === "guidelines" && (
-        <Suspense fallback={<ScreenFallback />}>
+        <Suspense fallback={<LoadingFallback />}>
           <CommunityGuidelinesScreen
             onBack={() => setCurrentScreen("nickname")}
             onContinue={handleGuidelinesComplete}
@@ -277,7 +281,7 @@ export default function App() {
       )}
 
           {currentScreen === "welcome" && (
-            <Suspense fallback={<ScreenFallback />}>
+            <Suspense fallback={<LoadingFallback />}>
               <WelcomeScreen
                 nickname={userNickname}
                 onRestart={handleRestart}
@@ -307,45 +311,47 @@ export default function App() {
           )}
 
           {currentScreen === "main" && (
-        <MainScreen
-          userNickname={userNickname}
-          userProfileImage={userProfileImage}
-          onProfileImageChange={handleProfileImageChange}
-          onLogout={handleRestart}
-          isDarkMode={isDarkMode}
-          onToggleDarkMode={toggleDarkMode}
-          onRequestExit={() => setShowExitConfirm(true)}
-          onShowTerms={() => { setLegalBackTarget("main"); setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("terms"); }}
-          onShowPrivacy={() => { setLegalBackTarget("main"); setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("privacy"); }}
-          onShowOpenSourceLicenses={() => { setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("openSourceLicenses"); }}
-          onShowAttributions={() => { setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("attributions"); }}
-          shouldOpenMyPageOnMain={shouldOpenMyPageOnMain}
-          shouldOpenSettingsOnMyPage={shouldOpenSettingsOnMyPage}
-          onMainScreenReady={() => setShouldOpenMyPageOnMain(false)}
-          onSettingsOpenedFromMain={() => setShouldOpenSettingsOnMyPage(false)}
-        />
+        <Suspense fallback={<LoadingFallback />}>
+          <MainScreen
+            userNickname={userNickname}
+            userProfileImage={userProfileImage}
+            onProfileImageChange={handleProfileImageChange}
+            onLogout={handleRestart}
+            isDarkMode={isDarkMode}
+            onToggleDarkMode={toggleDarkMode}
+            onRequestExit={() => setShowExitConfirm(true)}
+            onShowTerms={() => { setLegalBackTarget("main"); setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("terms"); }}
+            onShowPrivacy={() => { setLegalBackTarget("main"); setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("privacy"); }}
+            onShowOpenSourceLicenses={() => { setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("openSourceLicenses"); }}
+            onShowAttributions={() => { setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("attributions"); }}
+            shouldOpenMyPageOnMain={shouldOpenMyPageOnMain}
+            shouldOpenSettingsOnMyPage={shouldOpenSettingsOnMyPage}
+            onMainScreenReady={() => setShouldOpenMyPageOnMain(false)}
+            onSettingsOpenedFromMain={() => setShouldOpenSettingsOnMyPage(false)}
+          />
+        </Suspense>
       )}
 
           {currentScreen === "privacy" && (
-            <Suspense fallback={<ScreenFallback />}>
+            <Suspense fallback={<LoadingFallback />}>
               <PrivacyPolicyScreen onBack={() => setCurrentScreen(legalBackTarget)} />
             </Suspense>
           )}
 
           {currentScreen === "terms" && (
-            <Suspense fallback={<ScreenFallback />}>
+            <Suspense fallback={<LoadingFallback />}>
               <TermsOfServiceScreen onBack={() => setCurrentScreen(legalBackTarget)} />
             </Suspense>
           )}
 
           {currentScreen === "openSourceLicenses" && (
-            <Suspense fallback={<ScreenFallback />}>
+            <Suspense fallback={<LoadingFallback />}>
               <OpenSourceLicensesScreen onBack={() => setCurrentScreen("main")} />
             </Suspense>
           )}
 
           {currentScreen === "attributions" && (
-            <Suspense fallback={<ScreenFallback />}>
+            <Suspense fallback={<LoadingFallback />}>
               <AttributionsScreen onBack={() => setCurrentScreen("main")} />
             </Suspense>
           )}

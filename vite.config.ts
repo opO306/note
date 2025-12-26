@@ -20,13 +20,17 @@ export default defineConfig({
     // 경고 무시 설정
     chunkSizeWarningLimit: 1000,
 
-    // 복잡한 manualChunks 설정 삭제됨 -> 에러 해결!
+    // ✅ 번들 분할 최적화: 주요 라이브러리를 별도 청크로 분리하여 캐시 활용
     rollupOptions: {
       output: {
         entryFileNames: `assets/[name]-[hash].js`,
         chunkFileNames: `assets/[name]-[hash].js`,
         assetFileNames: `assets/[name]-[hash].[ext]`,
-        // 필요하면 나중에 다시 설정하더라도, 지금은 비워두는 게 안전합니다.
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/functions'],
+          'vendor-capacitor': ['@capacitor/core', '@capacitor/app'],
+        },
       },
     },
   },

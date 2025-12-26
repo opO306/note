@@ -27,7 +27,7 @@ export function WelcomeScreen({ nickname, onRestart, onStartApp, isDarkMode, onT
 
       {/* 🔹 다크모드 토글 (우측 상단) */}
       {onToggleDarkMode && (
-        <div className="absolute top-4 right-4 z-50">
+        <div className="absolute safe-top-button right-4 z-50">
           <Button
             variant="ghost"
             size="icon"

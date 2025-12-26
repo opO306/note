@@ -412,6 +412,11 @@
     padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   }
 
+  /* Safe Area for floating buttons (상단 우측 토글 버튼용) */
+  .safe-top-button {
+    top: calc(var(--safe-area-inset-top) + 1rem);
+  }
+
   /* Navigation button styling */
   .nav-button {
     transition: all var(--transition-fast);

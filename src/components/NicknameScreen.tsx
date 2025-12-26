@@ -124,7 +124,7 @@ export function NicknameScreen({
     <>
       <div className="relative w-full h-full flex flex-col items-center justify-center p-6 overflow-hidden bg-background text-foreground transition-colors duration-300">
         {onToggleDarkMode && (
-          <div className="absolute top-4 right-4 z-50">
+          <div className="absolute safe-top-button right-4 z-50">
             <Button
               variant="ghost"
               size="icon"
