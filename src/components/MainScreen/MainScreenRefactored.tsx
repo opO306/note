@@ -29,7 +29,7 @@ import { DELETED_USER_NAME } from "@/components/utils/deletedUserHelpers";
 import { useLumens } from "../useLumens";
 import { useAchievements } from "../useAchievements";
 import { usePosts } from "../hooks/usePosts";
-import { CreateActionSheet } from "@/components/CreateActionSheet";
+import { CreateActionSheet } from "../CreateActionSheet";
 // 분리된 훅들
 import {
   useLanternActions,
@@ -73,6 +73,11 @@ const MyContentListScreen = lazy(() =>
   import("../MyContentListScreen").then((m) => ({ default: m.MyContentListScreen })),
 );
 
+// 🔹 탭 전환 시 불필요한 리렌더를 줄이기 위한 메모이제이션 래퍼
+const MemoRankingScreen = React.memo(RankingScreen);
+const MemoBookmarkScreen = React.memo(BookmarkScreen);
+const MemoSearchScreen = React.memo(SearchScreen);
+
 // 덜 자주 쓰이는 화면은 Lazy Loading 유지
 const WriteScreen = lazy(() => import("../WriteScreen").then((m) => ({ default: m.WriteScreen })));
 const NotesScreen = lazy(() => import("../NotesScreen"));
@@ -114,6 +119,7 @@ import type { MainScreenProps, Post, Reply, SortOption } from "./types";
 
 // 상수
 const EMPTY_STRING_ARRAY: readonly string[] = Object.freeze([]);
+const SCREEN_RESET_TIMEOUT_MS = 2 * 60 * 1000; // 2분 뒤 화면 자동 초기화
 const ScreenFallback = () => (
   <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
     불러오는 중...
@@ -121,6 +127,55 @@ const ScreenFallback = () => (
 );
 
 const AUTO_REPLY_WAIT_MS = 60 * 60 * 1000;
+
+// 특정 화면이 비활성화된 뒤 일정 시간이 지나면 visitedScreens에서 제거하여 언마운트하는 훅
+function useScreenAutoReset(
+  screenKey: string,
+  isActive: boolean,
+  setVisitedScreens: React.Dispatch<React.SetStateAction<Set<string>>>,
+  timersRef: React.MutableRefObject<Record<string, number>>,
+) {
+  useEffect(() => {
+    const timers = timersRef.current;
+
+    // 활성화되면 타이머 제거 및 방문 기록 유지/추가
+    if (isActive) {
+      if (timers[screenKey]) {
+        clearTimeout(timers[screenKey]);
+        delete timers[screenKey];
+      }
+      setVisitedScreens((prev) => {
+        if (prev.has(screenKey)) return prev;
+        const next = new Set(prev);
+        next.add(screenKey);
+        return next;
+      });
+      return;
+    }
+
+    // 비활성 상태가 되면 2분 뒤에 visitedScreens에서 제거
+    if (timers[screenKey]) {
+      clearTimeout(timers[screenKey]);
+    }
+
+    timers[screenKey] = window.setTimeout(() => {
+      setVisitedScreens((prev) => {
+        if (!prev.has(screenKey)) return prev;
+        const next = new Set(prev);
+        next.delete(screenKey);
+        return next;
+      });
+      delete timers[screenKey];
+    }, SCREEN_RESET_TIMEOUT_MS);
+
+    return () => {
+      if (timers[screenKey]) {
+        clearTimeout(timers[screenKey]);
+        delete timers[screenKey];
+      }
+    };
+  }, [isActive, screenKey, setVisitedScreens, timersRef]);
+}
 
 function toDateSafe(value: any): Date | null {
   if (!value) return null;
@@ -1234,6 +1289,7 @@ function MainScreenInner({
   }, [visiblePosts, userNickname]);
 
   const [visitedScreens, setVisitedScreens] = useState<Set<string>>(new Set(["home"]));
+  const screenResetTimersRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     setVisitedScreens((prev) => {
@@ -1260,6 +1316,12 @@ function MainScreenInner({
       return next;
     });
   }, [visibility, route.name]);
+
+  // 탭/화면 자동 초기화 (2분 비활성 시 visitedScreens에서 제거)
+  useScreenAutoReset("myPage", isMyPageVisible, setVisitedScreens, screenResetTimersRef);
+  useScreenAutoReset("ranking", isRankingVisible, setVisitedScreens, screenResetTimersRef);
+  useScreenAutoReset("bookmarks", isBookmarksVisible, setVisitedScreens, screenResetTimersRef);
+  useScreenAutoReset("search", isSearchVisible, setVisitedScreens, screenResetTimersRef);
 
   const isPostDetail =
     route.name === "postDetail" &&
@@ -1600,7 +1662,7 @@ function MainScreenInner({
         >
           <Suspense fallback={<ScreenFallback />}>
             <div className="w-full h-full flex flex-col">
-              <RankingScreen
+              <MemoRankingScreen
                 onBack={handleLayerBack}
                 weeklyGuideRanking={userStats.weeklyGuideRanking}
                 totalGuideRanking={userStats.totalGuideRanking}
@@ -1628,7 +1690,7 @@ function MainScreenInner({
         >
           <Suspense fallback={<ScreenFallback />}>
             <div className="w-full h-full flex flex-col">
-              <BookmarkScreen
+              <MemoBookmarkScreen
                 onBack={handleLayerBack}
                 bookmarkedPosts={bookmarkActions.bookmarkedPosts}
                 posts={visiblePosts as any}
@@ -1721,7 +1783,7 @@ function MainScreenInner({
             }`}
         >
           <Suspense fallback={<ScreenFallback />}>
-            <SearchScreen
+            <MemoSearchScreen
               onBack={handleLayerBack}
               posts={visiblePosts}
               onPostSelect={(post) => {

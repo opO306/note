@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { Card, CardContent } from "./ui/card";
 import { LanternFilledIcon } from "./icons/Lantern";
 import { FileText, MessageCircle, Bookmark } from "lucide-react";
@@ -8,6 +8,7 @@ import { OptimizedAvatar } from "@/components/OptimizedAvatar";
 import { Badge } from "./ui/badge";
 import { useUserProfiles, type UserProfileLite } from "@/components/MainScreen/hooks/useUserProfiles";
 import { getTitleLabelById } from "@/data/titleData";
+import { filterGoogleProfileImage } from "@/utils/profileImageUtils";
 
 interface PostItem {
     id: string;
@@ -137,8 +138,10 @@ export function MyContentListScreen({
                                     ? userProfiles[post.authorUid]
                                     : undefined;
 
-                                const authorAvatarUrl =
-                                    authorProfile?.profileImage ?? post.authorAvatar ?? "";
+                                // 🔹 프로필 이미지 결정 (구글 이미지 필터링)
+                                const authorAvatarUrl = useMemo(() => {
+                                    return authorProfile?.profileImage ?? filterGoogleProfileImage(post.authorAvatar) ?? "";
+                                }, [authorProfile?.profileImage, post.authorAvatar]);
 
                                 const authorTitleLabel = authorProfile?.currentTitleId
                                     ? getTitleLabelById(authorProfile.currentTitleId)

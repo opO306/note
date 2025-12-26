@@ -1,48 +1,95 @@
 // src/components/CreateActionSheet.tsx
 import * as React from "react";
-import * as Dialog from "@radix-ui/react-dialog";
-import { X, ChevronRight, Sparkles, PenLine } from "lucide-react";
-import { Button } from "./ui/button";
-import { NotebookText } from "lucide-react";
+import { Sparkles, PenLine, NotebookText } from "lucide-react";
 
 type CreateActionSheetProps = {
     open: boolean;
     onClose: () => void;
-
-    // ✅ 부모가 주입: "질문 정리"로 이동
     onSelectStructured: () => void;
-
-    // ✅ 부모가 주입: 기존 "글쓰기"로 이동
     onSelectWrite: () => void;
     onSelectNotes: () => void;
 };
 
-type ActionCardProps = {
+type ActionButtonProps = {
     icon: React.ReactNode;
     title: string;
     description: string;
     onClick: () => void;
+    variant?: "default" | "outline";
 };
 
-function ActionCard({ icon, title, description, onClick }: ActionCardProps) {
+function ActionButton({ icon, title, description, onClick, variant = "default" }: ActionButtonProps) {
+    const [isDark, setIsDark] = React.useState(() =>
+        document.documentElement.classList.contains('dark')
+    );
+
+    React.useEffect(() => {
+        const observer = new MutationObserver(() => {
+            setIsDark(document.documentElement.classList.contains('dark'));
+        });
+
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+
+        return () => observer.disconnect();
+    }, []);
+
     return (
         <button
             type="button"
             onClick={onClick}
-            className="w-full text-left rounded-2xl border border-border bg-card/90 hover:bg-accent/40 active:bg-accent/60 transition-colors px-4 py-3 flex items-center gap-3"
+            style={variant === "default" && isDark ? {
+                backgroundColor: '#2D2F31',
+                borderColor: '#c9a532'
+            } : undefined}
+            className={`
+                w-full text-left
+                rounded-xl
+                border
+                transition-all
+                px-4 py-3.5
+                flex items-center gap-3
+                hover:scale-[1.02] active:scale-[0.98]
+                ${variant === "default"
+                    ? "bg-primary/20 border-primary/30 hover:bg-primary/30 text-foreground dark:text-[#D4D4D4]"
+                    : "border-border/30 bg-transparent hover:bg-accent/20 text-foreground"
+                }
+            `}
+            onMouseEnter={(e) => {
+                if (variant === "default" && isDark) {
+                    e.currentTarget.style.backgroundColor = '#353739';
+                }
+            }}
+            onMouseLeave={(e) => {
+                if (variant === "default" && isDark) {
+                    e.currentTarget.style.backgroundColor = '#2D2F31';
+                }
+            }}
         >
-            <div className="shrink-0 w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <div
+                className={`
+                    shrink-0 w-10 h-10 rounded-xl
+                    flex items-center justify-center
+                    ${variant === "default"
+                        ? isDark
+                            ? "bg-[#D4D4D4]/10 text-[#D4D4D4]"
+                            : "bg-primary/10 text-primary"
+                        : "bg-primary/10 text-primary"
+                    }
+                `}
+            >
                 {icon}
             </div>
-
-            <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-foreground truncate">{title}</div>
-                <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+            <div className="min-w-0 flex-1 flex flex-col gap-1">
+                <div className={`text-[15px] font-semibold ${variant === "default" && isDark ? "text-[#D4D4D4]" : "text-foreground"}`}>
+                    {title}
+                </div>
+                <div className={`text-[13px] leading-snug ${variant === "default" && isDark ? "text-[#D4D4D4]/80" : "text-muted-foreground"}`}>
                     {description}
                 </div>
             </div>
-
-            <ChevronRight className="shrink-0 text-muted-foreground" size={18} />
         </button>
     );
 }
@@ -54,7 +101,16 @@ export function CreateActionSheet({
     onSelectWrite,
     onSelectNotes,
 }: CreateActionSheetProps) {
-    // ✅ 선택 시: "닫고 -> 이동" 순서(깜빡임/스크롤 꼬임 방지)
+    React.useEffect(() => {
+        if (!open) return;
+
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [open, onClose]);
+
     const handleStructured = React.useCallback(() => {
         onClose();
         onSelectStructured();
@@ -65,83 +121,88 @@ export function CreateActionSheet({
         onSelectWrite();
     }, [onClose, onSelectWrite]);
 
+    const handleNotes = React.useCallback(() => {
+        onClose();
+        onSelectNotes();
+    }, [onClose, onSelectNotes]);
+
+    if (!open) return null;
+
     return (
-        <Dialog.Root open={open} onOpenChange={(v) => !v && onClose()}>
-            <Dialog.Portal>
-                <Dialog.Overlay className="fixed inset-0 z-[80] bg-transparent" />
+        <div className="fixed inset-0 z-[9999]">
+            {/* Overlay: 너무 칠흑이 아니라, 앱 톤 유지하면서 포커스만 주기 */}
+            <div
+                className="
+          absolute inset-0
+          bg-black/35
+          backdrop-blur-[3px]
+        "
+                onClick={onClose}
+                aria-hidden="true"
+            />
 
-                {/* 살짝만 어둡게 처리된 오버레이 (뒤 화면이 더 잘 보이도록) */}
+            {/* Center */}
+            <div
+                className="absolute inset-0 flex items-center justify-center p-4"
+                onClick={onClose}
+            >
                 <div
-                    aria-hidden="true"
-                    className="fixed inset-x-0 bottom-0 z-[81] h-[65%] bg-gradient-to-b from-black/0 via-black/40 to-black/80 pointer-events-none"
-                />
-
-                {/* 하단 시트 (처음에 잘 동작하던 구조로 복구) */}
-                <Dialog.Content
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={(e) => e.stopPropagation()}
                     className="
-            fixed z-[90] left-0 right-0 bottom-0
-            rounded-t-3xl border border-border bg-background
-            shadow-[0_-12px_40px_rgba(0,0,0,0.25)]
-            p-4 pb-6
-            safe-nav-bottom
-            outline-none
-            data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-6 data-[state=open]:fade-in-0
-            data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom-6 data-[state=closed]:fade-out-0
-          "
+                        w-full max-w-[400px]
+                        rounded-2xl
+                        border border-border/30
+                        bg-card
+                        shadow-[0_24px_90px_rgba(0,0,0,0.55)]
+                        overflow-hidden
+                    "
                 >
-                    {/* 손잡이 */}
-                    <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-muted" />
-
-                    {/* 헤더 */}
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                        <div>
-                            <Dialog.Title className="text-base font-bold text-foreground">
-                                무엇을 하고 싶나요?
-                            </Dialog.Title>
-                            <Dialog.Description className="text-xs text-muted-foreground mt-1">
-                                먼저 정리하면 더 좋은 질문/글이 됩니다.
-                            </Dialog.Description>
+                    {/* Content */}
+                    <div className="p-6 space-y-6">
+                        {/* Header - 중앙 정렬 */}
+                        <div className="flex flex-col items-center text-center space-y-3">
+                            <div className="w-12 h-12 rounded-full bg-accent/50 flex items-center justify-center shrink-0">
+                                <Sparkles className="w-6 h-6 text-muted-foreground" />
+                            </div>
+                            <div className="space-y-1">
+                                <div className="text-lg font-semibold text-foreground">
+                                    무엇을 하고 싶나요?
+                                </div>
+                                <div className="text-sm text-muted-foreground leading-relaxed">
+                                    먼저 정리하면 더 좋은 질문/글이 됩니다.
+                                </div>
+                            </div>
                         </div>
 
-                        <Dialog.Close asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="rounded-full"
-                                aria-label="닫기"
-                            >
-                                <X size={18} />
-                            </Button>
-                        </Dialog.Close>
+                        {/* Action Buttons */}
+                        <div className="space-y-4">
+                            <ActionButton
+                                icon={<Sparkles size={18} />}
+                                title="질문을 정리하고 싶어요"
+                                description="혼자 정리하고 나중에 공개할 수 있어요"
+                                onClick={handleStructured}
+                                variant="default"
+                            />
+                            <ActionButton
+                                icon={<PenLine size={18} />}
+                                title="그냥 글을 쓰고 싶어요"
+                                description="바로 커뮤니티에 글을 작성해요"
+                                onClick={handleWrite}
+                                variant="default"
+                            />
+                            <ActionButton
+                                icon={<NotebookText size={18} />}
+                                title="내 노트를 보고 싶어요"
+                                description="정리해둔 내용을 다시 볼 수 있어요"
+                                onClick={handleNotes}
+                                variant="default"
+                            />
+                        </div>
                     </div>
-
-                    {/* 옵션 */}
-                    <div className="space-y-3">
-                        <ActionCard
-                            icon={<Sparkles size={18} />}
-                            title="질문을 정리하고 싶어요"
-                            description="혼자 정리하고, 나중에 공개할 수 있어요"
-                            onClick={handleStructured}
-                        />
-
-                        <ActionCard
-                            icon={<PenLine size={18} />}
-                            title="그냥 글을 쓰고 싶어요"
-                            description="바로 커뮤니티에 글을 작성해요"
-                            onClick={handleWrite}
-                        />
-                        <ActionCard
-                            icon={<NotebookText size={18} />}
-                            title="내 노트를 보고 싶어요"
-                            description="정리해둔 내용을 다시 볼 수 있어요"
-                            onClick={() => {
-                                onClose();
-                                onSelectNotes();
-                            }}
-                        />
-                    </div>
-                </Dialog.Content>
-            </Dialog.Portal>
-        </Dialog.Root>
+                </div>
+            </div>
+        </div>
     );
 }

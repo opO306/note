@@ -102,7 +102,9 @@ export function OpenSourceLicensesScreen({
                             <ul className="list-disc pl-4 space-y-1">
                                 <li>React, React DOM (MIT)</li>
                                 <li>Vite (MIT)</li>
-                                <li>@capacitor/app (MIT)</li>
+                                <li>Capacitor / @capacitor/* (MIT)</li>
+                                <li>Firebase JavaScript SDK / Firebase Admin SDK (Apache-2.0)</li>
+                                <li>Genkit / Google GenAI SDK (Apache-2.0)</li>
                             </ul>
                         </div>
 
@@ -147,12 +149,13 @@ export function OpenSourceLicensesScreen({
 
                         <div>
                             <p className="font-semibold text-foreground mb-1">
-                                애니메이션 · 차트 · 토스트
+                                애니메이션 · 차트 · 토스트 · 기타
                             </p>
                             <ul className="list-disc pl-4 space-y-1">
                                 <li>Motion – 애니메이션 라이브러리 (MIT)</li>
                                 <li>Recharts – 차트/그래프 컴포넌트 (MIT)</li>
                                 <li>Sonner – 토스트/알림 컴포넌트 (MIT)</li>
+                                <li>React Icons – 아이콘 모음 (MIT)</li>
                             </ul>
                         </div>
 
@@ -164,10 +167,30 @@ export function OpenSourceLicensesScreen({
                     </CardContent>
                 </Card>
 
+                {/* 아바타 · 외부 API */}
+                <Card className="border-border">
+                    <CardHeader>
+                        <CardTitle>4. 아바타 · 외부 API</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm leading-relaxed">
+                        <p>
+                            기본 프로필 아바타 이미지는 DiceBear Avatars 서비스에서 제공하는 API를
+                            통해 생성됩니다.
+                        </p>
+                        <ul className="list-disc pl-4 text-muted-foreground space-y-1">
+                            <li>개인·상업적 사용 가능 (MIT 유사 라이선스)</li>
+                            <li>아바타 이미지를 그대로 재판매하거나, 동일한 아바타 생성 서비스를 복제하는 행위는 금지</li>
+                        </ul>
+                        <p className="text-xs text-muted-foreground mt-2">
+                            자세한 내용은 DiceBear 웹사이트(dicebear.com)의 라이선스 및 이용 약관을 참고해 주세요.
+                        </p>
+                    </CardContent>
+                </Card>
+
                 {/* 참고 안내 */}
                 <Card className="border-border">
                     <CardHeader>
-                        <CardTitle>4. 기타 안내</CardTitle>
+                        <CardTitle>5. 기타 안내</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm leading-relaxed">
                         <p>

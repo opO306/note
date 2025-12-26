@@ -227,16 +227,9 @@ export default function App() {
     };
   }, [currentScreen, legalBackTarget, handleRestart]);
 
-  if (isLoading) {
-    return (
-      <div className={`w-full h-screen flex items-center justify-center ${isDarkMode ? "dark bg-background" : "bg-white"}`}>
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-          <p className="text-sm text-muted-foreground">로딩 중...</p>
-        </div>
-      </div>
-    );
-  }
+  // ✅ Cold start 최적화: isLoading이어도 기본 셸 UI를 먼저 표시
+  //    다른 앱들처럼 즉시 화면을 보여주고, 인증 상태 확인은 백그라운드로 진행
+  //    이렇게 하면 사용자가 "앱이 켜졌다"는 것을 즉시 느낄 수 있음
 
   const ScreenFallback = () => (
     <div className="w-full h-screen flex items-center justify-center">
@@ -246,8 +239,8 @@ export default function App() {
 
   return (
     <div className={`w-full h-screen ${isDarkMode ? "dark bg-background text-foreground" : "bg-white text-gray-900"}`}>
-
-      {currentScreen === "login" && (
+      {/* ✅ 로딩 중이거나 초기 화면이 login일 때는 즉시 로그인 화면 표시 */}
+      {(isLoading || currentScreen === "login") && (
         <LoginScreen
           onShowTerms={() => { setLegalBackTarget("login"); setCurrentScreen("terms"); }}
           onShowPrivacy={() => { setLegalBackTarget("login"); setCurrentScreen("privacy"); }}
@@ -256,17 +249,21 @@ export default function App() {
         />
       )}
 
-      {currentScreen === "nickname" && (
-        <NicknameScreen
-          onBack={handleRestart}
-          onComplete={handleNicknameComplete}
-          userEmail={initUserData.email}
-          isDarkMode={isDarkMode}
-          onToggleDarkMode={toggleDarkMode}
-        />
-      )}
+      {/* 로딩이 완료되고 login이 아닐 때만 다른 화면 표시 */}
+      {!isLoading && currentScreen !== "login" && (
+        <>
 
-      {currentScreen === "guidelines" && (
+          {currentScreen === "nickname" && (
+            <NicknameScreen
+              onBack={handleRestart}
+              onComplete={handleNicknameComplete}
+              userEmail={initUserData.email}
+              isDarkMode={isDarkMode}
+              onToggleDarkMode={toggleDarkMode}
+            />
+          )}
+
+          {currentScreen === "guidelines" && (
         <Suspense fallback={<ScreenFallback />}>
           <CommunityGuidelinesScreen
             onBack={() => setCurrentScreen("nickname")}
@@ -279,37 +276,37 @@ export default function App() {
         </Suspense>
       )}
 
-      {currentScreen === "welcome" && (
-        <Suspense fallback={<ScreenFallback />}>
-          <WelcomeScreen
-            nickname={userNickname}
-            onRestart={handleRestart}
-            onStartApp={async () => {
-              // 온보딩 완료 플래그를 true로 설정하여 새로고침 시 main 화면으로 이동하도록 함
-              try {
-                const user = auth.currentUser;
-                if (user) {
-                  await setDoc(
-                    doc(db, "users", user.uid),
-                    {
-                      onboardingComplete: true,
-                      updatedAt: serverTimestamp(),
-                    },
-                    { merge: true }
-                  );
-                }
-              } catch (err) {
-                // 온보딩 완료 플래그 저장 실패 (로그 제거)
-              }
-              setCurrentScreen("main");
-            }}
-            isDarkMode={isDarkMode}
-            onToggleDarkMode={toggleDarkMode}
-          />
-        </Suspense>
-      )}
+          {currentScreen === "welcome" && (
+            <Suspense fallback={<ScreenFallback />}>
+              <WelcomeScreen
+                nickname={userNickname}
+                onRestart={handleRestart}
+                onStartApp={async () => {
+                  // 온보딩 완료 플래그를 true로 설정하여 새로고침 시 main 화면으로 이동하도록 함
+                  try {
+                    const user = auth.currentUser;
+                    if (user) {
+                      await setDoc(
+                        doc(db, "users", user.uid),
+                        {
+                          onboardingComplete: true,
+                          updatedAt: serverTimestamp(),
+                        },
+                        { merge: true }
+                      );
+                    }
+                  } catch (err) {
+                    // 온보딩 완료 플래그 저장 실패 (로그 제거)
+                  }
+                  setCurrentScreen("main");
+                }}
+                isDarkMode={isDarkMode}
+                onToggleDarkMode={toggleDarkMode}
+              />
+            </Suspense>
+          )}
 
-      {currentScreen === "main" && (
+          {currentScreen === "main" && (
         <MainScreen
           userNickname={userNickname}
           userProfileImage={userProfileImage}
@@ -329,34 +326,36 @@ export default function App() {
         />
       )}
 
-      {currentScreen === "privacy" && (
-        <Suspense fallback={<ScreenFallback />}>
-          <PrivacyPolicyScreen onBack={() => setCurrentScreen(legalBackTarget)} />
-        </Suspense>
-      )}
+          {currentScreen === "privacy" && (
+            <Suspense fallback={<ScreenFallback />}>
+              <PrivacyPolicyScreen onBack={() => setCurrentScreen(legalBackTarget)} />
+            </Suspense>
+          )}
 
-      {currentScreen === "terms" && (
-        <Suspense fallback={<ScreenFallback />}>
-          <TermsOfServiceScreen onBack={() => setCurrentScreen(legalBackTarget)} />
-        </Suspense>
-      )}
+          {currentScreen === "terms" && (
+            <Suspense fallback={<ScreenFallback />}>
+              <TermsOfServiceScreen onBack={() => setCurrentScreen(legalBackTarget)} />
+            </Suspense>
+          )}
 
-      {currentScreen === "openSourceLicenses" && (
-        <Suspense fallback={<ScreenFallback />}>
-          <OpenSourceLicensesScreen onBack={() => setCurrentScreen("main")} />
-        </Suspense>
-      )}
+          {currentScreen === "openSourceLicenses" && (
+            <Suspense fallback={<ScreenFallback />}>
+              <OpenSourceLicensesScreen onBack={() => setCurrentScreen("main")} />
+            </Suspense>
+          )}
 
-      {currentScreen === "attributions" && (
-        <Suspense fallback={<ScreenFallback />}>
-          <AttributionsScreen onBack={() => setCurrentScreen("main")} />
-        </Suspense>
-      )}
+          {currentScreen === "attributions" && (
+            <Suspense fallback={<ScreenFallback />}>
+              <AttributionsScreen onBack={() => setCurrentScreen("main")} />
+            </Suspense>
+          )}
 
-      {currentScreen === "main" && (
-        <Suspense fallback={null}>
-          <OfflineIndicator position="top" variant="toast" showReconnectButton />
-        </Suspense>
+          {currentScreen === "main" && (
+            <Suspense fallback={null}>
+              <OfflineIndicator position="top" variant="toast" showReconnectButton />
+            </Suspense>
+          )}
+        </>
       )}
 
       <Toaster isDarkMode={isDarkMode} />

@@ -2,7 +2,7 @@
 import React from "react";
 import {
     collection,
-    onSnapshot,
+    getDocs,
     orderBy,
     query,
     where,
@@ -33,42 +33,50 @@ export default function NotesScreen({ onBack, onOpenNote }: Props) {
     const [notes, setNotes] = React.useState<NoteDoc[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = React.useState(false);
 
-    React.useEffect(() => {
+    const loadNotes = React.useCallback(async () => {
         const uid = auth.currentUser?.uid;
         if (!uid) {
-            setLoading(false);
             setNotes([]);
             setError("로그인 후 사용할 수 있어요.");
+            setLoading(false);
+            setIsRefreshing(false);
             return;
         }
 
-        const q = query(
-            collection(db, "notes"),
-            where("uid", "==", uid),
-            orderBy("updatedAt", "desc"),
-            limit(50)
-        );
-        const unsub = onSnapshot(
-            q,
-            (snap) => {
-                const list = snap.docs.map((d) => ({
-                    id: d.id,
-                    ...(d.data() as any),
-                }));
-                setNotes(list);
-                setLoading(false);
-                setError(null);
-            },
-            (err) => {
-                console.error("[NotesScreen] onSnapshot error:", err);
-                setLoading(false);
-                setError(err?.message || "노트를 불러오지 못했어요.");
-            }
-        );
-
-        return () => unsub();
+        try {
+            const q = query(
+                collection(db, "notes"),
+                where("uid", "==", uid),
+                orderBy("updatedAt", "desc"),
+                limit(50)
+            );
+            const snap = await getDocs(q);
+            const list = snap.docs.map((d) => ({
+                id: d.id,
+                ...(d.data() as any),
+            }));
+            setNotes(list);
+            setError(null);
+        } catch (err: any) {
+            console.error("[NotesScreen] getDocs error:", err);
+            setError(err?.message || "노트를 불러오지 못했어요.");
+        } finally {
+            setLoading(false);
+            setIsRefreshing(false);
+        }
     }, []);
+
+    React.useEffect(() => {
+        void loadNotes();
+    }, [loadNotes]);
+
+    const handleRefresh = React.useCallback(() => {
+        setIsRefreshing(true);
+        setLoading(false); // 기존 로딩 스피너는 유지하지 않고 상단 상태만 갱신
+        void loadNotes();
+    }, [loadNotes]);
 
     return (
         <div className="w-full h-full bg-background text-foreground flex flex-col">
@@ -79,7 +87,27 @@ export default function NotesScreen({ onBack, onOpenNote }: Props) {
             />
 
             {/* 내용 */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 pb-24">
+            <div className="flex-1 overflow-y-auto px-4 py-4 pb-24 safe-bottom">
+                {/* 상단 상태/새로고침 */}
+                <div className="flex items-center justify-between mb-3 text-xs text-muted-foreground">
+                    <span>
+                        {loading
+                            ? "노트를 불러오는 중이에요..."
+                            : error
+                                ? "노트를 불러오지 못했어요."
+                                : `${notes.length}개의 노트`}
+                    </span>
+                    {!loading && (
+                        <button
+                            type="button"
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-border text-[11px] hover:bg-accent/60 disabled:opacity-60"
+                        >
+                            {isRefreshing ? "새로고침 중..." : "새로고침"}
+                        </button>
+                    )}
+                </div>
                 {loading && (
                     <div className="flex items-center justify-center h-full">
                         <div className="text-sm text-muted-foreground">불러오는 중...</div>

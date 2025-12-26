@@ -1,9 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { Capacitor } from "@capacitor/core";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
-import { FirebaseAppCheck } from "@capacitor-firebase/app-check"; // ✅ [추가 1] App Check 임포트
+import { FirebaseAppCheck } from "@capacitor-firebase/app-check"; // App Check 임포트
 import "./index.css";
-import { initFirebase } from "./firebase";
+import { initFirebase, initFirebaseAppCheck } from "./firebase";
 
 async function bootstrap() {
     // 시스템 네비게이션 바 높이 자동 계산 및 CSS 변수 업데이트
@@ -83,32 +84,40 @@ async function bootstrap() {
         });
     }
 
-    // Firebase 초기화 먼저 진행
+    // ✅ Cold start 최적화: Firebase 가벼운 초기화만 먼저 (앱/서비스 인스턴스 생성)
     await initFirebase();
 
-    // 네이티브 App Check 플러그인 초기화 (네이티브 환경에서만 필요)
-    // 웹 환경에서는 initFirebase()에서 이미 App Check SDK가 초기화됨
-    // 네이티브에서는 Play Integrity 토큰을 JS 쪽으로 연결하는 브리지 역할
-    try {
-        await FirebaseAppCheck.initialize({
-            provider: 'playIntegrity',
-            isTokenAutoRefreshEnabled: true,
-        });
-        // App Check initialized with Play Integrity
-    } catch (e) {
-        // App Check initialization failed (로그 제거)
-    }
-
-    // FirebaseAuthentication 리스너 설정 (비동기로 처리하여 초기 로딩 블로킹 최소화)
-    FirebaseAuthentication.removeAllListeners().then(() => {
-        FirebaseAuthentication.addListener('authStateChange', () => {
-            // Auth State 변경 (로그 제거)
-        });
-    }).catch(() => {
-        // FirebaseAuthentication listener setup failed (로그 제거)
+    // ✅ AppCheck와 Authentication 리스너는 "백그라운드"에서 초기화
+    //    - 첫 화면 렌더링을 막지 않도록 await 사용하지 않음
+    //    - 웹 환경에서는 initFirebaseAppCheck()에서 App Check를 설정
+    //    - 네이티브 환경에서는 Capacitor App Check 플러그인도 함께 초기화
+    void initFirebaseAppCheck().catch(() => {
+        // App Check 초기화 실패는 무시 (백그라운드 작업)
     });
 
-    // App 컴포넌트 로드 및 렌더링
+    if (Capacitor.isNativePlatform()) {
+        try {
+            void FirebaseAppCheck.initialize({
+                provider: 'playIntegrity',
+                isTokenAutoRefreshEnabled: true,
+            });
+        } catch {
+            // App Check initialization failed (로그 제거)
+        }
+    }
+
+    // FirebaseAuthentication 리스너 설정 (렌더링을 블로킹하지 않음)
+    FirebaseAuthentication.removeAllListeners()
+        .then(() => {
+            return FirebaseAuthentication.addListener('authStateChange', () => {
+                // Auth State 변경 (로그 제거)
+            });
+        })
+        .catch(() => {
+            // FirebaseAuthentication listener setup failed (로그 제거)
+        });
+
+    // ✅ App 컴포넌트 로드 및 렌더링 (AppCheck 초기화를 기다리지 않고 즉시 시작)
     const { default: App } = await import("./App");
 
     ReactDOM.createRoot(document.getElementById("root")!).render(

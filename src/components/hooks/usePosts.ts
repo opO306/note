@@ -15,6 +15,8 @@ interface UsePostsOptions {
     includeHidden?: boolean;
 }
 
+const INITIAL_POST_LIMIT = 24; // 초기 진입 시 가져올 게시글 개수 (요금/렌더링 비용 균형)
+
 export function usePosts(options?: UsePostsOptions) {
     const { includeHidden = false } = options ?? {};
 
@@ -28,7 +30,7 @@ export function usePosts(options?: UsePostsOptions) {
         setLoading(true);
         try {
             const postsRef = collection(db, "posts");
-            const q = query(postsRef, orderBy("createdAt", "desc"), limit(50));
+            const q = query(postsRef, orderBy("createdAt", "desc"), limit(INITIAL_POST_LIMIT));
 
             // ⚡️ getDocs: 한 번만 읽어옴 (비용 절약)
             const snapshot = await getDocs(q);

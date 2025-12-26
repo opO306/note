@@ -11,6 +11,7 @@ import { EmptyStatePanel } from "@/components/ui/empty-state";
 import { LanternIcon, LanternFilledIcon } from "@/components/icons/Lantern";
 import { MessageCircle, Bookmark, Plus, RotateCw } from "lucide-react";
 import { getUserTitle, getTitleLabelById } from "@/data/titleData";
+import { filterGoogleProfileImage } from "@/utils/profileImageUtils";
 import {
   getDisplayName,
   isDeletedAuthor,
@@ -388,9 +389,14 @@ export const PostCard = React.memo(
     const liveAuthorTitleId = authorProfile?.currentTitleId ?? null;
     const liveAuthorTitle = getTitleLabelById(liveAuthorTitleId);
 
-    // 🔹 아바타 이미지 (post.authorAvatar 우선, 없으면 authorProfile)
-    const postAuthorProfileImage =
-      isOwnPost ? userProfileImage : post.authorAvatar ?? authorProfile?.profileImage ?? "";
+    // 🔹 아바타 이미지 (post.authorAvatar 우선, 없으면 authorProfile, 구글 이미지 필터링)
+    const postAuthorProfileImage = useMemo(() => {
+      if (isOwnPost) {
+        return userProfileImage ?? "";
+      }
+      // 다른 사람의 게시글: 실시간 프로필 우선, 없으면 post.authorAvatar (구글 이미지 필터링)
+      return authorProfile?.profileImage ?? filterGoogleProfileImage(post.authorAvatar) ?? "";
+    }, [isOwnPost, userProfileImage, authorProfile?.profileImage, post.authorAvatar]);
 
     const authorTitleFallback = getUserTitle(
       post.author ?? "",

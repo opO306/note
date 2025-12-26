@@ -1,10 +1,11 @@
 // src/components/MainScreen/QuestionComposeScreen.tsx
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { auth, db } from "@/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { toast } from "@/toastHelper";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 type Props = {
     onBack: () => void;
@@ -87,53 +88,78 @@ export function QuestionComposeScreen({ onBack, onGoWrite }: Props) {
             />
 
             {/* 내용 */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-                <Section label="제목 (필수)">
-                    <Input
-                        placeholder="예) Firebase Functions 배포 시 unknown triggers 오류"
-                        value={title}
-                        onChange={setTitle}
-                    />
-                </Section>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <Card>
+                    <CardContent className="p-4">
+                        <div className="space-y-3">
+                            <label className="text-sm font-medium">제목 (필수)</label>
+                            <Input
+                                placeholder="예) Firebase Functions 배포 시 unknown triggers 오류"
+                                value={title}
+                                onChange={setTitle}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <Section label="상황 설명 (필수)">
-                    <TextArea
-                        placeholder="무슨 기능을 만들고 있었는지, 어떤 환경(기기/OS/버전)인지 적어줘."
-                        value={context}
-                        onChange={setContext}
-                        rows={5}
-                    />
-                </Section>
+                <Card>
+                    <CardContent className="p-4">
+                        <div className="space-y-3">
+                            <label className="text-sm font-medium">상황 설명 (필수)</label>
+                            <TextArea
+                                placeholder="무슨 기능을 만들고 있었는지, 어떤 환경(기기/OS/버전)인지 적어줘."
+                                value={context}
+                                onChange={setContext}
+                                rows={5}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <Section label="내가 해본 것">
-                    <TextArea
-                        placeholder="재설치, 캐시 삭제, 로그 확인, 설정 변경 등 시도한 내용을 적어줘."
-                        value={tried}
-                        onChange={setTried}
-                        rows={4}
-                    />
-                </Section>
+                <Card>
+                    <CardContent className="p-4">
+                        <div className="space-y-3">
+                            <label className="text-sm font-medium">내가 해본 것</label>
+                            <TextArea
+                                placeholder="재설치, 캐시 삭제, 로그 확인, 설정 변경 등 시도한 내용을 적어줘."
+                                value={tried}
+                                onChange={setTried}
+                                rows={4}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <Section label="기대 결과">
-                    <TextArea
-                        placeholder="원래는 어떻게 동작해야 하는지."
-                        value={expected}
-                        onChange={setExpected}
-                        rows={3}
-                    />
-                </Section>
+                <Card>
+                    <CardContent className="p-4">
+                        <div className="space-y-3">
+                            <label className="text-sm font-medium">기대 결과</label>
+                            <TextArea
+                                placeholder="원래는 어떻게 동작해야 하는지."
+                                value={expected}
+                                onChange={setExpected}
+                                rows={3}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <Section label="실제 결과">
-                    <TextArea
-                        placeholder="지금 실제로는 어떻게 되는지."
-                        value={actual}
-                        onChange={setActual}
-                        rows={3}
-                    />
-                </Section>
+                <Card>
+                    <CardContent className="p-4">
+                        <div className="space-y-3">
+                            <label className="text-sm font-medium">실제 결과</label>
+                            <TextArea
+                                placeholder="지금 실제로는 어떻게 되는지."
+                                value={actual}
+                                onChange={setActual}
+                                rows={3}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <div className="text-xs text-muted-foreground">
-                    다음 단계에서는 이 내용을 기반으로 “게시글 초안”을 자동 생성해서 글쓰기 화면에 넣어줄 수 있음.
+                <div className="text-xs text-muted-foreground px-1">
+                    다음 단계에서는 이 내용을 기반으로 "게시글 초안"을 자동 생성해서 글쓰기 화면에 넣어줄 수 있음.
                 </div>
             </div>
 
@@ -167,15 +193,6 @@ export function QuestionComposeScreen({ onBack, onGoWrite }: Props) {
     );
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
-    return (
-        <div className="space-y-2">
-            <div className="text-sm font-semibold">{label}</div>
-            {children}
-        </div>
-    );
-}
-
 function Input({
     value,
     onChange,
@@ -190,7 +207,7 @@ function Input({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className="w-full px-3 py-3 rounded-2xl bg-card border border-border outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full px-3 py-3 rounded-xl bg-input-background dark:bg-input/30 border border-input outline-none focus:ring-2 focus:ring-primary/30"
         />
     );
 }
@@ -212,7 +229,7 @@ function TextArea({
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
             rows={rows}
-            className="w-full px-3 py-3 rounded-2xl bg-card border border-border outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+            className="w-full px-3 py-3 rounded-xl bg-input-background dark:bg-input/30 border border-input outline-none focus:ring-2 focus:ring-primary/30 resize-none"
         />
     );
 }
