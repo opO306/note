@@ -29,7 +29,7 @@ export function useNotificationActions({
     removeNotification,
     clearAll,
   } = useNotifications({
-    maxNotifications: 100,
+    maxNotifications: 50,      // UI에서 실제로 볼 수 있는 양보다 넉넉하게만 유지
     autoDeleteAfterDays: 30,
   });
 
@@ -37,7 +37,8 @@ export function useNotificationActions({
   const notifications: Notification[] = React.useMemo(
     () =>
       domainNotifications
-        .filter((n) => !n.read)                    // ★ 추가: unread 만 남김
+        .filter((n) => !n.read)                    // ★ unread 만 남김
+        .slice(0, 30)                              // ★ UI에서 최대 30개까지만 노출 (렌더 비용/가독성 밸런스)
         .map((n) => {
           const rawPostId = (n.data as any)?.postId as
             | string

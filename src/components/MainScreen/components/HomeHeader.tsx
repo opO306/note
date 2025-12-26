@@ -190,8 +190,8 @@ function HomeHeaderComponent({
                         <NotificationItem
                           key={notification.id}
                           notification={notification}
-                          onNotificationClick={() => onNotificationClick(notification)}
-                          onDelete={() => onNotificationDelete?.(notification.id)}
+                          onNotificationClick={onNotificationClick}
+                          onDelete={onNotificationDelete ? () => onNotificationDelete(notification.id) : undefined}
                         />
                       ))}
                     </>
@@ -210,11 +210,15 @@ export const HomeHeader = React.memo(HomeHeaderComponent);
 
 interface NotificationItemProps {
   notification: Notification;
-  onNotificationClick: () => void;
+  onNotificationClick: (notification: Notification) => void;
   onDelete?: () => void;
 }
 
-function NotificationItem({ notification, onNotificationClick, onDelete }: NotificationItemProps) {
+const NotificationItem = React.memo(function NotificationItem({
+  notification,
+  onNotificationClick,
+  onDelete,
+}: NotificationItemProps) {
   const startXRef = useRef<number | null>(null);
   const startYRef = useRef<number | null>(null);
   const swipeOffsetRef = useRef<number>(0);
@@ -327,8 +331,8 @@ function NotificationItem({ notification, onNotificationClick, onDelete }: Notif
       e.stopPropagation();
       return;
     }
-    onNotificationClick();
-  }, [onNotificationClick]);
+    onNotificationClick(notification);
+  }, [notification, onNotificationClick]);
 
   const opacity = Math.abs(swipeOffset) > SWIPE_THRESHOLD ? 0.4 : 1;
   const showDeleteBackground = Math.abs(swipeOffset) > 20;
@@ -385,4 +389,4 @@ function NotificationItem({ notification, onNotificationClick, onDelete }: Notif
       </div>
     </div>
   );
-}
+});

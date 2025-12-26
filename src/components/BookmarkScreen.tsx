@@ -10,6 +10,7 @@ import { ArrowLeft, Bookmark, Search, MessageCircle } from "lucide-react";
 import { LanternIcon } from "./icons/Lantern";
 import { getUserTitle as getTitleLabel } from "../data/titleData";
 import { useUserProfiles } from "./MainScreen/hooks/useUserProfiles";
+import { filterGoogleProfileImage } from "@/utils/profileImageUtils";
 
 interface Post {
   id: number;
@@ -271,8 +272,10 @@ const BookmarkCard = React.memo(
     const authorTitle = getAuthorTitle(post.author);
     const isBookmarked = true; // 북마크 화면이므로 항상 북마크 상태
 
-    // 🔹 실시간 프로필 이미지 우선 사용
-    const authorAvatarUrl = authorProfile?.profileImage ?? post.authorAvatar ?? "";
+    // 🔹 실시간 프로필 이미지 우선 사용 (구글 이미지 필터링)
+    const authorAvatarUrl = useMemo(() => {
+      return authorProfile?.profileImage ?? filterGoogleProfileImage(post.authorAvatar) ?? "";
+    }, [authorProfile?.profileImage, post.authorAvatar]);
 
     return (
       <Card

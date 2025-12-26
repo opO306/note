@@ -76,6 +76,10 @@ interface PostDetailViewProps {
 
   // 신뢰도 체크
   canSubmitReply: boolean;
+
+  // 노트 저장 관련 (optional)
+  onSaveNote?: () => void;
+  hideSaveNote?: boolean;
 }
 
 // 상대시간 전용 컴포넌트로 타이머 리렌더 범위 국소화
@@ -393,7 +397,7 @@ export function PostDetailView({
             <CardContent className="p-4">
               <div className="space-y-4">
                 <Textarea
-                  ref={replyInputRef}
+                  ref={replyInputRef as React.RefObject<HTMLTextAreaElement>}
                   placeholder={
                     canSubmitReply
                       ? "이 글에 대한 생각을 나눠보세요."

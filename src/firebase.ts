@@ -28,8 +28,16 @@ const storage = getStorage(app);
 
 let appCheckInstance: AppCheck | null = null;
 
-// 2. 초기화 함수 (핵심: 에뮬레이터 연결 코드 제거됨)
+// 2. 가벼운 초기화 함수 (앱/서비스 인스턴스 생성만, 렌더링을 블로킹하지 않음)
+// ✅ Cold start 최적화: AppCheck 같은 무거운 초기화는 별도 함수로 분리
 export async function initFirebase() {
+    // 앱/서비스 인스턴스는 이미 위에서 생성됨 (동기 작업)
+    // 이 함수는 호환성을 위해 유지하지만, 실제로는 즉시 완료됨
+    return Promise.resolve();
+}
+
+// 3. AppCheck 초기화 (무거운 작업, 렌더링 이후 백그라운드에서 실행)
+export async function initFirebaseAppCheck() {
     const isNative = Capacitor.isNativePlatform();
 
     // 개발에서만 App Check 디버그 토큰 사용 (프로덕션에서는 절대 사용 금지)
@@ -78,9 +86,6 @@ export async function initFirebase() {
         }
     }
     // 프로덕션 빌드에서는 디버그 토큰을 절대 사용하지 않음
-
-    // 에뮬레이터 연결 함수(connectAuthEmulator 등)가 없으므로
-    // 무조건 실제 Firebase 프로젝트와 통신하게 됩니다.
 
     // App Check 초기화:
     // - 네이티브 앱에서는 개발 환경이어도 App Check가 필요함 (Firebase Auth 요구사항)

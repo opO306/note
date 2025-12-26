@@ -1,8 +1,9 @@
 // PostListItem.tsx
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { Card, CardContent } from "./ui/card";
 import { OptimizedAvatar } from "./OptimizedAvatar";
 import { Badge } from "./ui/badge";
+import { filterGoogleProfileImage } from "@/utils/profileImageUtils";
 
 type PostListItemProps = {
     post: any; // 프로젝트 타입에 맞춰 바꿔도 됨
@@ -19,6 +20,14 @@ function PostListItemComponent({ post, userNickname, userProfileImage, onSelect 
 
     const showMyAvatar = author === userNickname && userProfileImage;
 
+    // 🔹 프로필 이미지 결정 (구글 이미지 필터링)
+    const avatarSrc = useMemo(() => {
+        if (showMyAvatar && userProfileImage) {
+            return userProfileImage;
+        }
+        return filterGoogleProfileImage(post?.authorAvatar) ?? undefined;
+    }, [showMyAvatar, userProfileImage, post?.authorAvatar]);
+
     const handleClick = useCallback(() => {
         onSelect(post);
     }, [post, onSelect]);
@@ -28,7 +37,7 @@ function PostListItemComponent({ post, userNickname, userProfileImage, onSelect 
             <CardContent className="p-4" onClick={handleClick}>
                 <div className="flex items-center gap-3">
                     <OptimizedAvatar
-                        src={showMyAvatar ? userProfileImage : (post?.authorAvatar || undefined)}
+                        src={avatarSrc}
                         alt={author ? `${author}님의 프로필` : "프로필 이미지"}
                         nickname={author}
                         fallbackText={String(author).charAt(0).toUpperCase()}

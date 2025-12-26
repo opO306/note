@@ -57,9 +57,9 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
   );
 
   // ... (handleTitleEquip, handleTitleUnequip 등 나머지 함수는 그대로 유지)
-  const handleTitleEquip = useCallback((titleId: string) => { /* ... */ return true; }, [ownedTitles, currentTitle]);
+  const handleTitleEquip = useCallback((_titleId: string) => { /* ... */ return true; }, [ownedTitles, currentTitle]);
   const handleTitleUnequip = useCallback(() => { /* ... */ return true; }, [currentTitle]);
-  const addSpecialTitle = useCallback((titleId: string, titleName: string) => { /* ... */ }, []);
+  const addSpecialTitle = useCallback((_titleId: string, _titleName: string) => { /* ... */ }, []);
   const hasTitle = useCallback((titleId: string) => ownedTitles.includes(titleId), [ownedTitles]);
 
   return { ownedTitles, currentTitle, titlesSyncReady, handleTitlePurchase, handleTitleEquip, handleTitleUnequip, addSpecialTitle, hasTitle, setOwnedTitles, setCurrentTitle };

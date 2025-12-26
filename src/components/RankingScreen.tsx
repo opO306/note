@@ -6,7 +6,6 @@ import {
   useRankingViewModel,
   type RankingMap,
 } from "./hooks/useRankingViewModel";
-import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { EmptyStateCard } from "./ui/empty-state";
 import { OptimizedAvatar } from "@/components/OptimizedAvatar";

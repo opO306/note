@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import { db } from "@/firebase"; // 프로젝트의 Firebase 초기화 파일 경로
 
 /**

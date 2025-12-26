@@ -46,7 +46,7 @@ export function SearchHighlight({
       const parts: Array<{ text: string; isHighlight: boolean }> = [];
       let lastIndex = 0;
 
-      text.replace(regex, (match, p1, offset) => {
+      text.replace(regex, (match, _p1, offset) => {
         // 매칭 전 텍스트
         if (offset > lastIndex) {
           parts.push({
@@ -151,11 +151,10 @@ export function SearchHighlightWithContext({
   className,
   highlightClassName,
 }: SearchHighlightProps & { contextLength?: number }) {
-  const { excerpt, hasMatch } = useMemo(() => {
+  const { excerpt } = useMemo(() => {
     if (!query.trim() || !text) {
       return {
         excerpt: text.substring(0, contextLength * 2) + "...",
-        hasMatch: false,
       };
     }
 
@@ -166,7 +165,6 @@ export function SearchHighlightWithContext({
     if (matchIndex === -1) {
       return {
         excerpt: text.substring(0, contextLength * 2) + "...",
-        hasMatch: false,
       };
     }
 
@@ -183,7 +181,7 @@ export function SearchHighlightWithContext({
     if (start > 0) excerpt = "..." + excerpt;
     if (end < text.length) excerpt = excerpt + "...";
 
-    return { excerpt, hasMatch: true };
+    return { excerpt };
   }, [text, query, contextLength]);
 
   return (

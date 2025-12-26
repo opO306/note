@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { db, auth, functions } from "@/firebase"; // auth, functions 추가
-import { doc, updateDoc, increment, setDoc } from "firebase/firestore";
+import { auth, functions } from "@/firebase";
 import { httpsCallable } from "firebase/functions";
 import { toast } from "@/toastHelper";
 import { safeLocalStorage } from "@/components/utils/storageUtils";
@@ -8,19 +7,12 @@ import type { Post } from "../types";
 // ✅ Firestore 읽기/쓰기 분리 문제를 해결한 함수를 import 합니다.
 import { createNotificationForEvent } from "@/components/utils/notificationUtils"; // 경로를 실제 파일 위치에 맞게 수정하세요
 
-const GUIDE_LUMEN_REWARD = 3;
-
 interface UseGuideActionsParams {
   posts: Post[];
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
   selectedPost: Post | null;
   setSelectedPost: (post: Post | null) => void;
   userNickname: string;
-  userGuideCount: number;
-  setUserGuideCount: React.Dispatch<React.SetStateAction<number>>;
-  addLumensWithTrust: (amount: number, reason: string) => void;
-  updateActivity: (activity: { guideCount?: number }) => void;
-  updateTrust: (delta: number) => void;
 }
 
 export function useGuideActions({
@@ -29,11 +21,6 @@ export function useGuideActions({
   selectedPost,
   setSelectedPost,
   userNickname,
-  userGuideCount,
-  setUserGuideCount,
-  addLumensWithTrust,
-  updateActivity,
-  updateTrust,
 }: UseGuideActionsParams) {
   const [guideReplies, setGuideReplies] = useState<Set<number>>(new Set());
   const [postGuides, setPostGuides] = useState<Map<string, number>>(new Map());

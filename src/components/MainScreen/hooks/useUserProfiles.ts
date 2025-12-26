@@ -1,6 +1,6 @@
 // MainScreen/hooks/useUserProfiles.ts
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { auth, db } from "@/firebase";
 import { doc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
@@ -103,10 +103,33 @@ function subscribeToFirestore(uid: string) {
             userProfileCache.delete(uid);
         } else {
             const data = snap.data() as any;
+
+            // 🔹 프로필 이미지 결정 로직
+            // - 1순위: 우리가 관리하는 커스텀 이미지(profileImage)
+            // - 2순위: Firestore photoURL 중에서 "구글 기본 이미지가 아닌 것"만 허용
+            // - 그 외에는 null → UI에서 Dicebear/API 기본 아바타 사용
+            let profileImage: string | null = null;
+
+            if (typeof data.profileImage === "string" && data.profileImage) {
+                profileImage = data.profileImage;
+            } else if (typeof data.photoURL === "string" && data.photoURL) {
+                const photoUrl: string = data.photoURL;
+                const isGooglePhoto =
+                    photoUrl.includes("googleusercontent.com") ||
+                    photoUrl.includes("googleapis.com") ||
+                    photoUrl.includes("lh3.googleusercontent.com") ||
+                    photoUrl.includes("lh4.googleusercontent.com") ||
+                    photoUrl.includes("lh5.googleusercontent.com") ||
+                    photoUrl.includes("lh6.googleusercontent.com");
+
+                if (!isGooglePhoto) {
+                    profileImage = photoUrl;
+                }
+            }
+
             const profile: UserProfileLite = {
                 nickname: typeof data.nickname === "string" ? data.nickname : "알 수 없음",
-                // photoURL과 profileImage 둘 다 확인 (호환성)
-                profileImage: typeof data.photoURL === "string" ? data.photoURL : (typeof data.profileImage === "string" ? data.profileImage : null),
+                profileImage,
                 currentTitleId: typeof data.currentTitle === "string" ? data.currentTitle : null,
                 profileDescription: typeof data.profileDescription === "string" ? data.profileDescription : null,
                 role: (data.role === "admin" || data.role === "user") ? data.role : "user",
@@ -280,10 +303,29 @@ export function useUserProfileByNickname(nickname?: string | null) {
                 return;
             }
             const data = snap.docs[0].data() as any;
+
+            // 🔹 프로필 이미지 결정 로직 (닉네임으로 조회할 때도 동일 규칙 적용)
+            let profileImage: string | null = null;
+            if (typeof data.profileImage === "string" && data.profileImage) {
+                profileImage = data.profileImage;
+            } else if (typeof data.photoURL === "string" && data.photoURL) {
+                const photoUrl: string = data.photoURL;
+                const isGooglePhoto =
+                    photoUrl.includes("googleusercontent.com") ||
+                    photoUrl.includes("googleapis.com") ||
+                    photoUrl.includes("lh3.googleusercontent.com") ||
+                    photoUrl.includes("lh4.googleusercontent.com") ||
+                    photoUrl.includes("lh5.googleusercontent.com") ||
+                    photoUrl.includes("lh6.googleusercontent.com");
+
+                if (!isGooglePhoto) {
+                    profileImage = photoUrl;
+                }
+            }
+
             setProfile({
                 nickname: data.nickname ?? "",
-                // photoURL과 profileImage 둘 다 확인 (호환성)
-                profileImage: typeof data.photoURL === "string" ? data.photoURL : (data.profileImage ?? null),
+                profileImage,
                 currentTitleId: data.currentTitle ?? null,
                 profileDescription: data.profileDescription ?? null,
                 role: (data.role === "admin" || data.role === "user") ? data.role : "user",

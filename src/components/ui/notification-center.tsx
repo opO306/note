@@ -1,11 +1,10 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Card, CardContent, CardHeader, CardTitle } from "./card";
+import { Card, CardContent } from "./card";
 import { Button } from "./button";
 import { OptimizedAvatar } from "../OptimizedAvatar";
 import { Badge } from "./badge";
 import { Separator } from "./separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
 import { ScrollArea } from "./scroll-area";
 import {
   Sheet,
@@ -23,7 +22,6 @@ import {
   Trash2,
   X,
   Settings,
-  Filter,
 } from "lucide-react";
 import { LanternIcon } from "../icons/Lantern";
 import {
@@ -54,7 +52,6 @@ interface NotificationCenterProps {
  */
 export function NotificationCenter({
   notifications,
-  groupedNotifications = [],
   unreadCount,
   onNotificationClick,
   onMarkAsRead,
@@ -62,7 +59,6 @@ export function NotificationCenter({
   onDelete,
   onClearAll,
   onSettingsClick,
-  groupMode = false,
 }: NotificationCenterProps) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<NotificationType | "all">("all");
@@ -386,7 +382,7 @@ function NotificationItem({
 /**
  * 그룹화된 알림 아이템
  */
-function GroupedNotificationItem({
+export function GroupedNotificationItem({
   group,
   onClick,
 }: {

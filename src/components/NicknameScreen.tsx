@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Input } from "./ui/input";
@@ -7,7 +7,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { ArrowLeft, Check, AlertCircle, Moon, Sun } from "lucide-react";
 import { auth, functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
-import { toast } from "../toastHelper";
 import { NicknameConfirmModal } from "./modals/NicknameConfirmModal";
 import { FloatingSymbolItem } from "@/components/FloatingSymbolItem";
 

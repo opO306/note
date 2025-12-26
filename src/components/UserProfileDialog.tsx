@@ -1,6 +1,6 @@
 // src/components/UserProfileDialog.tsx
 
-import React, { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "./ui/button";
 import { OptimizedAvatar } from "@/components/OptimizedAvatar";
 import { Badge } from "./ui/badge";

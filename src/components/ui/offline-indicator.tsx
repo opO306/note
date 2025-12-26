@@ -3,10 +3,10 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { Alert, AlertDescription } from "./alert";
 import { Badge } from "./badge";
 import { Button } from "./button";
-import { 
-  WifiOff, 
-  Wifi, 
-  RefreshCw, 
+import {
+  WifiOff,
+  Wifi,
+  RefreshCw,
   AlertTriangle,
   CheckCircle2
 } from "lucide-react";
@@ -36,11 +36,12 @@ export function OfflineIndicator({
     if (!isOnline) {
       setShow(true);
       setShowReconnected(false);
+      return undefined;
     } else if (wasOffline) {
       // Show reconnected message
       setShowReconnected(true);
       setShow(true);
-      
+
       // Hide after 3 seconds
       const timer = setTimeout(() => {
         setShow(false);
@@ -51,6 +52,7 @@ export function OfflineIndicator({
     } else {
       setShow(false);
       setShowReconnected(false);
+      return undefined;
     }
   }, [isOnline, wasOffline]);
 

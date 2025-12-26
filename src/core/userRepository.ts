@@ -14,7 +14,6 @@ import {
     where,
     runTransaction,
     serverTimestamp,
-    updateDoc, // updateDoc 추가
     setDoc     // setDoc 추가
 } from "firebase/firestore";
 

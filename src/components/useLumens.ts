@@ -7,9 +7,6 @@ import {
     doc,
     getDoc,
     setDoc,
-    updateDoc,
-    increment,
-    arrayUnion,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { toast } from '../toastHelper'; // 👈 토스트 헬퍼 import 추가

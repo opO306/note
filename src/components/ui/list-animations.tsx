@@ -357,7 +357,6 @@ export function FlipCard({
  */
 export function DraggableList<T extends { id: string | number }>({
   items,
-  onReorder,
   renderItem,
   className,
 }: {
@@ -516,9 +515,9 @@ export function ShakeAnimation({
       animate={
         trigger
           ? {
-              x: [0, -10, 10, -10, 10, 0],
-              transition: { duration: 0.4 },
-            }
+            x: [0, -10, 10, -10, 10, 0],
+            transition: { duration: 0.4 },
+          }
           : {}
       }
     >

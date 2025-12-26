@@ -62,6 +62,12 @@ export function PrivacyPolicyScreen({ onBack }: PrivacyPolicyScreenProps) {
               <p className="pl-4">• 이메일 주소 (소셜 로그인 시)</p>
               <p className="pl-4">• 닉네임</p>
               <p className="pl-4">• 프로필 이미지 (선택사항)</p>
+              <p className="pl-4">
+                • 닉네임 기반 아바타 생성 정보
+                <span className="block text-xs text-muted-foreground pl-4">
+                  (외부 아바타 서비스 DiceBear에 닉네임 문자열이 전송되어 프로필 아바타 이미지를 생성하는 데 사용됩니다.)
+                </span>
+              </p>
               <br />
               <p>
                 <strong>자동 수집 항목:</strong>
@@ -128,6 +134,13 @@ export function PrivacyPolicyScreen({ onBack }: PrivacyPolicyScreenProps) {
             <div className="pl-4 space-y-2">
               <p>• 정보주체가 사전에 동의한 경우</p>
               <p>• 법령의 규정에 의거하거나, 수사 목적으로 법령에 정해진 절차와 방법에 따라 수사기관의 요구가 있는 경우</p>
+              <p>
+                • 프로필 아바타 생성 등 서비스 제공을 위해 최소한의 정보(닉네임 문자열 등)가
+                외부 아바타 서비스(DiceBear) 및 클라우드 서비스(Firebase 등)로 전송되는 경우
+                <span className="block text-xs text-muted-foreground pl-4">
+                  이 경우 해당 서비스의 개인정보 처리방침 및 이용약관을 함께 따릅니다.
+                </span>
+              </p>
             </div>
           </CardContent>
         </Card>

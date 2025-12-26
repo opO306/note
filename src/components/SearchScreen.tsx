@@ -395,7 +395,7 @@ export function SearchScreen({
           <form onSubmit={handleSearchSubmit} className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              ref={searchInputRef}
+              ref={searchInputRef as React.RefObject<HTMLInputElement>}
               type="text"
               placeholder="글 제목, 내용, 작성자, 태그를 검색하세요..."
               value={searchTerm}

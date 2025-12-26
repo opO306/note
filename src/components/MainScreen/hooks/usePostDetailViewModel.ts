@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { getDisplayName, isDeletedAuthor } from "@/components/utils/deletedUserHelpers";
 import { getTitleLabelById, getUserTitle } from "@/data/titleData";
 import { useUserProfiles, type UserProfileLite } from "./useUserProfiles";
+import { filterGoogleProfileImage } from "@/utils/profileImageUtils";
 import type { Post, Reply } from "../types";
 
 export type ReplyWithGuide = Reply & { isGuide: boolean };
@@ -84,13 +85,15 @@ export function usePostDetailViewModel({
     const isOwnPost = post.author === userNickname;
     const postAuthorProfileImage = useMemo(() => {
         if (isOwnPost) {
-            // 자신의 게시글일 때는 userProfileImage 우선, 없으면 실시간 프로필, 없으면 post.authorAvatar
-            return userProfileImage && userProfileImage.trim().length > 0
-                ? userProfileImage
-                : (postAuthorProfile?.profileImage ?? post.authorAvatar ?? null);
+            // 자신의 게시글일 때는 userProfileImage 우선, 없으면 실시간 프로필, 없으면 post.authorAvatar (구글 이미지 필터링)
+            if (userProfileImage && userProfileImage.trim().length > 0) {
+                return userProfileImage;
+            }
+            const fallbackUrl = postAuthorProfile?.profileImage ?? filterGoogleProfileImage(post.authorAvatar) ?? null;
+            return fallbackUrl;
         }
-        // 다른 사람의 게시글일 때는 실시간 프로필 우선
-        return postAuthorProfile?.profileImage ?? post.authorAvatar ?? null;
+        // 다른 사람의 게시글일 때는 실시간 프로필 우선, 없으면 post.authorAvatar (구글 이미지 필터링)
+        return postAuthorProfile?.profileImage ?? filterGoogleProfileImage(post.authorAvatar) ?? null;
     }, [isOwnPost, userProfileImage, postAuthorProfile?.profileImage, post.authorAvatar]);
 
     const authorTitleFallback = getUserTitle(post.author ?? "", userNickname, currentTitle);

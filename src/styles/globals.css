@@ -1045,12 +1045,6 @@
     opacity: 0.5;
   }
 
-  /* Hidden content */
-  [aria-hidden="true"],
-  [hidden] {
-    display: none !important;
-  }
-
   /* Live regions */
   [aria-live] {
     position: absolute;

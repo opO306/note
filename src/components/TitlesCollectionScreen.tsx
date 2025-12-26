@@ -1,6 +1,6 @@
 // 예시 경로: src/screens/TitlesCollectionScreen.tsx
 /* eslint-disable react/jsx-no-bind, react-perf/jsx-no-new-function-as-prop */
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "../firebase"; // 경로 수정
 import { TitlesCollection } from "../components/TitlesCollection";

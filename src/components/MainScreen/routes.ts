@@ -10,7 +10,8 @@ export type PostDetailSource =
     | "userProfilePosts"
     | "userProfileReplies"
     | "search"
-    | "category";
+    | "category"
+    | "notes";
 // 메인 화면에서 다루는 "화면"들을 전부 하나의 유니온 타입으로 정의
 export type MainRoute =
     | { name: "home" }
@@ -28,6 +29,9 @@ export type MainRoute =
     | { name: "userProfile"; nickname: string }
     | { name: "adminReports" }
     | { name: "notificationSettings" }
+    | { name: "questionCompose" }
+    | { name: "notes" }
+    | { name: "noteDetail"; noteId: string }
     | {
         name: "postDetail";
         postId: string;

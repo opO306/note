@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { Capacitor } from "@capacitor/core";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { Moon, Sun, Loader2 } from "lucide-react";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
@@ -96,7 +95,7 @@ export function LoginScreen({
       // 3) 토큰이 없으면 에러 처리
       if (!idToken && !accessToken) {
         toast.error("로그인에 실패했습니다. 다시 시도해주세요.");
-        return;
+        return undefined;
       }
 
       // 4) Web SDK credential 생성 + 로그인 시도
@@ -111,6 +110,7 @@ export function LoginScreen({
     } finally {
       setIsLoggingIn(false);
     }
+    return undefined;
   }, [agreedToTerms, isLoggingIn]);
 
   const handleTermsChange = useCallback((checked: boolean | string) => {

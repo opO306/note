@@ -273,9 +273,9 @@ export async function shortenUrl(url: string): Promise<string> {
  * ê³µìœ  í†µê³„ ì¶”ì 
  */
 export function trackShare(
-  platform: string,
-  contentType: string,
-  contentId: string | number
+  _platform: string,
+  _contentType: string,
+  _contentId: string | number
 ) {
   // Analytics ì´ë²¤íŠ¸ ì „ì†¡ (ì˜ˆ: GA, Mixpanel)
   // Share tracked (로그 제거)

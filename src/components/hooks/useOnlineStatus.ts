@@ -132,6 +132,7 @@ export function useNetworkMonitor() {
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [failedRequests]);
 
   return {

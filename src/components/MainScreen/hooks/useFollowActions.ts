@@ -53,9 +53,32 @@ async function buildFollowUserInfosByNicknames(
     const data = docSnap.data() as any;
     const nickname = data.nickname as string;
 
+    // 🔹 프로필 이미지 결정 로직 (팔로우 목록용)
+    // - 1순위: 우리가 관리하는 커스텀 이미지(profileImageUrl)
+    // - 2순위: Firestore photoURL 중 "구글 기본 이미지가 아닌 것"
+    // - 없으면 빈 문자열 → UI에서 Dicebear/API 기본 아바타 사용
+    let avatarUrl = "";
+
+    if (typeof data.profileImageUrl === "string" && data.profileImageUrl) {
+      avatarUrl = data.profileImageUrl;
+    } else if (typeof data.photoURL === "string" && data.photoURL) {
+      const photoUrl: string = data.photoURL;
+      const isGooglePhoto =
+        photoUrl.includes("googleusercontent.com") ||
+        photoUrl.includes("googleapis.com") ||
+        photoUrl.includes("lh3.googleusercontent.com") ||
+        photoUrl.includes("lh4.googleusercontent.com") ||
+        photoUrl.includes("lh5.googleusercontent.com") ||
+        photoUrl.includes("lh6.googleusercontent.com");
+
+      if (!isGooglePhoto) {
+        avatarUrl = photoUrl;
+      }
+    }
+
     mapByNickname.set(nickname, {
       nickname,
-      avatarUrl: data.profileImageUrl || data.photoURL || "",
+      avatarUrl,
       bio: data.profileDescription || "",
       title: data.currentTitle || "",   // ★ 추가: 현재 장착한 칭호
     });
@@ -254,7 +277,7 @@ export function useFollowActions({ userNickname }: UseFollowActionsParams) {
         }
 
         // 서버 기준으로 팔로우/언팔로우 토글
-        const result = await toggleFollowByNickname({
+        await toggleFollowByNickname({
           currentUid,
           currentNickname: userNickname,
           targetNickname: normalizedTarget,

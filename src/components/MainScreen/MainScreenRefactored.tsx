@@ -6,7 +6,17 @@ import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspens
 import { App as CapacitorApp } from "@capacitor/app";
 import type { PluginListenerHandle } from "@capacitor/core";
 import { auth, db, functions } from "../../firebase";
-import { addDoc, collection, serverTimestamp, doc, onSnapshot } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+  doc,
+  onSnapshot,
+  getDocs,
+  query,
+  where,
+  limit,
+} from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { toast } from "@/toastHelper";
 import { useUserProfiles, useCurrentUserProfileLite } from "./hooks/useUserProfiles";
@@ -19,7 +29,7 @@ import { DELETED_USER_NAME } from "@/components/utils/deletedUserHelpers";
 import { useLumens } from "../useLumens";
 import { useAchievements } from "../useAchievements";
 import { usePosts } from "../hooks/usePosts";
-
+import { CreateActionSheet } from "../CreateActionSheet";
 // 분리된 훅들
 import {
   useLanternActions,
@@ -40,17 +50,41 @@ import { useOtherUserFollowStats } from "./hooks/useOtherUserFollowStats";
 import { HomeHeader, PostListView, PostDetailView } from "./components";
 import { QuizScreen } from "./components/QuizScreen";
 
-// 기존 컴포넌트들 (주요 화면은 Eager Loading으로 전환하여 탭 전환 속도 개선)
+// 기존 컴포넌트들
 import { BottomNavigation } from "../layout/BottomNavigation";
-import { MyPageScreen } from "../MyPageScreen";
-import { CategoryScreen } from "../CategoryScreen";
-import { SearchScreen } from "../SearchScreen";
-import { RankingScreen } from "../RankingScreen";
-import { BookmarkScreen } from "../BookmarkScreen";
-import { MyContentListScreen } from "../MyContentListScreen";
+
+// 🔹 주요 화면들도 lazy 로딩으로 전환 (초기 진입 속도 개선)
+const MyPageScreen = lazy(() =>
+  import("../MyPageScreen").then((m) => ({ default: m.MyPageScreen })),
+);
+const CategoryScreen = lazy(() =>
+  import("../CategoryScreen").then((m) => ({ default: m.CategoryScreen })),
+);
+const SearchScreen = lazy(() =>
+  import("../SearchScreen").then((m) => ({ default: m.SearchScreen })),
+);
+const RankingScreen = lazy(() =>
+  import("../RankingScreen").then((m) => ({ default: m.RankingScreen })),
+);
+const BookmarkScreen = lazy(() =>
+  import("../BookmarkScreen").then((m) => ({ default: m.BookmarkScreen })),
+);
+const MyContentListScreen = lazy(() =>
+  import("../MyContentListScreen").then((m) => ({ default: m.MyContentListScreen })),
+);
+
+// 🔹 탭 전환 시 불필요한 리렌더를 줄이기 위한 메모이제이션 래퍼
+const MemoRankingScreen = React.memo(RankingScreen);
+const MemoBookmarkScreen = React.memo(BookmarkScreen);
+const MemoSearchScreen = React.memo(SearchScreen);
 
 // 덜 자주 쓰이는 화면은 Lazy Loading 유지
 const WriteScreen = lazy(() => import("../WriteScreen").then((m) => ({ default: m.WriteScreen })));
+const NotesScreen = lazy(() => import("../NotesScreen"));
+const NoteDetailScreen = lazy(() => import("../NoteDetailScreen"));
+const QuestionComposeScreen = lazy(() =>
+  import("./QuestionComposeScreen").then((m) => ({ default: m.QuestionComposeScreen }))
+);
 const TitleShop = lazy(() => import("../TitleShop").then((m) => ({ default: m.TitleShop })));
 const TitlesCollection = lazy(() => import("../TitlesCollection").then((m) => ({ default: m.TitlesCollection })));
 const AchievementsScreen = lazy(() =>
@@ -85,6 +119,7 @@ import type { MainScreenProps, Post, Reply, SortOption } from "./types";
 
 // 상수
 const EMPTY_STRING_ARRAY: readonly string[] = Object.freeze([]);
+const SCREEN_RESET_TIMEOUT_MS = 2 * 60 * 1000; // 2분 뒤 화면 자동 초기화
 const ScreenFallback = () => (
   <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
     불러오는 중...
@@ -92,6 +127,55 @@ const ScreenFallback = () => (
 );
 
 const AUTO_REPLY_WAIT_MS = 60 * 60 * 1000;
+
+// 특정 화면이 비활성화된 뒤 일정 시간이 지나면 visitedScreens에서 제거하여 언마운트하는 훅
+function useScreenAutoReset(
+  screenKey: string,
+  isActive: boolean,
+  setVisitedScreens: React.Dispatch<React.SetStateAction<Set<string>>>,
+  timersRef: React.MutableRefObject<Record<string, number>>,
+) {
+  useEffect(() => {
+    const timers = timersRef.current;
+
+    // 활성화되면 타이머 제거 및 방문 기록 유지/추가
+    if (isActive) {
+      if (timers[screenKey]) {
+        clearTimeout(timers[screenKey]);
+        delete timers[screenKey];
+      }
+      setVisitedScreens((prev) => {
+        if (prev.has(screenKey)) return prev;
+        const next = new Set(prev);
+        next.add(screenKey);
+        return next;
+      });
+      return;
+    }
+
+    // 비활성 상태가 되면 2분 뒤에 visitedScreens에서 제거
+    if (timers[screenKey]) {
+      clearTimeout(timers[screenKey]);
+    }
+
+    timers[screenKey] = window.setTimeout(() => {
+      setVisitedScreens((prev) => {
+        if (!prev.has(screenKey)) return prev;
+        const next = new Set(prev);
+        next.delete(screenKey);
+        return next;
+      });
+      delete timers[screenKey];
+    }, SCREEN_RESET_TIMEOUT_MS);
+
+    return () => {
+      if (timers[screenKey]) {
+        clearTimeout(timers[screenKey]);
+        delete timers[screenKey];
+      }
+    };
+  }, [isActive, screenKey, setVisitedScreens, timersRef]);
+}
 
 function toDateSafe(value: any): Date | null {
   if (!value) return null;
@@ -153,11 +237,14 @@ function MainScreenInner({
     goMyPage,
     goPostDetail,
     goAchievements,
+    setWriteDraft,
   } = useNavigationStore();
   const [showWriteScreen, setShowWriteScreen] = useState(false);
   const [lastUserProfileNickname, setLastUserProfileNickname] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  // 🆕 글쓰기 선택 시트
+  const [showCreateSheet, setShowCreateSheet] = useState(false);
 
   // 🔹 글 상세로 들어올 때, 어디에서 왔는지 기억하는 상태
   const [postDetailSource, setPostDetailSource] = useState<PostDetailSource>("home");
@@ -173,9 +260,12 @@ function MainScreenInner({
   const [sortBy, setSortBy] = useState<SortOption["value"]>("latest");
   const autoReplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoReplyTriggeredRef = useRef<Set<string>>(new Set());
+  // ✅ postDetail을 노트에서 열었을 때, 다시 돌아갈 noteId 기억
+  const postDetailReturnNoteIdRef = useRef<string | null>(null);
 
   // 화면 표시 상태
   const isWriteVisible = showWriteScreen;
+  const isQuestionComposeVisible = route.name === "questionCompose";
   const isMyPageVisible = visibility.showMyPage;
   const isCategoryVisible = visibility.showCategoryScreen;
   const isTitleShopVisible = visibility.showTitleShop;
@@ -197,13 +287,16 @@ function MainScreenInner({
   const showTitlesCollection = visibility.showTitlesCollection;
   const showAchievements = visibility.showAchievements;
   const showUserProfile = visibility.showUserProfile;
-
+  const isNotesVisible = route.name === "notes";
   const effectiveFollowList = showFollowList;
   const effectiveMyContentList = showMyContentList;
 
   // 🔹 route -> boolean 네비게이션 상태 동기화
   useEffect(() => {
     switch (route.name) {
+      case "questionCompose":
+        setCurrentScreen("home");
+        break;
       case "home":
         setCurrentScreen("home");
         break;
@@ -268,7 +361,7 @@ function MainScreenInner({
   // 2. 기존 훅 연결
   // ========================================
   const { posts, setPosts, refresh } = usePosts();
-  const { balance: lumenBalance, addLumens, spendLumens } = useLumens();
+  const { balance: lumenBalance } = useLumens();
 
   // 🔹 차단된 유저 목록 가져오기
   const currentUserProfileLite = useCurrentUserProfileLite();
@@ -498,7 +591,7 @@ function MainScreenInner({
             : "";
         setProfileDescription(desc);
       },
-      (error) => {
+      () => {
         // users.profileDescription 구독 에러 (로그 제거)
       }
     );
@@ -570,11 +663,6 @@ function MainScreenInner({
     selectedPost,
     setSelectedPost,
     userNickname,
-    userGuideCount: userStats.userGuideCount,
-    setUserGuideCount: userStats.setUserGuideCount ?? (() => { }),
-    addLumensWithTrust,
-    updateActivity,
-    updateTrust,
   });
 
   const replyActions = useReplyActions({
@@ -773,6 +861,7 @@ function MainScreenInner({
   });
 
   useEffect(() => syncLayer("write", showWriteScreen), [showWriteScreen, syncLayer]);
+  useEffect(() => syncLayer("questionCompose", route.name === "questionCompose"), [route.name, syncLayer]);
   useEffect(() => syncLayer("postDetail", !!selectedPost), [selectedPost, syncLayer]);
   useEffect(() => syncLayer("titlesCollection", showTitlesCollection), [showTitlesCollection, syncLayer]);
   useEffect(() => syncLayer("titleShop", showTitleShop), [showTitleShop, syncLayer]);
@@ -786,10 +875,33 @@ function MainScreenInner({
   useEffect(() => syncLayer("ranking", visibility.showRanking), [visibility.showRanking, syncLayer]);
   useEffect(() => syncLayer("search", showSearchScreen), [showSearchScreen, syncLayer]);
   useEffect(() => syncLayer("quiz", route.name === "quiz"), [route.name, syncLayer]);
+  useEffect(() => syncLayer("notes", route.name === "notes"), [route.name, syncLayer]);
+  useEffect(() => syncLayer("noteDetail", route.name === "noteDetail"), [route.name, syncLayer]);
 
   const closePostDetailFromState = useCallback((state?: any) => {
     const s = state ?? navigationStateRef.current;
     if (!s.selectedPost) return;
+
+    if (s.postDetailSource === "notes") {
+      const noteId = postDetailReturnNoteIdRef.current;
+
+      setSelectedPost(null);
+
+      if (noteId) {
+        // ✅ 노트 상세로 복귀
+        setRoute({ name: "noteDetail", noteId });
+        setCurrentScreen("home");
+      } else {
+        // noteId를 못 찾는 예외 상황이면 notes 목록으로
+        setRoute({ name: "notes" });
+        setCurrentScreen("home");
+      }
+
+      // ✅ 다음 진입을 위해 초기화
+      postDetailReturnNoteIdRef.current = null;
+      setPostDetailSource("home");
+      return;
+    }
 
     if (s.postDetailSource === "myPostsList") {
       setSelectedPost(null);
@@ -859,6 +971,19 @@ function MainScreenInner({
       case "write":
         setShowWriteScreen(false);
         setRoute({ name: "home" });
+        setCurrentScreen("home");
+        break;
+      case "noteDetail":
+        setRoute({ name: "notes" });
+        setCurrentScreen("home");
+        break;
+      case "notes":
+        setRoute({ name: "home" });
+        setCurrentScreen("home");
+        break;
+      case "questionCompose":
+        setRoute({ name: "home" });
+        setCurrentScreen("home");
         break;
       case "postDetail":
         closePostDetailFromState();
@@ -913,9 +1038,11 @@ function MainScreenInner({
         break;
       case "category":
         setRoute({ name: "home" });
+        setCurrentScreen("home");
         break;
       case "notificationSettings":
         setRoute({ name: "myPage" });
+        setCurrentScreen("profile");
         break;
       case "ranking":
         goHome();
@@ -926,6 +1053,7 @@ function MainScreenInner({
         break;
       case "search":
         setRoute({ name: "home" });
+        setCurrentScreen("home");
         break;
       default:
         break;
@@ -1011,6 +1139,46 @@ function MainScreenInner({
     },
     [postManagement, setRoute, setSelectedPost, setShowWriteScreen]
   );
+
+  const handleSavePostToNotes = useCallback(
+    async (post: any) => {
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        toast.error("로그인 후 사용할 수 있어요.");
+        return;
+      }
+
+      try {
+        const source = `post:${post?.id ?? ""}`;
+
+        // ✅ 중복 저장 방지: 같은 post를 이미 노트로 저장했으면 중단
+        const q = query(
+          collection(db, "notes"),
+          where("uid", "==", uid),
+          where("source", "==", source),
+          limit(1)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          toast.info("이미 노트로 저장된 글이에요.");
+          return;
+        }
+
+        await addDoc(collection(db, "notes"), {
+          uid,
+          title: (post?.title ?? "").toString().trim(),
+          body: (post?.content ?? "").toString(),
+          source,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        toast.success("노트에 저장했어요.");
+      } catch {
+        toast.error("노트 저장에 실패했어요.");
+      }
+
+    }, [toast]);
 
   const handleMentionClick = useCallback((nickname: string) => {
     if (!nickname || nickname === DELETED_USER_NAME) {
@@ -1121,6 +1289,7 @@ function MainScreenInner({
   }, [visiblePosts, userNickname]);
 
   const [visitedScreens, setVisitedScreens] = useState<Set<string>>(new Set(["home"]));
+  const screenResetTimersRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     setVisitedScreens((prev) => {
@@ -1148,10 +1317,102 @@ function MainScreenInner({
     });
   }, [visibility, route.name]);
 
+  // 탭/화면 자동 초기화 (2분 비활성 시 visitedScreens에서 제거)
+  useScreenAutoReset("myPage", isMyPageVisible, setVisitedScreens, screenResetTimersRef);
+  useScreenAutoReset("ranking", isRankingVisible, setVisitedScreens, screenResetTimersRef);
+  useScreenAutoReset("bookmarks", isBookmarksVisible, setVisitedScreens, screenResetTimersRef);
+  useScreenAutoReset("search", isSearchVisible, setVisitedScreens, screenResetTimersRef);
+
   const isPostDetail =
     route.name === "postDetail" &&
     !!selectedPost &&
     String(route.postId) === String(selectedPost.id);
+
+  if (isQuestionComposeVisible) {
+    return (
+      <Suspense fallback={<ScreenFallback />}>
+        <QuestionComposeScreen
+          onBack={handleLayerBack}
+          onGoWrite={(draft) => {
+            // 1) 질문정리 route 종료
+            setRoute({ name: "home" });
+            setCurrentScreen("home");
+
+            // 2) 글쓰기 초안 주입
+            setWriteDraft({ ...draft, postType: "question" });
+
+            // 3) 질문정리 레이어는 종료되고 write만 남도록
+            //    (이미 syncLayer로 questionCompose는 route 기반으로 사라짐)
+            setShowWriteScreen(true);
+            pushLayer("write");
+          }}
+        />
+      </Suspense>
+    );
+  }
+
+  if (isNotesVisible) {
+    return (
+      <Suspense fallback={<ScreenFallback />}>
+        <div className="w-full h-full flex flex-col">
+          <NotesScreen
+            onBack={handleLayerBack}
+            onOpenNote={(noteId) => {
+              setRoute({ name: "noteDetail", noteId });
+              setCurrentScreen("home");
+            }}
+          />
+          <BottomNavigation
+            onHomeClick={navigateToHome}
+            onRankingClick={navigateToRanking}
+            onBookmarksClick={navigateToBookmarks}
+            onMyPageClick={navigateToMyPage}
+            onWriteClick={() => setShowCreateSheet(true)}
+            activeTab={currentScreen}
+          />
+        </div>
+      </Suspense>
+    );
+  }
+
+  const isNoteDetailVisible = route.name === "noteDetail";
+
+  if (isNoteDetailVisible) {
+    return (
+      <Suspense fallback={<ScreenFallback />}>
+        <NoteDetailScreen
+          noteId={route.noteId}
+          onBack={() => {
+            setRoute({ name: "notes" });
+            setCurrentScreen("home");
+          }}
+          onGoWrite={(draft) => {
+            // 1) 초안 주입 (노트에서 온 건 일반 글)
+            setWriteDraft({ ...draft, postType: "guide" });
+            // 2) noteDetail 화면 닫고 home으로 복귀
+            setRoute({ name: "home" });
+            setCurrentScreen("home");
+
+            // 3) 글쓰기 열기
+            setShowWriteScreen(true);
+          }}
+          onOpenSourcePost={(postId) => {
+            // ✅ 지금 보고 있는 noteDetail의 noteId를 기억해 둠 (돌아갈 곳)
+            postDetailReturnNoteIdRef.current = route.noteId;
+
+            const post = posts.find((p) => String(p.id) === String(postId));
+            if (!post) {
+              toast.error("원문 게시글을 찾을 수 없어요.");
+              return;
+            }
+
+            // ✅ source를 notes로 설정해서 close 시 노트로 복귀시키기
+            openPostDetail(post, "notes" as any);
+          }}
+        />
+      </Suspense>
+    );
+  }
 
   if (isWriteVisible) {
     return (
@@ -1248,6 +1509,8 @@ function MainScreenInner({
                 postManagement.deletePost(selectedPost.id);
                 closePostDetailFromState();
               }}
+              onSaveNote={() => handleSavePostToNotes(selectedPost)}
+              hideSaveNote={postDetailSource === "notes"}
               onReportReply={(reply) => setReportingReply(reply)}
               renderContentWithMentions={renderContentWithMentions}
               canSubmitReply={replyActions.canSubmitReply}
@@ -1305,7 +1568,7 @@ function MainScreenInner({
           onRankingClick={navigateToRanking}
           onBookmarksClick={navigateToBookmarks}
           onMyPageClick={navigateToMyPage}
-          onWriteClick={handleStartWriting}
+          onWriteClick={() => setShowCreateSheet(true)}
           activeTab={currentScreen}
         />
       </div>
@@ -1382,7 +1645,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={handleStartWriting}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -1399,7 +1662,7 @@ function MainScreenInner({
         >
           <Suspense fallback={<ScreenFallback />}>
             <div className="w-full h-full flex flex-col">
-              <RankingScreen
+              <MemoRankingScreen
                 onBack={handleLayerBack}
                 weeklyGuideRanking={userStats.weeklyGuideRanking}
                 totalGuideRanking={userStats.totalGuideRanking}
@@ -1410,7 +1673,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={handleStartWriting}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -1427,7 +1690,7 @@ function MainScreenInner({
         >
           <Suspense fallback={<ScreenFallback />}>
             <div className="w-full h-full flex flex-col">
-              <BookmarkScreen
+              <MemoBookmarkScreen
                 onBack={handleLayerBack}
                 bookmarkedPosts={bookmarkActions.bookmarkedPosts}
                 posts={visiblePosts as any}
@@ -1447,7 +1710,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={handleStartWriting}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -1469,7 +1732,7 @@ function MainScreenInner({
               onRankingClick={navigateToRanking}
               onBookmarksClick={navigateToBookmarks}
               onMyPageClick={navigateToMyPage}
-              onWriteClick={handleStartWriting}
+              onWriteClick={() => setShowCreateSheet(true)}
               activeTab={currentScreen}
             />
           </div>
@@ -1520,7 +1783,7 @@ function MainScreenInner({
             }`}
         >
           <Suspense fallback={<ScreenFallback />}>
-            <SearchScreen
+            <MemoSearchScreen
               onBack={handleLayerBack}
               posts={visiblePosts}
               onPostSelect={(post) => {
@@ -1562,7 +1825,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={handleStartWriting}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -1662,12 +1925,12 @@ function MainScreenInner({
                     onChangeSection={setUserProfileSection}
                   />
                   <BottomNavigation
-                    activeTab={currentScreen}
                     onHomeClick={navigateToHome}
                     onRankingClick={navigateToRanking}
                     onBookmarksClick={navigateToBookmarks}
                     onMyPageClick={navigateToMyPage}
-                    onWriteClick={handleStartWriting}
+                    onWriteClick={() => setShowCreateSheet(true)}
+                    activeTab={currentScreen}
                   />
                 </div>
               </Suspense>
@@ -1694,7 +1957,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={handleStartWriting}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -1724,7 +1987,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={handleStartWriting}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -1768,7 +2031,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={handleStartWriting}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -1790,7 +2053,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={handleStartWriting}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -1814,7 +2077,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={handleStartWriting}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -1910,6 +2173,28 @@ function MainScreenInner({
         blockedUserIds={blockedUserIds}
         onUnblocked={() => {
           // 차단 해제 시 필요한 경우 데이터 갱신 로직 (보통 리스너로 자동 갱신됨)
+        }}
+      />
+
+      {/* ✅ 여기다가 넣어 */}
+      <CreateActionSheet
+        open={showCreateSheet}
+        onClose={() => setShowCreateSheet(false)}
+        onSelectStructured={() => {
+          setShowCreateSheet(false);
+
+          // TODO: 질문 정리 화면 route/layer는 다음 단계에서 추가
+          // 지금은 일단 route만 이동하게 해도 됨
+          setRoute({ name: "questionCompose" });
+        }}
+        onSelectWrite={() => {
+          setShowCreateSheet(false);
+          handleStartWriting(); // 기존 글쓰기 그대로
+        }}
+        onSelectNotes={() => {
+          setShowCreateSheet(false);
+          setRoute({ name: "notes" });
+          setCurrentScreen("home");
         }}
       />
 
