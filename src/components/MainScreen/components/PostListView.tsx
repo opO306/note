@@ -8,6 +8,7 @@ import { OptimizedAvatar } from "@/components/OptimizedAvatar";
 import { Badge } from "@/components/ui/badge";
 import { SimpleDropdown } from "@/components/ui/simple-dropdown";
 import { EmptyStatePanel } from "@/components/ui/empty-state";
+import { PostListSkeleton } from "@/components/ui/skeleton";
 import { LanternIcon, LanternFilledIcon } from "@/components/icons/Lantern";
 import { MessageCircle, Bookmark, Plus, RotateCw } from "lucide-react";
 import { getUserTitle, getTitleLabelById } from "@/data/titleData";
@@ -37,6 +38,7 @@ interface PostListViewProps {
   sortBy: SortOption["value"];
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  isLoading?: boolean; // ✅ 초기 로딩 상태
   // 🆕 [추가] 차단된 유저 ID 목록
   blockedUserIds: string[];
 
@@ -79,6 +81,7 @@ function PostListViewComponent({
   currentTitle,
   onRefresh,
   isRefreshing = false,
+  isLoading = false, // ✅ 초기 로딩 상태
 }: PostListViewProps) {
 
   // 🆕 [추가] 차단된 유저의 게시글 필터링
@@ -137,7 +140,12 @@ function PostListViewComponent({
 
       {/* Posts */}
       <div className="flex-1 overflow-hidden bg-background">
-        {visiblePosts.length === 0 ? (
+        {/* ✅ 초기 로딩 또는 새로고침 중일 때 Skeleton UI 표시 */}
+        {(isLoading || isRefreshing) && posts.length === 0 ? (
+          <div className="h-full overflow-y-auto scrollbar-hide">
+            <PostListSkeleton count={5} />
+          </div>
+        ) : visiblePosts.length === 0 ? (
           <div className="h-full overflow-y-auto scrollbar-hide p-4">
             <EmptyState onStartWriting={onStartWriting} />
           </div>

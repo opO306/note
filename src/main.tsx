@@ -5,6 +5,7 @@ import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { FirebaseAppCheck } from "@capacitor-firebase/app-check"; // App Check 임포트
 import "./index.css";
 import { initFirebase, initFirebaseAppCheck } from "./firebase";
+import { initPerformanceMonitoring } from "./utils/performanceMonitoring";
 
 async function bootstrap() {
     // 시스템 네비게이션 바 높이 자동 계산 및 CSS 변수 업데이트
@@ -28,8 +29,13 @@ async function bootstrap() {
 
             // 계산된 값이 유효하고 env 값이 작거나 0이면 계산된 값 사용
             // (env 값이 이미 있으면 그것을 우선 사용)
+            // ✅ Safe Area API가 작동하지 않는 경우를 위한 fallback
             if (systemBarHeight > 0 && (envBottomValue === 0 || systemBarHeight > envBottomValue)) {
                 root.style.setProperty('--safe-area-inset-bottom', `${systemBarHeight}px`);
+            } else if (envBottomValue === 0 && systemBarHeight === 0) {
+                // ✅ Android 기기에서 시스템 바가 있을 수 있으므로 최소값 보장
+                // 일반적으로 Android 시스템 네비게이션 바는 48-56px 정도
+                root.style.setProperty('--safe-area-inset-bottom', '48px');
             }
 
             // 상단 safe area 계산 (상태 바 높이)
@@ -92,6 +98,21 @@ async function bootstrap() {
         initFirebase(),
         import("./App")
     ]);
+
+    // ✅ Performance Monitoring 초기화 (백그라운드에서 실행)
+    try {
+        initPerformanceMonitoring();
+    } catch (error) {
+        // Performance Monitoring 초기화 실패는 무시 (개발 환경 등)
+    }
+
+    // ✅ Foreground 이벤트 핸들러 초기화
+    try {
+        const { initForegroundHandler } = await import("./utils/foregroundHandler");
+        initForegroundHandler();
+    } catch (error) {
+        // Foreground 핸들러 초기화 실패는 무시
+    }
 
     // ✅ AppCheck와 Authentication 리스너는 "백그라운드"에서 초기화
     //    - 첫 화면 렌더링을 막지 않도록 await 사용하지 않음

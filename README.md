@@ -107,6 +107,14 @@ npx cap open android
 - Firebase Functions는 `asia-northeast3` 리전 사용
 - 개발 환경에서는 App Check 디버그 토큰 사용 가능
 
+## 🚀 성능 최적화
+
+프로젝트의 성능 최적화 계획 및 구현 가이드는 다음 문서를 참고하세요:
+
+- [성능 최적화 계획서](./PERFORMANCE_OPTIMIZATION_PLAN.md) - 단계별 최적화 계획
+- [성능 최적화 구현 예시](./PERFORMANCE_OPTIMIZATION_EXAMPLES.md) - 실제 코드 예시 및 사용법
+- [성능 분석 결과](./PERFORMANCE_ANALYSIS.md) - 성능 분석 및 측정 결과
+
 ## 🔗 관련 링크
 
 - [Figma 디자인](https://www.figma.com/design/kDRiVhbI8lJ4lMk1CYObqU/Android-App-Login-Screens)

@@ -10,6 +10,14 @@ const config: CapacitorConfig = {
       skipNativeAuth: true,
       providers: ['google.com'],
     },
+    SplashScreen: {
+      launchShowDuration: 1000, // 1초로 단축 (성능 최적화)
+      launchAutoHide: true,
+      backgroundColor: "#000000",
+      androidSplashResourceName: "splash",
+      androidScaleType: "CENTER_CROP",
+      showSpinner: false,
+    },
   },
   server: {
     androidScheme: 'https',

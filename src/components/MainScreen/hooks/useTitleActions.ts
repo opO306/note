@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { auth, db } from "@/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
 import { toast } from "@/toastHelper";
 import { safeLocalStorage } from "@/components/utils/storageUtils";
+import { getUserDataFromFirestore, invalidateUserDataCache } from "@/utils/userDataLoader";
 
 const getUserScopedStorageKey = (baseKey: string): string => {
   const uid = auth.currentUser?.uid;
@@ -20,10 +21,81 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
   const [currentTitle, setCurrentTitle] = useState<string>("");
   const [titlesSyncReady, setTitlesSyncReady] = useState(false);
 
-  // ... (useEffect 로직들은 그대로 유지)
-  useEffect(() => { const ownedTitlesKey = getUserScopedStorageKey("ownedTitles"); const currentTitleKey = getUserScopedStorageKey("currentTitle"); const savedOwnedTitles = safeLocalStorage.getJSON(ownedTitlesKey, []); if (Array.isArray(savedOwnedTitles)) { setOwnedTitles(savedOwnedTitles); } const savedCurrentTitle = safeLocalStorage.getItem(currentTitleKey); if (savedCurrentTitle) { setCurrentTitle(savedCurrentTitle); } }, []);
-  useEffect(() => { const uid = auth.currentUser?.uid; if (!uid) return; const fetchTitlesFromFirestore = async () => { try { const userRef = doc(db, "users", uid); const snap = await getDoc(userRef); if (!snap.exists()) { setTitlesSyncReady(true); return; } const data = snap.data(); if (Array.isArray(data.ownedTitles)) { const serverOwnedTitles = data.ownedTitles.filter((id: unknown): id is string => typeof id === "string"); if (serverOwnedTitles.length > 0) { setOwnedTitles((prev) => { const merged = Array.from(new Set([...prev, ...serverOwnedTitles])); const ownedTitlesKey = getUserScopedStorageKey("ownedTitles"); safeLocalStorage.setJSON(ownedTitlesKey, merged); return merged; }); } } if (typeof data.currentTitle === "string") { const currentTitleKey = getUserScopedStorageKey("currentTitle"); if (data.currentTitle) { setCurrentTitle(data.currentTitle); safeLocalStorage.setItem(currentTitleKey, data.currentTitle); } else { setCurrentTitle(""); safeLocalStorage.setItem(currentTitleKey, ""); } } } catch (error) { console.error("칭호 정보 불러오기 실패:", error); } finally { setTitlesSyncReady(true); } }; fetchTitlesFromFirestore(); }, []);
-  useEffect(() => { if (!titlesSyncReady) return; const uid = auth.currentUser?.uid; if (!uid) return; const syncToFirestore = async () => { try { const userRef = doc(db, "users", uid); await updateDoc(userRef, { ownedTitles, currentTitle: currentTitle || null }); } catch (error) { console.error("칭호 정보 동기화 실패:", error); } }; syncToFirestore(); }, [ownedTitles, currentTitle, titlesSyncReady]);
+  // ✅ 로컬 스토리지에서 초기값 로드
+  useEffect(() => {
+    const ownedTitlesKey = getUserScopedStorageKey("ownedTitles");
+    const currentTitleKey = getUserScopedStorageKey("currentTitle");
+    const savedOwnedTitles = safeLocalStorage.getJSON(ownedTitlesKey, []);
+    if (Array.isArray(savedOwnedTitles)) {
+      setOwnedTitles(savedOwnedTitles);
+    }
+    const savedCurrentTitle = safeLocalStorage.getItem(currentTitleKey);
+    if (savedCurrentTitle) {
+      setCurrentTitle(savedCurrentTitle);
+    }
+  }, []);
+
+  // ✅ Firebase에서 칭호 정보 가져오기 (통합 로더 사용으로 중복 요청 제거)
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+
+    const fetchTitlesFromFirestore = async () => {
+      try {
+        // ✅ 통합 로더를 사용하여 한 번의 요청으로 모든 데이터 가져오기
+        const userData = await getUserDataFromFirestore(uid);
+
+        // 서버에서 가져온 데이터로 상태 업데이트
+        if (userData.ownedTitles.length > 0) {
+          setOwnedTitles((prev) => {
+            const merged = Array.from(new Set([...prev, ...userData.ownedTitles]));
+            const ownedTitlesKey = getUserScopedStorageKey("ownedTitles");
+            safeLocalStorage.setJSON(ownedTitlesKey, merged);
+            return merged;
+          });
+        }
+
+        if (userData.currentTitle) {
+          setCurrentTitle(userData.currentTitle);
+          const currentTitleKey = getUserScopedStorageKey("currentTitle");
+          safeLocalStorage.setItem(currentTitleKey, userData.currentTitle);
+        } else {
+          setCurrentTitle("");
+          const currentTitleKey = getUserScopedStorageKey("currentTitle");
+          safeLocalStorage.setItem(currentTitleKey, "");
+        }
+      } catch (error) {
+        console.error("칭호 정보 불러오기 실패:", error);
+      } finally {
+        setTitlesSyncReady(true);
+      }
+    };
+
+    fetchTitlesFromFirestore();
+  }, []);
+  // ✅ Firestore에 칭호 정보 동기화 (업데이트 시 캐시 무효화)
+  useEffect(() => {
+    if (!titlesSyncReady) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+
+    const syncToFirestore = async () => {
+      try {
+        const userRef = doc(db, "users", uid);
+        await updateDoc(userRef, {
+          ownedTitles,
+          currentTitle: currentTitle || null,
+        });
+        
+        // ✅ 데이터 업데이트 후 캐시 무효화
+        invalidateUserDataCache(uid);
+      } catch (error) {
+        console.error("칭호 정보 동기화 실패:", error);
+      }
+    };
+
+    syncToFirestore();
+  }, [ownedTitles, currentTitle, titlesSyncReady]);
 
   // ✨ [해결 2] handleTitlePurchase 함수를 async로 만들고, spendLumens를 await로 호출합니다.
   const handleTitlePurchase = useCallback(

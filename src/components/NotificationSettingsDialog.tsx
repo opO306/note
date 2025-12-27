@@ -352,7 +352,7 @@ export function NotificationSettingsDialog({
       />
 
       {/* 스크롤 가능한 컨텐츠 영역 */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-6">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-6 pb-24 safe-bottom">
         {/* 전체 알림 설정 */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">

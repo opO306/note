@@ -29,11 +29,14 @@ export function usePosts(options?: UsePostsOptions) {
     const fetchPosts = useCallback(async () => {
         setLoading(true);
         try {
-            const postsRef = collection(db, "posts");
-            const q = query(postsRef, orderBy("createdAt", "desc"), limit(INITIAL_POST_LIMIT));
-
-            // ⚡️ getDocs: 한 번만 읽어옴 (비용 절약)
-            const snapshot = await getDocs(q);
+            // ✅ Performance Monitoring 적용
+            const { tracedFirestoreCall } = await import("@/utils/performanceMonitoring");
+            const snapshot = await tracedFirestoreCall("fetchPosts", async () => {
+                const postsRef = collection(db, "posts");
+                const q = query(postsRef, orderBy("createdAt", "desc"), limit(INITIAL_POST_LIMIT));
+                // ⚡️ getDocs: 한 번만 읽어옴 (비용 절약)
+                return await getDocs(q);
+            });
 
             const currentUid = auth.currentUser?.uid ?? null;
 

@@ -633,7 +633,11 @@
   }
 
   .safe-nav-bottom {
-    padding-bottom: calc(var(--safe-area-inset-bottom)  + .5rem);
+    /* ✅ Safe Area API 직접 사용: env() 함수로 브라우저가 자동 계산 */
+    /* fallback: CSS 변수 → 0px 순서로 적용 */
+    padding-bottom: calc(env(safe-area-inset-bottom, var(--safe-area-inset-bottom, 0px)) + 0.5rem);
+    /* ✅ 추가 보장: min-height로 최소 여백 확보 */
+    min-height: calc(env(safe-area-inset-bottom, var(--safe-area-inset-bottom, 0px)) + 3.5rem);
   }
 
   .nav-button {
