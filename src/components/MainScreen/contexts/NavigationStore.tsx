@@ -291,7 +291,6 @@ export function NavigationStoreProvider({ children }: { children: React.ReactNod
       writeDraft,
       setWriteDraft,
       layerStackRef,
-      currentScreen,
       setCurrentScreen,
     ]
   );

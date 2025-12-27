@@ -128,9 +128,82 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
     [ownedTitles, lumenBalance, spendLumens, titlesSyncReady]
   );
 
-  // ... (handleTitleEquip, handleTitleUnequip 등 나머지 함수는 그대로 유지)
-  const handleTitleEquip = useCallback((_titleId: string) => { /* ... */ return true; }, [ownedTitles, currentTitle]);
-  const handleTitleUnequip = useCallback(() => { /* ... */ return true; }, [currentTitle]);
+  // ✅ 칭호 장착/해제 로직
+  const handleTitleEquip = useCallback(
+    async (titleId: string): Promise<boolean> => {
+      if (!titlesSyncReady) {
+        toast.error("잠시만요! 칭호 정보를 불러오는 중입니다.");
+        return false;
+      }
+      if (!ownedTitles.includes(titleId)) {
+        toast.error("소유하지 않은 칭호는 장착할 수 없습니다.");
+        return false;
+      }
+
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        toast.error("로그인이 필요합니다.");
+        return false;
+      }
+
+      const previous = currentTitle;
+      setCurrentTitle(titleId);
+      const currentTitleKey = getUserScopedStorageKey("currentTitle");
+      safeLocalStorage.setItem(currentTitleKey, titleId);
+
+      try {
+        const userRef = doc(db, "users", uid);
+        await updateDoc(userRef, {
+          currentTitle: titleId,
+        });
+        invalidateUserDataCache(uid);
+        return true;
+      } catch {
+        // 서버 저장 실패하면 화면도 원래 상태로 되돌림
+        setCurrentTitle(previous);
+        safeLocalStorage.setItem(currentTitleKey, previous);
+        toast.error("칭호 장착에 실패했습니다.");
+        return false;
+      }
+    },
+    [ownedTitles, currentTitle, titlesSyncReady]
+  );
+
+  const handleTitleUnequip = useCallback(
+    async (): Promise<boolean> => {
+      if (!titlesSyncReady) {
+        toast.error("잠시만요! 칭호 정보를 불러오는 중입니다.");
+        return false;
+      }
+
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        toast.error("로그인이 필요합니다.");
+        return false;
+      }
+
+      const previous = currentTitle;
+      setCurrentTitle("");
+      const currentTitleKey = getUserScopedStorageKey("currentTitle");
+      safeLocalStorage.setItem(currentTitleKey, "");
+
+      try {
+        const userRef = doc(db, "users", uid);
+        await updateDoc(userRef, {
+          currentTitle: "",
+        });
+        invalidateUserDataCache(uid);
+        return true;
+      } catch {
+        // 서버 저장 실패하면 화면도 원래 상태로 되돌림
+        setCurrentTitle(previous);
+        safeLocalStorage.setItem(currentTitleKey, previous);
+        toast.error("칭호 해제에 실패했습니다.");
+        return false;
+      }
+    },
+    [currentTitle, titlesSyncReady]
+  );
   const addSpecialTitle = useCallback((_titleId: string, _titleName: string) => { /* ... */ }, []);
   const hasTitle = useCallback((titleId: string) => ownedTitles.includes(titleId), [ownedTitles]);
 

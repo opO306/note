@@ -101,7 +101,7 @@ export async function initFirebaseAppCheck() {
                     isTokenAutoRefreshEnabled: true,
                 });
                 // App Check 초기화 완료
-            } catch (error) {
+            } catch {
                 // App Check 초기화 실패 (로그 제거)
                 // 네이티브에서는 App Check가 필수이므로 에러를 다시 throw하지 않고 경고만 표시
                 // (실제로는 네이티브 App Check 플러그인을 사용해야 할 수도 있음)

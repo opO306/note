@@ -63,7 +63,7 @@ async function findUserUidByNickname(nickname: string): Promise<string | null> {
     const snap = await getDocs(q);
     if (snap.empty) return null;
     return snap.docs[0].id;
-  } catch (err) {
+  } catch {
     // findUserUidByNickname 실패 (로그 제거)
     return null;
   }

@@ -121,7 +121,7 @@ export function usePosts(options?: UsePostsOptions) {
             const visiblePosts = fetchedPosts.filter((p): p is Post => p !== null);
             setPosts(visiblePosts);
 
-        } catch (error) {
+        } catch {
             // usePosts Fetch Error (로그 제거)
         } finally {
             setLoading(false);

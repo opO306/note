@@ -1,3 +1,4 @@
+/* eslint-disable react/forbid-dom-props */
 // src/components/CreateActionSheet.tsx
 import * as React from "react";
 import { Sparkles, PenLine, NotebookText } from "lucide-react";

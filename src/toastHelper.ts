@@ -10,7 +10,7 @@ export function isToastEnabled(): boolean {
         if (typeof window === "undefined") return true;
         const enabled = localStorage.getItem("toastEnabled");
         return enabled === null ? true : enabled === "true";
-    } catch (_) { // 2. error 변수 대신 _ 사용 (사용하지 않음 명시)
+    } catch {
         return true;
     }
 }

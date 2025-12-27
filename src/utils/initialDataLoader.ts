@@ -58,7 +58,7 @@ export async function getInitialUserData(): Promise<InitialUserData | null> {
       const getTrustScore = httpsCallable(functions, "getTrustScore");
       const trustResult = await getTrustScore({ uid: user.uid });
       trustScore = (trustResult.data as any)?.trustScore ?? 30;
-    } catch (error) {
+    } catch {
       // 신뢰도 점수 조회 실패 시 Firestore에서 직접 읽기 시도
       if (typeof userData.trustScore === "number") {
         trustScore = userData.trustScore;

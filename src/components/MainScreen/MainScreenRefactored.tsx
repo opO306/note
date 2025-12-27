@@ -545,7 +545,7 @@ function MainScreenInner({
           postCreatedAt: createdAtDate.toISOString(),
           replyCount: latestPost.replies?.length ?? 0,
         });
-      } catch (error: any) {
+      } catch {
         autoReplyTriggeredRef.current.delete(targetId);
         // aiAutoReply 실패 (로그 제거)
       }
@@ -855,7 +855,7 @@ function MainScreenInner({
         await refresh();
         toast.success("최신 목록을 불러왔어요");
       }
-    } catch (error) {
+    } catch {
       toast.error("목록을 불러오지 못했습니다");
     } finally {
       setIsRefreshing(false);
@@ -1175,7 +1175,7 @@ function MainScreenInner({
           setRoute({ name: "home" });
           setCurrentScreen("home");
         });
-      } catch (error) {
+      } catch {
         // backButton listener 등록 실패 (로그 제거)
       }
     };
@@ -1242,8 +1242,8 @@ function MainScreenInner({
       } catch {
         toast.error("노트 저장에 실패했어요.");
       }
-
-    }, [toast]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // toast는 외부 스코프 값이므로 의존성에서 제외
 
   const handleMentionClick = useCallback((nickname: string) => {
     if (!nickname || nickname === DELETED_USER_NAME) {
@@ -2187,7 +2187,7 @@ function MainScreenInner({
                   priority: "normal",
                 });
                 toast.success("신고가 접수되었어요. 검토 후 조치하겠습니다.");
-              } catch (error) {
+              } catch {
                 toast.error("신고 처리 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
               } finally {
                 setReportingPost(null);
@@ -2222,7 +2222,7 @@ function MainScreenInner({
                   postId: selectedPost?.id ?? null,
                 });
                 toast.success("신고가 접수되었어요. 검토 후 조치하겠습니다.");
-              } catch (error) {
+              } catch {
                 // 답글 신고 저장 실패 (로그 제거)
                 toast.error("신고 처리 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
               } finally {

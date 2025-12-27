@@ -1,3 +1,4 @@
+/* eslint-disable react/forbid-dom-props */
 import React from 'react';
 
 // 아이콘을 위해 react-icons 같은 라이브러리를 쓰거나, 이미지 태그를 쓰세요

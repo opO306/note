@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { Card, CardContent } from "./ui/card";
 import { LanternFilledIcon } from "./icons/Lantern";
 import { FileText, MessageCircle, Bookmark } from "lucide-react";
@@ -139,9 +139,7 @@ export function MyContentListScreen({
                                     : undefined;
 
                                 // 🔹 프로필 이미지 결정 (구글 이미지 필터링)
-                                const authorAvatarUrl = useMemo(() => {
-                                    return authorProfile?.profileImage ?? filterGoogleProfileImage(post.authorAvatar) ?? "";
-                                }, [authorProfile?.profileImage, post.authorAvatar]);
+                                const authorAvatarUrl = authorProfile?.profileImage ?? filterGoogleProfileImage(post.authorAvatar) ?? "";
 
                                 const authorTitleLabel = authorProfile?.currentTitleId
                                     ? getTitleLabelById(authorProfile.currentTitleId)

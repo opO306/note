@@ -1,3 +1,4 @@
+/* eslint-disable react/forbid-dom-props */
 import React, { useMemo, useState, useCallback } from "react";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { Moon, Sun, Loader2 } from "lucide-react";
@@ -105,7 +106,7 @@ export function LoginScreen({
       );
 
       await signInWithCredential(auth, credential);
-    } catch (err: any) {
+    } catch {
       toast.error("로그인에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setIsLoggingIn(false);
@@ -126,7 +127,7 @@ export function LoginScreen({
           window.localStorage.removeItem("privacyAccepted");
         }
       }
-    } catch (e) {
+    } catch {
       // LocalStorage 접근 실패는 무시 (선택적 기능)
     }
   }, []);

@@ -102,7 +102,7 @@ async function bootstrap() {
     // ✅ Performance Monitoring 초기화 (백그라운드에서 실행)
     try {
         initPerformanceMonitoring();
-    } catch (error) {
+    } catch {
         // Performance Monitoring 초기화 실패는 무시 (개발 환경 등)
     }
 
@@ -110,7 +110,7 @@ async function bootstrap() {
     try {
         const { initForegroundHandler } = await import("./utils/foregroundHandler");
         initForegroundHandler();
-    } catch (error) {
+    } catch {
         // Foreground 핸들러 초기화 실패는 무시
     }
 

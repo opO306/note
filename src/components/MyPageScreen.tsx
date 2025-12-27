@@ -194,7 +194,7 @@ export function MyPageScreen({
       onLogout(); // 부모 컴포넌트의 로그아웃 핸들러 호출
       toast.success("로그아웃 되었습니다.");
 
-    } catch (error) {
+    } catch {
       toast.error("로그아웃 중 오류가 발생했습니다.");
     }
   }, [onLogout]);
@@ -304,7 +304,7 @@ export function MyPageScreen({
       toast.success("프로필 설명이 변경되었습니다!");
       setShowDescriptionDialog(false);
       setTempDescription("");
-    } catch (error) {
+    } catch {
       toast.error("프로필 설명을 저장하지 못했어요. 잠시 후 다시 시도해주세요.");
     }
   }, [tempDescription, onProfileDescriptionChange]);

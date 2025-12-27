@@ -124,7 +124,7 @@ export function useLumens() {
             const result = await awardLumensFn({ amount, reason, achievementId });
             if (!result.data.success) throw new Error("서버에서 루멘 추가를 거부했습니다.");
             // 루멘 추가 성공 (로그 제거)
-        } catch (error) {
+        } catch {
             // ✨ [개선 1] 롤백 로직: 서버 요청 실패 시 로컬 상태를 원래대로 되돌림
             // addLumens Cloud Function 호출 실패 (로그 제거)
             toast.error(`"${reason}" 보상 획득에 실패했습니다. 다시 시도해주세요.`);
