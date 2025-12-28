@@ -10,6 +10,10 @@
     
     <!-- 프로필 사진 변경을 위한 카메라/갤러리 권한 -->
     <uses-permission android:name="android.permission.CAMERA" />
+    
+    <!-- ✅ 푸시 알림 권한 (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <uses-permission
     android:name="android.permission.READ_EXTERNAL_STORAGE"
     android:maxSdkVersion="32"

@@ -12,6 +12,7 @@ dependencies {
     implementation project(':capacitor-firebase-app-check')
     implementation project(':capacitor-firebase-authentication')
     implementation project(':capacitor-app')
+    implementation project(':capacitor-push-notifications')
     implementation platform('com.google.firebase:firebase-bom:30.3.1')
     implementation "com.google.firebase:firebase-auth"
 }

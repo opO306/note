@@ -14,6 +14,7 @@ interface UseAppInitializationReturn {
         profileImage: string;
     };
     globalError: string | null;
+    isGuest: boolean;
     resetAuthState: () => Promise<void>;
 }
 

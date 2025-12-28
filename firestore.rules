@@ -6,6 +6,9 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
@@ -53,6 +56,16 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
     }
 
+    // 🔹 비유 배틀 컬렉션
+    match /battles/{battleId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+      match /votes/{uid} {
+        allow read: if true;
+        allow write: if isSignedIn() && request.auth.uid == uid;
+      }
+    }
+
     // 알림 (Notifications)
     // 🚨 [수정됨] 알림 생성 경로를 더 유연하게 허용
     match /user_notifications/{userId}/{document=**} {
@@ -62,10 +75,10 @@ service cloud.firestore {
     }
 
     // 기타 컬렉션들
-    match /weekly_quizzes/{quizId} { allow read: if isSignedIn(); allow write: if false; }
-    match /daily_quizzes/{quizId} { allow read: if isSignedIn(); }
-    match /dailyQuizzes/{quizId} { allow read: if isSignedIn(); }
-    match /quizzes/{quizId} { allow read: if isSignedIn(); }
+    match /weekly_quizzes/{quizId} { allow read: if true; allow write: if false; }
+    match /daily_quizzes/{quizId} { allow read: if true; }
+    match /dailyQuizzes/{quizId} { allow read: if true; }
+    match /quizzes/{quizId} { allow read: if true; }
 
     match /quiz_attempts/{attemptId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource == null);

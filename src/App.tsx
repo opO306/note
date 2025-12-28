@@ -9,6 +9,7 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 // App init hook
 import { useAppInitialization } from "./components/hooks/useAppInitialization";
+import { usePushToken } from "./components/hooks/usePushToken";
 
 // Screens - Lazy loading으로 전환하여 초기 번들 크기 감소
 const LoginScreen = lazy(() => import("@/components/LoginScreen").then(m => ({ default: m.LoginScreen })));
@@ -58,6 +59,9 @@ export default function App() {
     globalError,
     resetAuthState
   } = useAppInitialization();
+
+  // 푸시 알림 초기화 및 토큰 관리
+  usePushToken();
 
   // 화면 전환 - 로딩이 완료되기 전까지는 화면을 설정하지 않음
   const [currentScreen, setCurrentScreen] = useState<AppScreen | null>(null);

@@ -67,7 +67,6 @@ const ACHIEVEMENT_TITLES: AchievementTitle[] = [
     // 길잡이 칭호
     { id: "guide_guide", name: "가이드", description: "길잡이로 5회 채택되었습니다", type: "achievement" },
     { id: "guide_navigator", name: "내비게이터", description: "길잡이로 20회 채택되었습니다", type: "achievement" },
-    { id: "guide_pathfinder", name: "개척자", description: "길잡이로 50회 채택되었습니다", type: "achievement" },
     { id: "guide_luminary", name: "선도자", description: "길잡이로 100회 채택되었습니다", type: "achievement" },
 
     // 등불 칭호

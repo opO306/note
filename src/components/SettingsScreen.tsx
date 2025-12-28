@@ -6,6 +6,7 @@ import { Label } from "./ui/label";
 import { LoadingOverlay } from "./ui/loading-animations";
 import { Separator } from "./ui/separator";
 import { toast, isToastEnabled, setToastEnabled } from "../toastHelper";
+import { usePushToken } from "./hooks/usePushToken"; // 🔹 추가
 import {
   ArrowLeft,
   Bell,
@@ -79,11 +80,22 @@ export function SettingsScreen({
   onShowOpenSourceLicenses,
   onShowAttributions,
 }: SettingsScreenProps) {
+  // 🔹 푸시 토큰 및 설정 관리 훅
+  const { settings: pushSettings, updateSetting, requestPermission, isPermissionGranted } = usePushToken();
+
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [newPostNotifications, setNewPostNotifications] = useState(true);
   const [replyNotifications, setReplyNotifications] = useState(true);
   const [lanternNotifications, setLanternNotifications] = useState(true);
   const [autoSave, setAutoSave] = useState(true);
+  
+  // 🔹 서버 설정이 로드되면 로컬 상태와 동기화
+  useEffect(() => {
+    setNewPostNotifications(pushSettings.notifyOnFollow);
+    setReplyNotifications(pushSettings.notifyOnReply);
+    // 등불 알림은 서버에 해당 키가 없으므로 로컬 상태 유지 (또는 notifyOnGuide로 매핑 고려)
+  }, [pushSettings]);
+
   const [aiAutoReplyEnabled, setAiAutoReplyEnabled] = useState(false);
   const [personalizedDigestEnabled, setPersonalizedDigestEnabled] = useState(false);
   const [consentsLoading, setConsentsLoading] = useState(false);
@@ -206,27 +218,37 @@ export function SettingsScreen({
   );
 
   const handleNotificationsEnabledChange = useCallback(
-    (value: boolean) => {
+    async (value: boolean) => {
       setNotificationsEnabled(value);
       saveSettings({ notificationsEnabled: value });
+      
+      // 🔹 알림을 켤 때 권한 요청 시도
+      if (value && !isPermissionGranted) {
+        await requestPermission();
+      }
     },
-    [saveSettings]
+    [saveSettings, requestPermission, isPermissionGranted]
   );
 
   const handleNewPostNotificationsChange = useCallback(
     (value: boolean) => {
       setNewPostNotifications(value);
       saveSettings({ newPostNotifications: value });
+      // 🔹 서버 설정 동기화 (새 글 알림 -> 팔로우 알림으로 매핑)
+      updateSetting("notifyOnFollow", value);
     },
-    [saveSettings]
+    [saveSettings, updateSetting]
   );
 
   const handleReplyNotificationsChange = useCallback(
     (value: boolean) => {
       setReplyNotifications(value);
       saveSettings({ replyNotifications: value });
+      // 🔹 서버 설정 동기화
+      updateSetting("notifyOnReply", value);
+      updateSetting("notifyOnMention", value); // 멘션도 같이 제어
     },
-    [saveSettings]
+    [saveSettings, updateSetting]
   );
 
   const handleLanternNotificationsChange = useCallback(
@@ -263,6 +285,9 @@ export function SettingsScreen({
   const handlePersonalizedDigestChange = useCallback(
     async (value: boolean) => {
       setPersonalizedDigestEnabled(value);
+      // 🔹 서버 푸시 설정 동기화
+      updateSetting("notifyOnDailyDigest", value);
+      
       const ok = await persistConsents({ personalizedDigest: value });
       if (ok) {
         toast.success(
@@ -272,7 +297,7 @@ export function SettingsScreen({
         );
       }
     },
-    [persistConsents],
+    [persistConsents, updateSetting],
   );
 
   const handleClearCache = useCallback(() => {

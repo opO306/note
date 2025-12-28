@@ -193,15 +193,6 @@ export const normalAchievements: Achievement[] = [
         reward: { lumens: 1, specialTitle: '내비게이터' }
     },
     {
-        id: 'guide_pathfinder',
-        name: '개척자',
-        description: '길잡이로 50회 채택되었습니다 - 새로운 이해의 길을 개척했습니다',
-        category: 'guide',
-        hidden: false,
-        condition: { type: 'guide_count', target: 50 },
-        reward: { lumens: 3, specialTitle: '개척자' }
-    },
-    {
         id: 'guide_luminary',
         name: '선도자',
         description: '길잡이로 100회 채택되었습니다 - 커뮤니티의 빛이 되었습니다',

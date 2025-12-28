@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { auth, functions } from "@/firebase";
+import { auth, functions, db } from "@/firebase";
 import { httpsCallable } from "firebase/functions";
+import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { toast } from "@/toastHelper";
+import confetti from "canvas-confetti";
 import { safeLocalStorage } from "@/components/utils/storageUtils";
 import type { Post } from "../types";
 // ✅ Firestore 읽기/쓰기 분리 문제를 해결한 함수를 import 합니다.
@@ -94,6 +96,40 @@ export function useGuideActions({
       }
 
       toast.success(`${replyAuthor}님을 길잡이로 채택했습니다! 🌟`);
+
+      // --- [NEW] 공개 테스트 개척자 칭호 지급 로직 ---
+      const isOpenBeta = true; // 공개 테스트 기간 플래그
+      if (isOpenBeta && auth.currentUser?.uid) {
+        try {
+          const userRef = doc(db, "users", auth.currentUser.uid);
+          // 사용자 데이터 확인 (칭호 보유 여부)
+          getDoc(userRef).then(async (snap) => {
+            if (snap.exists()) {
+              const userData = snap.data();
+              const ownedTitles: string[] = userData.ownedTitles || [];
+              
+              // 아직 개척자 칭호가 없다면 지급
+              if (!ownedTitles.includes("guide_pathfinder")) {
+                await updateDoc(userRef, {
+                  ownedTitles: arrayUnion("guide_pathfinder")
+                });
+                
+                // 획득 연출
+                confetti({
+                  particleCount: 150,
+                  spread: 70,
+                  origin: { y: 0.6 },
+                  colors: ['#f59e0b', '#fbbf24', '#d97706'] // Amber colors
+                });
+                
+                toast.success("🏆 최초 채택 달성! '개척자' 칭호를 획득했습니다!");
+              }
+            }
+          }).catch(err => console.error("칭호 지급 확인 중 오류:", err));
+        } catch (e) {
+          console.error("개척자 칭호 로직 오류:", e);
+        }
+      }
 
       // --- 2) Cloud Functions + Firestore 백그라운드 업데이트 ---
       try {
