@@ -4,6 +4,8 @@ import { doc, getDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "@/firebase";
 import { toast } from "@/toastHelper";
+import { Capacitor } from "@capacitor/core";
+import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 
 interface UseAppInitializationReturn {
     isLoading: boolean;
@@ -150,6 +152,10 @@ export function useAppInitialization(): UseAppInitializationReturn {
         return cacheResult?.userData ?? { nickname: "", email: "", profileImage: "" };
     });
     const [globalError] = useState<string | null>(null);
+    const [isGuest, setIsGuest] = useState(() => {
+        // 캐시가 있으면 게스트가 아님, 없으면 초기값은 null (아직 확인 안됨)
+        return !cacheResult;
+    });
     const authStateCheckedRef = useRef(false); // onAuthStateChanged 호출 여부 추적
 
     useEffect(() => {
@@ -239,6 +245,7 @@ export function useAppInitialization(): UseAppInitializationReturn {
                                 email: cache.email,
                                 profileImage: cache.profileImage,
                             });
+                            setIsGuest(false);
 
                             if (!cache.nickname) {
                                 setInitialScreen("nickname");
@@ -351,6 +358,7 @@ export function useAppInitialization(): UseAppInitializationReturn {
                                     email: cache.email,
                                     profileImage: cache.profileImage,
                                 });
+                                setIsGuest(false);
 
                                 if (!cache.nickname) {
                                     setInitialScreen("nickname");
@@ -463,6 +471,7 @@ export function useAppInitialization(): UseAppInitializationReturn {
                         };
                         setUserData(nextUserData);
                         setInitialScreen("nickname");
+                        setIsGuest(false);
                         // 신규 유저 캐시 저장
                         try {
                             if (typeof window !== "undefined") {
@@ -498,6 +507,7 @@ export function useAppInitialization(): UseAppInitializationReturn {
                         };
                         setUserData(nextUserData);
                         setInitialScreen("nickname");
+                        setIsGuest(false);
                         try {
                             if (typeof window !== "undefined") {
                                 const cache: AppInitCache = {
@@ -549,6 +559,7 @@ export function useAppInitialization(): UseAppInitializationReturn {
                             profileImage,
                         };
                         setUserData(nextUserData);
+                        setIsGuest(false);
 
                         if (!nickname) {
                             setInitialScreen("nickname");
@@ -593,6 +604,7 @@ export function useAppInitialization(): UseAppInitializationReturn {
                 // ✅ 로그아웃 상태 - 즉시 로그인 화면 표시
                 setUserData({ nickname: "", email: "", profileImage: "" });
                 setInitialScreen("login");
+                setIsGuest(true);
                 setIsLoading(false);
             }
 
@@ -628,8 +640,46 @@ export function useAppInitialization(): UseAppInitializationReturn {
     }, []); // initialScreen과 isLoading은 함수형 업데이트로 처리하므로 의존성 제외
 
     const resetAuthState = useCallback(async () => {
-        await signOut(auth);
+        // 로그아웃 시 모든 앱 초기화 캐시 제거
+        try {
+            if (typeof window !== "undefined") {
+                const cacheKeys: string[] = [];
+                for (let i = 0; i < window.localStorage.length; i++) {
+                    const key = window.localStorage.key(i);
+                    if (key && key.startsWith(APP_INIT_CACHE_PREFIX)) {
+                        cacheKeys.push(key);
+                    }
+                }
+                cacheKeys.forEach((key) => {
+                    window.localStorage.removeItem(key);
+                });
+            }
+        } catch {
+            // 캐시 제거 실패는 무시
+        }
+
+        // ✅ 로그아웃 즉시 상태 업데이트 (onAuthStateChanged를 기다리지 않음)
+        setUserData({ nickname: "", email: "", profileImage: "" });
+        setInitialScreen("login");
+        setIsGuest(true);
+        setIsLoading(false);
+
+        // 네이티브 플랫폼과 웹 플랫폼 모두 처리
+        try {
+            if (Capacitor.isNativePlatform()) {
+                await FirebaseAuthentication.signOut();
+            } else {
+                await signOut(auth);
+            }
+        } catch (error) {
+            // 네이티브 로그아웃 실패 시 웹 로그아웃 시도
+            try {
+                await signOut(auth);
+            } catch {
+                // 로그아웃 실패는 무시 (이미 로그아웃된 상태일 수 있음)
+            }
+        }
     }, []);
 
-    return { isLoading, initialScreen, userData, globalError, resetAuthState };
+    return { isLoading, initialScreen, userData, globalError, isGuest, resetAuthState };
 }

@@ -33,11 +33,6 @@ import {
   UserX,
 } from "lucide-react";
 import { AppHeader } from "./layout/AppHeader";
-import { Capacitor } from "@capacitor/core";
-// ✨ [변경] 최신 인증 플러그인 임포트
-import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
-import { signOut } from "firebase/auth";
-
 // 신뢰도 점수에 따라 텍스트 색 클래스 결정 (Tailwind)
 function getTrustColorClass(score: number): string {
   if (score <= 10) return "text-red-400";
@@ -183,17 +178,9 @@ export function MyPageScreen({
   const handleLogoutConfirm = useCallback(async () => {
     setShowLogoutConfirm(false);
 
-    // ✨ [변경] 네이티브 로그아웃 처리
     try {
-      if (Capacitor.isNativePlatform()) {
-        await FirebaseAuthentication.signOut();
-      } else {
-        await signOut(auth);
-      }
-
-      onLogout(); // 부모 컴포넌트의 로그아웃 핸들러 호출
+      onLogout(); // 부모 컴포넌트의 로그아웃 핸들러 호출 (resetAuthState가 모든 처리를 담당)
       toast.success("로그아웃 되었습니다.");
-
     } catch {
       toast.error("로그아웃 중 오류가 발생했습니다.");
     }
