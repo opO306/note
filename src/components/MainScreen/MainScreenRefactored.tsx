@@ -1198,6 +1198,7 @@ function MainScreenInner({
     closePostDetailFromState,
     goHome,
     popLayer,
+    route.name,
     setCurrentScreen,
     setRoute,
     setShowWriteScreen,

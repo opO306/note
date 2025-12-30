@@ -278,7 +278,11 @@ const getRankBadge = (index: number) => {
 
 // 랭킹 리스트 컴포넌트
 const RankingList = React.memo(function RankingList({ data, type, loading, userProfiles, scrollContainer }: RankingListProps) {
-  const items = useMemo(() => data, [data]);
+  // data를 안정적으로 메모이제이션하여 불필요한 재렌더링 방지
+  const items = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return data;
+  }, [data]);
 
   if (loading && data.length === 0) {
     return (
@@ -302,7 +306,7 @@ const RankingList = React.memo(function RankingList({ data, type, loading, userP
     );
   }
 
-  if (data.length === 0) {
+  if (items.length === 0) {
     return (
       <EmptyStateCard
         icon={
@@ -347,7 +351,6 @@ const RankingList = React.memo(function RankingList({ data, type, loading, userP
         return (
           <div className="pb-3 last:pb-0">
             <RankingCard
-              key={item.author}
               item={item}
               index={index}
               type={type}
@@ -428,6 +431,11 @@ const RankingCard = React.memo(function RankingCard({ item, index, type, profile
     </Card>
   );
 }, (prev, next) => {
+  // item 객체의 참조가 같으면 리렌더링하지 않음
+  if (prev.item === next.item && prev.profile === next.profile && prev.index === next.index && prev.type === next.type) {
+    return true;
+  }
+  // 개별 필드 비교
   if (prev.index !== next.index) return false;
   if (prev.type !== next.type) return false;
   if (prev.item.author !== next.item.author) return false;

@@ -12,7 +12,6 @@ import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { app } from "../firebase";
 import {
-  isInAppPurchaseAvailable,
   initializeInAppPurchase,
   purchaseProduct,
   THEME_PRODUCT_IDS,
@@ -77,7 +76,6 @@ export function ThemeScreen({
     return "default";
   });
   const [purchasedThemes, setPurchasedThemes] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isIAPAvailable, setIsIAPAvailable] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
 
@@ -91,7 +89,6 @@ export function ThemeScreen({
       // Firestore에서 구매한 테마 목록 불러오기
       const uid = auth.currentUser?.uid;
       if (!uid) {
-        setIsLoading(false);
         return;
       }
 
@@ -104,8 +101,6 @@ export function ThemeScreen({
         }
       } catch (error) {
         console.error("구매한 테마 불러오기 실패:", error);
-      } finally {
-        setIsLoading(false);
       }
     };
 
