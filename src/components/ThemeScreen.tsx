@@ -108,7 +108,12 @@ export function ThemeScreen({
   useEffect(() => {
     const savedTheme = localStorage.getItem("app-theme") || "default";
     setCurrentTheme(savedTheme);
-    document.documentElement.setAttribute("data-theme", savedTheme);
+    const htmlElement = document.documentElement;
+    htmlElement.setAttribute("data-theme", savedTheme);
+    // 테마가 적용되면 다크 모드 클래스 제거 (테마가 자체 색상을 가지고 있으므로)
+    if (savedTheme !== "default") {
+      htmlElement.classList.remove("dark");
+    }
   }, []);
 
   const handleThemeChange = useCallback(
@@ -117,7 +122,9 @@ export function ThemeScreen({
       if (themeId === "default") {
         setCurrentTheme("default");
         localStorage.setItem("app-theme", "default");
-        document.documentElement.setAttribute("data-theme", "default");
+        const htmlElement = document.documentElement;
+        htmlElement.setAttribute("data-theme", "default");
+        // 기본 테마는 다크 모드 설정 유지
         toast.success("기본 테마가 적용되었습니다.");
         return;
       }
@@ -132,14 +139,14 @@ export function ThemeScreen({
           setIsPurchasing(true);
           try {
             const purchaseResult = await purchaseProduct(theme.productId);
-            
+
             if (purchaseResult.success && purchaseResult.transactionId) {
               // 서버에서 구매 검증
               const functions = getFunctions(app, "asia-northeast3");
               const verifyPurchaseFn = httpsCallable(functions, "verifyThemePurchase");
-              
+
               const platform = Capacitor.getPlatform() === "ios" ? "ios" : "android";
-              
+
               await verifyPurchaseFn({
                 themeId,
                 transactionId: purchaseResult.transactionId,
@@ -162,24 +169,37 @@ export function ThemeScreen({
           }
         } else {
           // 웹 환경이거나 인앱 구매가 불가능한 경우 (기존 루멘 구매 로직)
-          if (onThemePurchase) {
+          const THEME_COST = 0; // 🧪 테스트용: 무료
+
+          if (onThemePurchase && THEME_COST > 0) {
             // 루멘으로 구매하는 로직 (개발/테스트용)
-            const success = await onThemePurchase(themeId, 50); // 임시 가격
+            const success = await onThemePurchase(themeId, THEME_COST);
             if (!success) {
               return;
             }
-            setPurchasedThemes((prev) => [...prev, themeId]);
-          } else {
+          } else if (!onThemePurchase && THEME_COST > 0) {
             toast.error("인앱 구매는 모바일 앱에서만 사용할 수 있습니다.");
             return;
           }
+
+          // 비용이 0이면 바로 구매 완료 처리
+          setPurchasedThemes((prev) => [...prev, themeId]);
         }
       }
 
       // 테마 적용
       setCurrentTheme(themeId);
       localStorage.setItem("app-theme", themeId);
-      document.documentElement.setAttribute("data-theme", themeId);
+
+      // data-theme 속성 설정
+      const htmlElement = document.documentElement;
+      htmlElement.setAttribute("data-theme", themeId);
+
+      // 테마가 적용되면 다크 모드 클래스 제거 (테마가 자체 색상을 가지고 있으므로)
+      if (themeId !== "default") {
+        htmlElement.classList.remove("dark");
+      }
+
       const theme = THEMES.find((t) => t.id === themeId);
       if (!isPurchasing) {
         toast.success(`${theme?.name || themeId} 테마가 적용되었습니다.`);
@@ -194,11 +214,14 @@ export function ThemeScreen({
 
   const isThemeAffordable = (themeId: string) => {
     if (themeId === "default") return true;
+    // 🧪 테스트용: 모든 테마 무료
+    const THEME_COST = 0;
+    if (THEME_COST === 0) return true;
     // 인앱 구매가 가능한 경우 항상 구매 가능
     if (isIAPAvailable) return true;
     // 웹 환경에서는 루멘으로 구매 가능한지 확인
     const theme = THEMES.find((t) => t.id === themeId);
-    return theme ? lumenBalance >= 50 : false; // 임시 가격
+    return theme ? lumenBalance >= THEME_COST : false;
   };
 
   return (
@@ -269,11 +292,10 @@ export function ThemeScreen({
           <CardContent className="space-y-3">
             {/* 기본 테마 */}
             <Card
-              className={`cursor-pointer transition-all ${
-                currentTheme === "default"
-                  ? "border-primary ring-1 ring-primary"
-                  : "border-border hover:border-primary/50"
-              }`}
+              className={`cursor-pointer transition-all ${currentTheme === "default"
+                ? "border-primary ring-1 ring-primary"
+                : "border-border hover:border-primary/50"
+                }`}
               onClick={() => handleThemeChange("default")}
             >
               <CardContent className="p-4">
@@ -311,15 +333,13 @@ export function ThemeScreen({
               return (
                 <Card
                   key={theme.id}
-                  className={`cursor-pointer transition-all ${
-                    isActive
-                      ? "border-primary ring-1 ring-primary"
-                      : !isPurchased && !isAffordable
+                  className={`cursor-pointer transition-all ${isActive
+                    ? "border-primary ring-1 ring-primary"
+                    : !isPurchased && !isAffordable
                       ? "opacity-70 border-dashed"
                       : "border-border hover:border-primary/50"
-                  }`}
+                    } ${isPurchasing ? "opacity-50 cursor-not-allowed" : ""}`}
                   onClick={() => !isPurchasing && handleThemeChange(theme.id)}
-                  className={isPurchasing ? "opacity-50 cursor-not-allowed" : ""}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -344,7 +364,7 @@ export function ThemeScreen({
                                 className="text-[10px] px-1.5 h-5 text-amber-600"
                               >
                                 <Lock className="w-3 h-3 mr-1" />
-                                {isIAPAvailable ? theme.price : "50 루멘"}
+                                {isIAPAvailable ? theme.price : "무료 (테스트)"}
                               </Badge>
                             )}
                           </div>

@@ -120,8 +120,8 @@ export async function callSagesForQuestion(
 
         // userGuideCount가 높은 순으로 정렬 (없으면 0으로 처리)
         sages.sort((a, b) => {
-            const aCount = a.data.guideCount || 0;
-            const bCount = b.data.guideCount || 0;
+            const aCount = a.data.userGuideCount || 0;
+            const bCount = b.data.userGuideCount || 0;
             return bCount - aCount; // 내림차순
         });
 
@@ -130,7 +130,7 @@ export async function callSagesForQuestion(
 
         // 3. 각 고수에게 알림 발송
         const notifications = topSages.map(({ uid, data }) => {
-            const guideCount = data.guideCount || 0;
+            const guideCount = data.userGuideCount || 0;
             return sendPushNotification({
                 targetUid: uid,
                 type: "guide_selected", // 현자 호출 타입으로 재활용

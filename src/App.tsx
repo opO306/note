@@ -104,12 +104,24 @@ export default function App() {
     if (globalError) toast.error(globalError);
   }, [globalError]);
 
-  // 다크모드 유지
+  // 다크모드 및 테마 초기화
   useEffect(() => {
     const saved = localStorage.getItem("darkMode");
     const isDark = saved !== null ? saved === "true" : true;
     setIsDarkMode(isDark);
-    document.documentElement.classList.toggle("dark", isDark);
+    
+    // 저장된 테마 불러오기
+    const savedTheme = localStorage.getItem("app-theme") || "default";
+    const htmlElement = document.documentElement;
+    htmlElement.setAttribute("data-theme", savedTheme);
+    
+    // 테마가 "default"가 아닐 때는 다크 모드 클래스 제거 (테마가 자체 색상을 가지고 있으므로)
+    if (savedTheme !== "default") {
+      htmlElement.classList.remove("dark");
+    } else {
+      // 기본 테마는 다크 모드 설정 유지
+      htmlElement.classList.toggle("dark", isDark);
+    }
   }, []);
 
   const toggleDarkMode = useCallback(() => {

@@ -10,6 +10,9 @@ export const THEME_PRODUCT_IDS: Record<string, string> = {
   "midnight": "theme_midnight",
 };
 
+// 현자의 종 상품 ID
+export const SAGES_BELL_PRODUCT_ID = "sages_bell"; // Google Play / App Store에 등록할 상품 ID
+
 // 인앱 구매가 가능한 플랫폼인지 확인
 export function isInAppPurchaseAvailable(): boolean {
   return Capacitor.isNativePlatform();

@@ -27,6 +27,15 @@ import {
 import { toast } from "@/toastHelper";
 import { containsProfanity } from "./utils/profanityFilter";
 import { detectPersonalInfo, getPersonalInfoMessage } from "./utils/personalInfoDetector";
+import { 
+  isInAppPurchaseAvailable, 
+  initializeInAppPurchase, 
+  purchaseProduct, 
+  SAGES_BELL_PRODUCT_ID 
+} from "../utils/inAppPurchase";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { app } from "../firebase";
+import { Capacitor } from "@capacitor/core";
 
 // Safe localStorage helper
 const safeLocalStorage = {
@@ -76,9 +85,11 @@ interface WriteScreenProps {
     name: string;
     subCategories: Array<{ id: string; name: string }>;
   }>;
+  lumenBalance?: number;
+  spendLumens?: (amount: number, reason: string) => Promise<boolean>;
 }
 
-export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) {
+export function WriteScreen({ onBack, onSubmit, categories, lumenBalance = 0, spendLumens }: WriteScreenProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [postType, setPostType] = useState<"question" | "guide">("question");
@@ -92,6 +103,7 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [useSagesBell, setUseSagesBell] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasUnsavedChanges = useRef(false);
 
@@ -311,7 +323,7 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
     }
   }, [selectedCategory]);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     // 1단계: 오프라인 체크 (가장 먼저)
     if (!isOnline) {
       toast.error("인터넷 연결이 필요합니다. 연결 후 다시 시도해주세요.");
@@ -378,7 +390,71 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
       return;
     }
 
-    // 5단계: 모든 검사를 통과하면 제출
+    // 🔔 5단계: 현자의 종 결제 처리 (질문글이고 스위치가 켜져 있을 때만)
+    const shouldUseSagesBell = useSagesBell && postType === "question";
+    if (shouldUseSagesBell) {
+      setIsProcessingPayment(true);
+      try {
+        // 인앱 구매가 가능한 플랫폼인지 확인
+        const iapAvailable = isInAppPurchaseAvailable();
+        
+        if (iapAvailable) {
+          // 모바일 앱: 인앱 구매 진행
+          await initializeInAppPurchase();
+          const purchaseResult = await purchaseProduct(SAGES_BELL_PRODUCT_ID);
+          
+          if (!purchaseResult.success || !purchaseResult.transactionId) {
+            // 결제 실패 또는 취소
+            setIsProcessingPayment(false);
+            return; // 제출 중단
+          }
+
+          // 서버에서 구매 검증 (선택사항, 필요시 구현)
+          // const functions = getFunctions(app, "asia-northeast3");
+          // const verifyPurchaseFn = httpsCallable(functions, "verifySagesBellPurchase");
+          // await verifyPurchaseFn({
+          //   transactionId: purchaseResult.transactionId,
+          //   receipt: purchaseResult.receipt || "",
+          //   platform: Capacitor.getPlatform() === "ios" ? "ios" : "android",
+          // });
+        } else {
+          // 웹 환경: 루멘 차감
+          if (!spendLumens) {
+            toast.error("현자의 종은 모바일 앱에서만 사용할 수 있습니다.");
+            setIsProcessingPayment(false);
+            return;
+          }
+
+          const SAGES_BELL_COST = 0; // 🧪 테스트용: 무료
+          
+          // 비용이 0이면 결제 없이 바로 통과
+          if (SAGES_BELL_COST > 0) {
+            if (lumenBalance < SAGES_BELL_COST) {
+              toast.error(`루멘이 부족합니다! (필요: ${SAGES_BELL_COST}, 보유: ${lumenBalance})`);
+              setIsProcessingPayment(false);
+              return;
+            }
+
+            const paymentSuccess = await spendLumens(SAGES_BELL_COST, "현자의 종 호출");
+            if (!paymentSuccess) {
+              setIsProcessingPayment(false);
+              return; // 결제 실패 시 제출 중단
+            }
+          }
+
+          toast.success("현자의 종이 울렸습니다! 🔔");
+        }
+      } catch (error: any) {
+        console.error("현자의 종 결제 실패:", error);
+        toast.error(error.message || "결제 처리 중 오류가 발생했습니다.");
+        setIsProcessingPayment(false);
+        return;
+      } finally {
+        setIsProcessingPayment(false);
+      }
+    }
+
+    // 6단계: 모든 검사를 통과하면 제출
     onSubmit({
       title: title.trim(),
       content: content.trim(),
@@ -386,7 +462,7 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
       subCategory: selectedSubCategory,
       type: postType,
       tags,
-      useSagesBell: useSagesBell && postType === "question", // 질문글일 때만 현자의 종 사용 가능
+      useSagesBell: shouldUseSagesBell, // 결제 성공한 경우에만 true
     });
 
     // 쿨타임 시간 저장
@@ -394,7 +470,7 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
 
     // 임시저장 삭제
     clearDraft();
-  }, [isOnline, title, content, selectedCategory, postType, selectedSubCategory, tags, onSubmit, clearDraft]);
+  }, [isOnline, title, content, selectedCategory, postType, selectedSubCategory, tags, useSagesBell, onSubmit, clearDraft]);
 
   const handleBack = useCallback(() => {
     // 작성 중인 내용이 있으면 확인
@@ -490,7 +566,7 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
             <Button
               onClick={handleSubmit}
               className="flex items-center space-x-2"
-              disabled={!title.trim() || !content.trim() || !selectedCategory || !isOnline}
+              disabled={!title.trim() || !content.trim() || !selectedCategory || !isOnline || isProcessingPayment}
             >
               <Send className="w-4 h-4" />
               <span>게시</span>
@@ -754,6 +830,7 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
                 <Switch 
                   checked={useSagesBell} 
                   onCheckedChange={setUseSagesBell}
+                  disabled={isProcessingPayment}
                 />
               </CardContent>
             </Card>

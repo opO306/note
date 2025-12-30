@@ -1518,6 +1518,8 @@ function MainScreenInner({
           onBack={handleLayerBack}
           onSubmit={handlePostSubmit}
           categories={categories}
+          lumenBalance={lumenBalance}
+          spendLumens={lumenActions.spendLumens}
         />
       </Suspense>
     );
