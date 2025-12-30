@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { auth, functions, db } from "@/firebase";
+import { functions, db } from "@/firebase";
 import { httpsCallable } from "firebase/functions";
 import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { toast } from "@/toastHelper";

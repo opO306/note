@@ -23,7 +23,7 @@ const debugLog = (location: string, message: string, data: any, hypothesisId: st
     logs.push(logEntry);
     if (logs.length > 100) logs.shift(); // 최대 100개만 유지
     localStorage.setItem('debug_logs', JSON.stringify(logs));
-  } catch (e) {}
+  } catch (_e) {}
 };
 // #endregion
 
@@ -94,7 +94,7 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
           allKeys.push(key);
         }
       }
-    } catch (e) {}
+    } catch (_e) {}
     debugLog('useTitleActions.ts:38', '로컬 스토리지에서 읽은 값', { 
       savedCurrentTitle: savedCurrentTitle || 'null', 
       savedCurrentTitleType: typeof savedCurrentTitle,
@@ -218,7 +218,7 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
     };
 
     fetchTitlesFromFirestore();
-  }, []);
+  }, [authReady, currentTitle]);
   // ✅ Firestore에 칭호 정보 동기화 (업데이트 시 캐시 무효화)
   // 🔹 초기 로드 중에는 실행하지 않음 (Firestore에서 가져온 값이 우선)
   useEffect(() => {

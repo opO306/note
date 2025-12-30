@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { FileText, MessageCircle } from "lucide-react";
 import { AppHeader } from "./layout/AppHeader";
 import { useUserProfiles, type UserProfileLite } from "@/components/MainScreen/hooks/useUserProfiles";
@@ -90,14 +90,6 @@ export function MyContentListScreen({
         useUserProfiles(allUidsForThisScreen);
 
     const title = isPostsMode ? "내가 작성한 글" : "내가 남긴 답글";
-
-    // 카드 클릭 핸들러: id를 직접 전달해 DOM 의존 제거
-    const handlePostCardClick = useCallback(
-        (postId: string) => () => {
-            onPostClick?.(postId);
-        },
-        [onPostClick],
-    );
 
     const handleReplyCardClick = useCallback(
         (postId: string, replyId: number | string) => () => {

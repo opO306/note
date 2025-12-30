@@ -33,9 +33,6 @@ import {
   purchaseProduct, 
   SAGES_BELL_PRODUCT_ID 
 } from "../utils/inAppPurchase";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { app } from "../firebase";
-import { Capacitor } from "@capacitor/core";
 
 // Safe localStorage helper
 const safeLocalStorage = {
@@ -470,7 +467,7 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance = 0, sp
 
     // 임시저장 삭제
     clearDraft();
-  }, [isOnline, title, content, selectedCategory, postType, selectedSubCategory, tags, useSagesBell, onSubmit, clearDraft]);
+  }, [isOnline, title, content, selectedCategory, postType, selectedSubCategory, tags, useSagesBell, onSubmit, clearDraft, lumenBalance, spendLumens]);
 
   const handleBack = useCallback(() => {
     // 작성 중인 내용이 있으면 확인

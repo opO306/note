@@ -13,6 +13,9 @@
     
     <!-- ✅ 푸시 알림 권한 (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    
+    <!-- ✅ 인앱 구매 권한 (Google Play Billing) -->
+    <uses-permission android:name="com.android.vending.BILLING"/>
 
     <uses-permission
     android:name="android.permission.READ_EXTERNAL_STORAGE"

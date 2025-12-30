@@ -475,14 +475,18 @@ export function MyPageScreen({
                   ? "" // 테마가 있으면 기본 border 클래스 제거
                   : "border border-border/70 shadow-sm"
                 }`}
-              style={themeStyle && currentTheme !== "golden-library" ? {
-                borderColor: themeStyle.borderColor,
-                borderWidth: themeStyle.borderWidth,
-                borderStyle: "solid",
-                boxShadow: themeStyle.boxShadow,
+              {...(themeStyle && currentTheme !== "golden-library" ? {
+                style: {
+                  borderColor: themeStyle.borderColor,
+                  borderWidth: themeStyle.borderWidth,
+                  borderStyle: "solid",
+                  boxShadow: themeStyle.boxShadow,
+                } as React.CSSProperties
               } : currentTheme === "golden-library" ? {
-                boxShadow: "0 0 16px rgba(212, 175, 55, 0.5), inset 0 0 12px rgba(212, 175, 55, 0.15)",
-              } : undefined}
+                style: {
+                  boxShadow: "0 0 16px rgba(212, 175, 55, 0.5), inset 0 0 12px rgba(212, 175, 55, 0.15)",
+                } as React.CSSProperties
+              } : {})}
             >
               <CardContent className="p-6 relative z-10">
                 <div className="flex items-center space-x-4">
@@ -490,17 +494,23 @@ export function MyPageScreen({
                     <div
                       className={`rounded-full overflow-hidden ${currentTheme === "golden-library" ? "theme-border-greek-key" : ""
                         }`}
-                      style={currentTheme === "golden-library" ? {
-                        borderWidth: "4px",
+                      {...(currentTheme === "golden-library" ? {
+                        style: {
+                          borderWidth: "4px",
+                        } as React.CSSProperties
                       } : themeStyle ? {
-                        borderColor: themeStyle.borderColor,
-                        borderWidth: "4px",
-                        borderStyle: "solid",
+                        style: {
+                          borderColor: themeStyle.borderColor,
+                          borderWidth: "4px",
+                          borderStyle: "solid",
+                        } as React.CSSProperties
                       } : {
-                        borderColor: "white",
-                        borderWidth: "4px",
-                        borderStyle: "solid",
-                      }}
+                        style: {
+                          borderColor: "white",
+                          borderWidth: "4px",
+                          borderStyle: "solid",
+                        } as React.CSSProperties
+                      })}
                     >
                       <OptimizedAvatar
                         src={userProfileImage}

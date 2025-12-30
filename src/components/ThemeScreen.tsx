@@ -40,7 +40,7 @@ const THEMES: Theme[] = [
     id: "e-ink",
     name: "전자 종이",
     description: "눈이 편안한 저대비 테마로 깊이 있는 사색에 몰입하세요.",
-    price: "₩1,000", // 실제 가격은 Google Play / App Store에서 설정
+    price: "₩4,900", // 실제 가격은 Google Play / App Store에서 설정
     preview: "📜",
     productId: THEME_PRODUCT_IDS["e-ink"],
   },
@@ -48,7 +48,7 @@ const THEMES: Theme[] = [
     id: "midnight",
     name: "심야 도서관",
     description: "깊은 암청색과 황금 포인트로 고풍스러운 학술 분위기를 연출합니다.",
-    price: "₩1,000",
+    price: "₩4,900",
     preview: "🏛",
     productId: THEME_PRODUCT_IDS["midnight"],
   },
@@ -199,22 +199,9 @@ export function ThemeScreen({
             setIsPurchasing(false);
           }
         } else {
-          // 웹 환경이거나 인앱 구매가 불가능한 경우 (기존 루멘 구매 로직)
-          const THEME_COST = 0; // 🧪 테스트용: 무료
-
-          if (onThemePurchase && THEME_COST > 0) {
-            // 루멘으로 구매하는 로직 (개발/테스트용)
-            const success = await onThemePurchase(themeId, THEME_COST);
-            if (!success) {
-              return;
-            }
-          } else if (!onThemePurchase && THEME_COST > 0) {
-            toast.error("인앱 구매는 모바일 앱에서만 사용할 수 있습니다.");
-            return;
-          }
-
-          // 비용이 0이면 바로 구매 완료 처리
-          setPurchasedThemes((prev) => [...prev, themeId]);
+          // 웹 환경이거나 인앱 구매가 불가능한 경우
+          toast.error("테마 구매는 모바일 앱에서만 가능합니다. Google Play Store 또는 App Store에서 앱을 다운로드해주세요.");
+          return;
         }
       }
 
@@ -278,14 +265,8 @@ export function ThemeScreen({
 
   const isThemeAffordable = (themeId: string) => {
     if (themeId === "default") return true;
-    // 🧪 테스트용: 모든 테마 무료
-    const THEME_COST = 0;
-    if (THEME_COST === 0) return true;
-    // 인앱 구매가 가능한 경우 항상 구매 가능
-    if (isIAPAvailable) return true;
-    // 웹 환경에서는 루멘으로 구매 가능한지 확인
-    const theme = THEMES.find((t) => t.id === themeId);
-    return theme ? lumenBalance >= THEME_COST : false;
+    // 인앱 구매가 가능한 경우에만 구매 가능 (Google Play/App Store를 통해서만)
+    return isIAPAvailable;
   };
 
   return (
@@ -428,7 +409,7 @@ export function ThemeScreen({
                                 className="text-[10px] px-1.5 h-5 text-amber-600"
                               >
                                 <Lock className="w-3 h-3 mr-1" />
-                                {isIAPAvailable ? theme.price : "무료 (테스트)"}
+                                {theme.price}
                               </Badge>
                             )}
                           </div>

@@ -659,7 +659,7 @@ export function useAppInitialization(): UseAppInitializationReturn {
             } else {
                 await signOut(auth);
             }
-        } catch (error) {
+        } catch (_error) {
             // 네이티브 로그아웃 실패 시 웹 로그아웃 시도
             try {
                 await signOut(auth);

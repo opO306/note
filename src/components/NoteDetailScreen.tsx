@@ -105,14 +105,14 @@ export default function NoteDetailScreen({ noteId, onBack, onGoWrite, onOpenSour
     // 본문을 섹션별로 파싱하는 함수
     const parseBodySections = React.useMemo(() => {
         if (!note?.body) return [];
-        
+
         const lines = note.body.split('\n');
         const sections: Array<{ title: string; content: string }> = [];
         let currentSection: { title: string; content: string } | null = null;
 
         for (const line of lines) {
             const trimmedLine = line.trim();
-            
+
             // "- " 또는 "### "로 시작하는 줄은 새 섹션
             if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('### ')) {
                 // 이전 섹션 저장
@@ -152,7 +152,7 @@ export default function NoteDetailScreen({ noteId, onBack, onGoWrite, onOpenSour
     return (
         <div className="h-full flex flex-col">
             {/* 헤더 */}
-            <div className="bg-card/95 border-b border-border px-4 pb-4 flex-shrink-0 safe-top" style={{ paddingTop: 'calc(var(--safe-area-inset-top) + 1rem)' }}>
+            <div className="bg-card/95 border-b border-border px-4 pb-4 flex-shrink-0 safe-top" style={{ paddingTop: 'calc(var(--safe-area-inset-top) + 1rem)' } as React.CSSProperties}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                         <Button variant="ghost" size="icon" onClick={onBack}>

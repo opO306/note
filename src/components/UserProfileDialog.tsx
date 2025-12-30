@@ -33,7 +33,7 @@ import { MyContentListScreen } from "./MyContentListScreen"; // 작성 글/답�
 import { DELETED_USER_NAME } from "@/components/utils/deletedUserHelpers";
 import { getFunctions, httpsCallable } from "firebase/functions"; // 🆕 함수 호출용
 import { AlertDialogSimple } from "./ui/alert-dialog-simple";
-import { ALL_TITLE_LABELS, getTitleLabelById } from "@/data/titleData";
+import { getTitleLabelById } from "@/data/titleData";
 
 // ─────────────────────────────────────────────────────────────
 // 헬퍼 함수들
@@ -543,14 +543,18 @@ export function UserProfileDialog({
                 ? "" // 테마가 있으면 기본 border 클래스 제거
                 : "border border-border/70 shadow-sm"
             }`}
-            style={themeStyle && currentTheme !== "golden-library" ? {
-              borderColor: themeStyle.borderColor,
-              borderWidth: themeStyle.borderWidth,
-              borderStyle: "solid",
-              boxShadow: themeStyle.boxShadow,
+            {...(themeStyle && currentTheme !== "golden-library" ? {
+              style: {
+                borderColor: themeStyle.borderColor,
+                borderWidth: themeStyle.borderWidth,
+                borderStyle: "solid",
+                boxShadow: themeStyle.boxShadow,
+              } as React.CSSProperties
             } : currentTheme === "golden-library" ? {
-              boxShadow: "0 0 16px rgba(212, 175, 55, 0.5), inset 0 0 12px rgba(212, 175, 55, 0.15)",
-            } : undefined}
+              style: {
+                boxShadow: "0 0 16px rgba(212, 175, 55, 0.5), inset 0 0 12px rgba(212, 175, 55, 0.15)",
+              } as React.CSSProperties
+            } : {})}
           >
             <CardContent className="p-4 flex items-center justify-between gap-4 relative z-10">
               {/* 왼쪽: 아바타 + 닉네임/소개 */}
@@ -559,17 +563,23 @@ export function UserProfileDialog({
                   className={`rounded-full overflow-hidden ${
                     currentTheme === "golden-library" ? "theme-border-greek-key" : ""
                   }`}
-                  style={currentTheme === "golden-library" ? {
-                    borderWidth: "4px",
+                  {...(currentTheme === "golden-library" ? {
+                    style: {
+                      borderWidth: "4px",
+                    } as React.CSSProperties
                   } : themeStyle ? {
-                    borderColor: themeStyle.borderColor,
-                    borderWidth: "4px",
-                    borderStyle: "solid",
+                    style: {
+                      borderColor: themeStyle.borderColor,
+                      borderWidth: "4px",
+                      borderStyle: "solid",
+                    } as React.CSSProperties
                   } : {
-                    borderColor: "white",
-                    borderWidth: "4px",
-                    borderStyle: "solid",
-                  }}
+                    style: {
+                      borderColor: "white",
+                      borderWidth: "4px",
+                      borderStyle: "solid",
+                    } as React.CSSProperties
+                  })}
                 >
                   <OptimizedAvatar
                     src={userAvatar}
