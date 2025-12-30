@@ -7,7 +7,8 @@ service cloud.firestore {
       return request.auth != null;
     }
     function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
+      return request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     function isOwner(userId) {
       return request.auth.uid == userId;
@@ -24,11 +25,16 @@ service cloud.firestore {
     function isReplyUpdateOnly() {
       return request.resource.data.diff(resource.data).affectedKeys()
         .hasOnly([
-          'replies', 'replyCount', 
+          'replies', 'replyCount', 'comments',
           'updatedAt', 'lastReplyAt', 
           'lastReplyAuthor', 'lastReplyNickname', 'lastReplyAuthorUid', 'lastReplyProfileImage',
           'participants' 
         ]);
+    }
+    // 길잡이 선택 시 업데이트될 수 있는 필드 허용
+    function isGuideSelectionUpdateOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['guideCommentId', 'guideSelectedAt']);
     }
 
     // 2. 컬렉션 규칙
@@ -47,10 +53,13 @@ service cloud.firestore {
       allow create: if isSignedIn();
       
       // ✅ [수정됨] 답글 관련 필드 허용 범위 대폭 확대
+      // 게시글 작성자는 모든 필드 업데이트 가능 (길잡이 선택 포함)
+      // 다른 사용자는 조회수 증가, 답글 관련 필드만 업데이트 가능
       allow update: if isSignedIn() && (
         resource.data.authorUid == request.auth.uid || 
         isViewIncrementOnly() || 
-        isReplyUpdateOnly()
+        isReplyUpdateOnly() ||
+        (resource.data.authorUid == request.auth.uid && isGuideSelectionUpdateOnly())
       );
       
       allow delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
@@ -87,13 +96,44 @@ service cloud.firestore {
     }
 
     match /postViews/{viewId} { allow read, write: if isSignedIn(); }
-    match /follows/{followId} { allow read: if isSignedIn(); allow create, delete: if isSignedIn(); }
+    // 팔로우 컬렉션: 본인이 팔로우하는 경우만 생성/삭제 가능
+    match /follows/{followId} { 
+      // 팔로우 정보는 공개 정보로 누구나 읽을 수 있음 (다른 유저 프로필에서 팔로워/팔로잉 목록 조회용)
+      // 트랜잭션에서 문서 존재 여부 확인을 위해 문서가 없을 때도 허용
+      // 문서 ID 형식: ${followerUid}_${followingUid}
+      allow read: if isSignedIn() && (
+        !resource.exists || // 문서가 없으면 허용 (트랜잭션에서 존재 여부 확인용)
+        true // 팔로우 정보는 공개 정보
+      );
+      // 본인이 팔로우하는 경우만 생성 가능 (followerUid가 현재 사용자여야 함)
+      allow create: if isSignedIn() && 
+        request.resource.data.followerUid == request.auth.uid &&
+        request.resource.data.followerUid != request.resource.data.followingUid; // 자기 자신 팔로우 방지
+      // 본인이 팔로우한 것만 삭제 가능
+      allow delete: if isSignedIn() && resource.data.followerUid == request.auth.uid;
+    }
     match /user_bookmarks/{userId}/{document=**} { allow read, write: if isOwner(userId); }
     match /user_lanterns/{userId}/{document=**} { allow read, write: if isOwner(userId); }
     match /user_notification_settings/{userId} { allow read, write: if isOwner(userId); }
-    match /reports/{reportId} { allow create: if isSignedIn(); allow read, update, delete: if false; }
+    // 🔹 신고 컬렉션: 컬렉션 쿼리를 위해 문서 레벨 규칙 필요
+    match /reports/{reportId} { 
+      allow create: if isSignedIn(); 
+      // ✅ read 권한: 관리자는 모든 문서 읽기 및 쿼리 가능
+      allow read: if isAdmin(); 
+      allow update: if isAdmin(); 
+      allow delete: if false; 
+    }
     match /weekly_stats/{statsId} { allow read: if isSignedIn(); allow write: if false; }
     match /config/{document=**} { allow read: if true; allow write: if false; }
+
+    // ✅ notes 컬렉션 규칙 추가
+    match /notes/{noteId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // 전체 차단
     match /{document=**} { allow read, write: if false; }
   }
 }

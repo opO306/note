@@ -17,7 +17,7 @@ import { toast } from "@/toastHelper";
 import {
   collection,
   doc,
-  onSnapshot,
+  getDocs,
   setDoc,
   deleteDoc,
   updateDoc,
@@ -79,7 +79,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
   const cutoffMs = autoDeleteAfterDays * 24 * 60 * 60 * 1000;
 
-  /** 🔹 localStorage 저장 (게스트/백업용) */
+  /** 🔹 localStorage 저장 (백업용) */
   const saveNotificationsLocal = useCallback((newNotifications: AppNotification[]) => {
     try {
       localStorage.setItem(
@@ -131,16 +131,23 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     // 로그인: Firestore 기준
     setIsLoading(true);
 
-    // 1) 알림 스트림
-    const q = query(
-      notificationsCol(uid),
-      orderBy("timestamp", "desc"),
-      limit(maxNotifications)
-    );
+    // ✅ 비용 절감: onSnapshot → 폴링 방식으로 변경
+    const POLLING_INTERVAL = 30000; // 30초 간격
+    let pollingIntervalId: NodeJS.Timeout | null = null;
+    let isMounted = true;
 
-    const unsubNotifications = onSnapshot(
-      q,
-      (snapshot) => {
+    // 1) 알림 폴링 함수
+    const fetchNotifications = async () => {
+      if (!isMounted) return;
+
+      try {
+        const q = query(
+          notificationsCol(uid),
+          orderBy("timestamp", "desc"),
+          limit(maxNotifications)
+        );
+
+        const snapshot = await getDocs(q);
         const now = Date.now();
         const cutoffTime = now - cutoffMs;
 
@@ -172,46 +179,67 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
           })
           .filter((n) => n.timestamp > cutoffTime);
 
-        setNotifications(list);
-        setIsLoading(false);
-      },
-      (error) => {
-        console.error("Failed to load notifications from Firestore:", error);
-        setIsLoading(false);
-      }
-    );
-
-    // 2) 설정 스트림
-    const unsubSettings = onSnapshot(
-      settingsDoc(uid),
-      (snapshot) => {
-        if (snapshot.exists()) {
-          const remote = snapshot.data() as NotificationSettings;
-          // DEFAULT_SETTINGS 위에 merge 해서 누락 필드 방지
-          setSettings({
-            ...DEFAULT_SETTINGS,
-            ...remote,
-            types: {
-              ...DEFAULT_SETTINGS.types,
-              ...(remote.types ?? {}),
-            },
-            doNotDisturb: {
-              ...DEFAULT_SETTINGS.doNotDisturb,
-              ...(remote.doNotDisturb ?? {}),
-            },
-          });
-        } else {
-          setSettings(DEFAULT_SETTINGS);
+        if (isMounted) {
+          setNotifications(list);
+          setIsLoading(false);
         }
-      },
-      (error) => {
+      } catch (error) {
+        console.error("Failed to load notifications from Firestore:", error);
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    // 2) 설정 폴링 함수
+    const fetchSettings = async () => {
+      if (!isMounted) return;
+
+      try {
+        const settingsSnap = await getDoc(settingsDoc(uid));
+        if (settingsSnap.exists()) {
+          const remote = settingsSnap.data() as NotificationSettings;
+          // DEFAULT_SETTINGS 위에 merge 해서 누락 필드 방지
+          if (isMounted) {
+            setSettings({
+              ...DEFAULT_SETTINGS,
+              ...remote,
+              types: {
+                ...DEFAULT_SETTINGS.types,
+                ...(remote.types ?? {}),
+              },
+              doNotDisturb: {
+                ...DEFAULT_SETTINGS.doNotDisturb,
+                ...(remote.doNotDisturb ?? {}),
+              },
+            });
+          }
+        } else {
+          if (isMounted) {
+            setSettings(DEFAULT_SETTINGS);
+          }
+        }
+      } catch (error) {
         console.error("Failed to load notification settings from Firestore:", error);
       }
-    );
+    };
+
+    // 즉시 한 번 실행
+    fetchNotifications();
+    fetchSettings();
+
+    // 이후 30초마다 폴링
+    pollingIntervalId = setInterval(() => {
+      fetchNotifications();
+      fetchSettings();
+    }, POLLING_INTERVAL);
 
     return () => {
-      unsubNotifications();
-      unsubSettings();
+      isMounted = false;
+      if (pollingIntervalId) {
+        clearInterval(pollingIntervalId);
+        pollingIntervalId = null;
+      }
     };
   }, [maxNotifications, cutoffMs]);
 
@@ -328,7 +356,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         // 로그인 여부에 따라 저장 방식 분기
         const uid = getUserId();
         if (!uid) {
-          // 게스트 → localStorage
+          // 로그인하지 않은 경우 → localStorage (백업용)
           saveNotificationsLocal(newNotifications);
         } else {
           // 로그인 → Firestore (비동기)

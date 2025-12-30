@@ -57,12 +57,23 @@ export function usePushToken() {
 
                 if (permStatus.receive === 'granted') {
                     setIsPermissionGranted(true);
-                    registerPushListeners();
-                } else {
-                    // 아직 권한을 요청하지 않았거나 거부된 상태
-                    // 여기서 자동 요청은 하지 않고, 사용자가 명시적으로 버튼을 눌렀을 때 requestPermission 호출 권장
-                    // 하지만 UX상 앱 시작 시 물어보는 경우도 많으므로, 필요에 따라 여기서 requestPermission() 호출 가능
+                    await registerPushListeners();
+                    // ✅ 리스너 등록 후 푸시 등록 호출
+                    await PushNotifications.register();
+                } else if (permStatus.receive === 'prompt') {
+                    // ✅ 권한이 아직 요청되지 않은 경우 자동으로 요청
+                    try {
+                        const result = await PushNotifications.requestPermissions();
+                        if (result.receive === 'granted') {
+                            setIsPermissionGranted(true);
+                            await registerPushListeners();
+                            await PushNotifications.register();
+                        }
+                    } catch (e) {
+                        console.error("Permission request error:", e);
+                    }
                 }
+                // 'denied' 상태는 사용자가 거부한 것이므로 요청하지 않음
             } catch (e) {
                 console.error("Push init error:", e);
             }
@@ -86,12 +97,16 @@ export function usePushToken() {
             }
         };
 
-        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+        const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 loadSettings(user.uid);
                 // 이미 권한이 있다면 토큰 갱신 시도
                 if (isPermissionGranted) {
-                    PushNotifications.register();
+                    try {
+                        await PushNotifications.register();
+                    } catch (e) {
+                        console.error("Push register error:", e);
+                    }
                 }
             } else {
                 setFcmToken(null);

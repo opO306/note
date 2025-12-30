@@ -5,14 +5,10 @@ import {
   updateDoc,
   increment,
   getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  limit,
 } from "firebase/firestore";
 import { toast } from "@/toastHelper";
 import { containsProfanity } from "@/components/utils/profanityFilter";
+import { detectPersonalInfo, getPersonalInfoMessage } from "@/components/utils/personalInfoDetector";
 import type { Post, Reply } from "../types";
 import type { UserActivityData } from "@/components/useAchievements";
 // ✅ 1. 새로 만든 '쓰기 전용' 알림 생성 함수를 import 합니다.
@@ -54,20 +50,28 @@ function sanitizeReplyForFirestore(reply: Reply) {
   };
 }
 
-// 닉네임으로 users 컬렉션에서 UID 찾기
-async function findUserUidByNickname(nickname: string): Promise<string | null> {
-  if (!nickname) return null;
-  try {
-    const usersRef = collection(db, "users");
-    const q = query(usersRef, where("nickname", "==", nickname), limit(1));
-    const snap = await getDocs(q);
-    if (snap.empty) return null;
-    return snap.docs[0].id;
-  } catch {
-    // findUserUidByNickname 실패 (로그 제거)
-    return null;
-  }
-}
+// 댓글 작성 쿨타임: 10초 (밀리초)
+const REPLY_COOLDOWN_MS = 10 * 1000;
+const LAST_REPLY_SUBMIT_TIME_KEY = "lastReplySubmitTime";
+
+// Safe localStorage helper
+const safeLocalStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.error("localStorage getItem error:", error);
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      console.error("localStorage setItem error:", error);
+    }
+  },
+};
 
 interface UseReplyActionsParams {
   posts: Post[];
@@ -113,13 +117,44 @@ export function useReplyActions({
   const handleReplySubmit = useCallback(async () => {
     if (!selectedPost || !newReplyContent.trim()) return;
 
+    // ✅ 쿨타임 체크
+    const lastSubmitTimeStr = safeLocalStorage.getItem(LAST_REPLY_SUBMIT_TIME_KEY);
+    if (lastSubmitTimeStr) {
+      try {
+        const lastSubmitTime = parseInt(lastSubmitTimeStr, 10);
+        const now = Date.now();
+        const timeSinceLastSubmit = now - lastSubmitTime;
+        
+        if (timeSinceLastSubmit < REPLY_COOLDOWN_MS) {
+          const remainingSeconds = Math.ceil((REPLY_COOLDOWN_MS - timeSinceLastSubmit) / 1000);
+          toast.error(`댓글 작성 쿨타임이 남아있습니다. ${remainingSeconds}초 후 다시 시도해주세요.`);
+          return;
+        }
+      } catch (error) {
+        console.error("쿨타임 체크 오류:", error);
+        // 오류가 발생해도 계속 진행
+      }
+    }
+
+    // ✅ 신뢰도 기반 제재 체크
     if (clampedTrust <= 0) {
       toast.error("신뢰도 0점에서는 답글을 작성할 수 없습니다.");
+      return;
+    }
+    if (clampedTrust <= 20) {
+      toast.error("신뢰도가 너무 낮아 답글을 작성할 수 없습니다. (최소 20점 필요)");
       return;
     }
 
     if (containsProfanity(newReplyContent)) {
       toast.error("부적절한 표현이 포함되어 있습니다.");
+      return;
+    }
+
+    // ✅ 개인정보 유출 감지
+    const personalInfo = detectPersonalInfo(newReplyContent);
+    if (personalInfo.hasPersonalInfo) {
+      toast.error(getPersonalInfoMessage(personalInfo.detectedTypes));
       return;
     }
 
@@ -157,22 +192,31 @@ export function useReplyActions({
     const repliesForPost = [...(selectedPost.replies || []), newReply];
     const repliesForPostForFirestore = repliesForPost.map(sanitizeReplyForFirestore);
 
-    const updatedPostData = { replies: repliesForPost, replyCount: repliesForPost.length };
+    const updatedPostData = { 
+      replies: repliesForPost, 
+      replyCount: repliesForPost.length,
+      comments: repliesForPost.length // UI 표시용 comments 필드도 업데이트
+    };
     const updatedPosts = posts.map((post) => String(post.id) === String(selectedPost.id) ? { ...post, ...updatedPostData } : post);
 
     setPosts(updatedPosts);
     setSelectedPost({ ...selectedPost, ...updatedPostData });
     setNewReplyContent("");
+    
+    // 쿨타임 시간 저장
+    safeLocalStorage.setItem(LAST_REPLY_SUBMIT_TIME_KEY, Date.now().toString());
+    
     toast.success("답글이 작성되었습니다!");
     updateActivity({ replies: 1 });
 
     try {
       const postDocId = typeof selectedPost.id === "string" ? selectedPost.id : String(selectedPost.id);
 
-      // ✅ 2. 보안 규칙 위반 필드('comments')를 제거하고 허용된 필드만 업데이트합니다.
+      // ✅ 2. Firestore에 replies, replyCount, comments 필드 업데이트
       await updateDoc(doc(db, "posts", postDocId), {
         replies: repliesForPostForFirestore,
         replyCount: increment(1),
+        comments: repliesForPost.length, // UI 표시용 comments 필드도 저장
         lastReplyAt: new Date(),
         lastReplyAuthor: userNickname,
         lastReplyAuthorUid: currentUid,
@@ -184,10 +228,10 @@ export function useReplyActions({
       console.error("Firestore 답글 저장 실패:", error);
     }
 
+    // ✅ 3. 댓글 알림 생성 (답글 작성 성공과 독립적으로 처리)
     try {
       const postAuthorUid = (selectedPost as any).authorUid ?? null;
       if (postAuthorUid && postAuthorUid !== currentUid) {
-        // ✅ 3. 새로 만든 '쓰기 전용' 알림 생성 함수를 호출합니다.
         await createNotificationForEvent({
           toUserUid: postAuthorUid,
           fromUserUid: currentUid,
@@ -203,44 +247,17 @@ export function useReplyActions({
         });
       }
     } catch (err) {
-      console.error("댓글 알림 생성 실패:", err);
+      // 알림 생성 실패는 답글 작성 성공에 영향을 주지 않음
+      // 하지만 에러를 추적하기 위해 상세 로깅
+      console.error("댓글 알림 생성 실패:", {
+        error: err,
+        postId: selectedPost.id,
+        replyId: newReplyId,
+        targetUid: (selectedPost as any).authorUid,
+      });
     }
 
-    try {
-      const mentionRegex = /@([^\s@]+)/g;
-      const mentionedNicknames = new Set<string>();
-      let match: RegExpExecArray | null;
-      while ((match = mentionRegex.exec(newReply.content)) !== null) {
-        const nickname = match[1].trim();
-        if (nickname && nickname !== userNickname) {
-          mentionedNicknames.add(nickname);
-        }
-      }
-
-      if (mentionedNicknames.size > 0) {
-        for (const nickname of mentionedNicknames) {
-          if (nickname === selectedPost.author) continue;
-          const targetUid = await findUserUidByNickname(nickname);
-          if (targetUid && targetUid !== currentUid) {
-            await createNotificationForEvent({
-              toUserUid: targetUid,
-              fromUserUid: currentUid,
-              type: "mention",
-              categoryId: (selectedPost as any).categoryId ?? selectedPost.category ?? null,
-              data: {
-                postId: selectedPost.id,
-                replyId: newReplyId,
-                userId: currentUid,
-                userName: userNickname,
-                userAvatar: userProfileImage ?? null,
-              },
-            });
-          }
-        }
-      }
-    } catch (e) {
-      console.error("멘션 알림 처리 중 오류:", e);
-    }
+    // ✅ 멘션 알림은 onPostUpdated 트리거에서 자동으로 처리되므로 클라이언트에서는 생성하지 않음
   }, [selectedPost, newReplyContent, userNickname, posts, clampedTrust, setPosts, setSelectedPost, updateActivity, userProfileImage]);
 
   const handleDeleteReply = useCallback(
@@ -253,7 +270,11 @@ export function useReplyActions({
       }
       const updatedReplies = selectedPost.replies.filter((r) => r.id !== replyId);
       const updatedRepliesForFirestore = updatedReplies.map(sanitizeReplyForFirestore);
-      const updatedPostData = { replies: updatedReplies, replyCount: updatedReplies.length };
+      const updatedPostData = { 
+        replies: updatedReplies, 
+        replyCount: updatedReplies.length,
+        comments: updatedReplies.length // UI 표시용 comments 필드도 업데이트
+      };
       setPosts(posts.map(p => String(p.id) === String(selectedPost.id) ? { ...p, ...updatedPostData } : p));
       setSelectedPost({ ...selectedPost, ...updatedPostData });
       toast.success("답글이 삭제되었습니다.");
@@ -262,6 +283,7 @@ export function useReplyActions({
         await updateDoc(doc(db, 'posts', postDocId), {
           replies: updatedRepliesForFirestore,
           replyCount: updatedRepliesForFirestore.length,
+          comments: updatedRepliesForFirestore.length, // UI 표시용 comments 필드도 저장
         });
       } catch (error) {
         console.error("Firestore 답글 삭제 실패:", error);

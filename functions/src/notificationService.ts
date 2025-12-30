@@ -8,6 +8,9 @@ export type NotificationType =
     | "mention"         // 나를 멘션 (@닉네임)
     | "follow"          // 팔로우
     | "guide_selected"  // 길잡이 채택
+    | "lantern"         // 등불
+    | "popular"         // 인기 글
+    | "achievement"     // 업적
     | "daily_digest"    // 아침 추천
     | "marketing";      // 기타 공지
 
@@ -17,6 +20,9 @@ const SETTING_KEYS: Record<NotificationType, string> = {
     mention: "notifyOnMention",
     follow: "notifyOnFollow",
     guide_selected: "notifyOnGuide",
+    lantern: "notifyOnLantern",      // 클라이언트 설정과 매핑 필요 (기본값 true)
+    popular: "notifyOnPopular",      // 클라이언트 설정과 매핑 필요 (기본값 true)
+    achievement: "notifyOnAchievement", // 클라이언트 설정과 매핑 필요 (기본값 true)
     daily_digest: "notifyOnDailyDigest",
     marketing: "notifyOnMarketing"
 };
@@ -49,7 +55,8 @@ export async function sendPushNotification({
 
         // 2. 사용자가 설정을 껐는지 확인
         const settingKey = SETTING_KEYS[type];
-        const isAllowed = settings[settingKey] !== false; // false일 때만 차단
+        // 설정 키가 없으면 기본값 허용 (lantern, popular, achievement 등 새로 추가된 타입)
+        const isAllowed = !settingKey || settings[settingKey] !== false; // false일 때만 차단
 
         if (!isAllowed) {
             logger.info(`[Notification] ${targetUid}님이 ${type} 알림을 꺼뒀습니다. 발송 취소.`);
@@ -67,21 +74,14 @@ export async function sendPushNotification({
             notification: { title, body },
             data: {
                 ...data,
-                click_action: "FLUTTER_NOTIFICATION_CLICK",
                 link: link,
                 type: type
             }
         });
 
-        // 4. 앱 내 알림함(In-App Notification)에도 저장
-        await db.collection("users").doc(targetUid).collection("notifications").add({
-            type,
-            title,
-            body,
-            link,
-            isRead: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp()
-        });
+        // 4. 앱 내 알림함(In-App Notification) 저장은 이미 트리거에서 처리됨
+        // onNotificationCreated 트리거가 user_notifications/{uid}/items에 문서를 생성하므로
+        // 여기서는 푸시 발송만 수행 (중복 저장 방지)
 
         return true;
 

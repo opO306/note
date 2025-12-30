@@ -13,8 +13,8 @@
 import { enableFirebaseTelemetry } from "@genkit-ai/firebase";
 enableFirebaseTelemetry();
 
-
 // 2. 각 모듈에서 모든 함수를 가져와 그대로 다시 내보내기
+// selectGuide는 callable.ts에 정의되어 있으므로 여기서 별도로 export하지 않음
 
 // Firestore, Auth 등 이벤트 기반 트리거
 export * from "./triggers";

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/toastHelper";
 import { containsProfanity } from "./utils/profanityFilter";
+import { detectPersonalInfo, getPersonalInfoMessage } from "./utils/personalInfoDetector";
 
 // Safe localStorage helper
 const safeLocalStorage = {
@@ -53,6 +54,9 @@ const safeLocalStorage = {
 
 // 임시저장 만료 시간: 1시간 (밀리초)
 const DRAFT_EXPIRE_MS = 60 * 60 * 1000;
+// 게시글 작성 쿨타임: 1분 (밀리초)
+const POST_COOLDOWN_MS = 60 * 1000;
+const LAST_POST_SUBMIT_TIME_KEY = "lastPostSubmitTime";
 
 interface WriteScreenProps {
   onBack: () => void;
@@ -310,7 +314,26 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
       return;
     }
 
-    // 2단계: 필수 입력 확인
+    // 2단계: 쿨타임 체크
+    const lastSubmitTimeStr = safeLocalStorage.getItem(LAST_POST_SUBMIT_TIME_KEY);
+    if (lastSubmitTimeStr) {
+      try {
+        const lastSubmitTime = parseInt(lastSubmitTimeStr, 10);
+        const now = Date.now();
+        const timeSinceLastSubmit = now - lastSubmitTime;
+        
+        if (timeSinceLastSubmit < POST_COOLDOWN_MS) {
+          const remainingSeconds = Math.ceil((POST_COOLDOWN_MS - timeSinceLastSubmit) / 1000);
+          toast.error(`게시글 작성 쿨타임이 남아있습니다. ${remainingSeconds}초 후 다시 시도해주세요.`);
+          return;
+        }
+      } catch (error) {
+        console.error("쿨타임 체크 오류:", error);
+        // 오류가 발생해도 계속 진행
+      }
+    }
+
+    // 3단계: 필수 입력 확인
     if (!title.trim()) {
       toast.error("제목을 입력해주세요.");
       return;
@@ -326,7 +349,7 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
       return;
     }
 
-    // 3단계: 욕설 필터링 검사
+    // 4단계: 욕설 필터링 검사
     if (containsProfanity(title)) {
       toast.error("제목에 부적절한 단어가 포함되어 있습니다");
       return;
@@ -343,7 +366,15 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
       return;
     }
 
-    // 4단계: 모든 검사를 통과하면 제출
+    // ✅ 개인정보 유출 감지
+    const fullText = `${title} ${content}`;
+    const personalInfo = detectPersonalInfo(fullText);
+    if (personalInfo.hasPersonalInfo) {
+      toast.error(getPersonalInfoMessage(personalInfo.detectedTypes));
+      return;
+    }
+
+    // 5단계: 모든 검사를 통과하면 제출
     onSubmit({
       title: title.trim(),
       content: content.trim(),
@@ -352,6 +383,9 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
       type: postType,
       tags,
     });
+
+    // 쿨타임 시간 저장
+    safeLocalStorage.setItem(LAST_POST_SUBMIT_TIME_KEY, Date.now().toString());
 
     // 임시저장 삭제
     clearDraft();

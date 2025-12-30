@@ -26,6 +26,7 @@ export type Layer =
   | "category"
   | "notificationSettings"
   | "ranking"
+  | "bookmarks"
   | "search"
   | "quiz";
 

@@ -96,6 +96,7 @@ export function LoginScreen({
       // 3) 토큰이 없으면 에러 처리
       if (!idToken && !accessToken) {
         toast.error("로그인에 실패했습니다. 다시 시도해주세요.");
+        setIsLoggingIn(false);
         return undefined;
       }
 
@@ -105,32 +106,17 @@ export function LoginScreen({
         accessToken || undefined
       );
 
-      // ✅ 로그인 시도 전 게스트 모드 플래그 제거
-      localStorage.removeItem("guest_mode");
-
       await signInWithCredential(auth, credential);
+
+      // ✅ 로그인 성공 후 페이지 새로고침하여 인증 상태 업데이트
+      // useAppInitialization이 새로운 인증 상태를 감지하고 적절한 화면으로 전환하도록 함
+      window.location.reload();
     } catch {
       toast.error("로그인에 실패했습니다. 다시 시도해주세요.");
-    } finally {
       setIsLoggingIn(false);
     }
     return undefined;
   }, [agreedToTerms, isLoggingIn]);
-
-  // ✅ [NEW] 게스트 모드 진입 핸들러
-  const handleGuestEnter = useCallback((e?: React.MouseEvent<HTMLButtonElement>) => {
-    e?.preventDefault();
-    if (!agreedToTerms) {
-      toast.error("약관에 동의해주세요.");
-      return;
-    }
-
-    // 로컬 스토리지에 게스트 플래그 설정
-    localStorage.setItem("guest_mode", "true");
-
-    // 강제로 새로고침하여 useAppInitialization이 게스트 모드를 감지하게 함
-    window.location.reload();
-  }, [agreedToTerms]);
 
   const handleTermsChange = useCallback((checked: boolean | string) => {
     const value = Boolean(checked);
@@ -270,20 +256,6 @@ export function LoginScreen({
                   <span>Google 계정으로 시작하기</span>
                 </div>
               )}
-            </Button>
-
-            {/* ✅ [NEW] 게스트 모드 버튼 추가 */}
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">또는</span>
-            </div>
-
-            <Button
-              className="w-full h-11 text-sm font-medium transition-all"
-              variant="outline"
-              disabled={!agreedToTerms || isLoggingIn}
-              onClick={handleGuestEnter}
-            >
-              로그인 없이 둘러보기
             </Button>
 
             <p className="text-xs text-muted-foreground/60 text-center">

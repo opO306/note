@@ -344,7 +344,7 @@ function TitleCard({ title, isUnlocked, isEquipped, onEquip, onUnequip, variant 
                             )}
                         </div>
 
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 overflow-hidden">
                             <div className="flex items-center gap-2 mb-1">
                                 <span className={`font-bold truncate ${isUnlocked ? "text-foreground" : "text-muted-foreground"}`}>
                                     {title.name}
@@ -361,7 +361,7 @@ function TitleCard({ title, isUnlocked, isEquipped, onEquip, onUnequip, variant 
                                 )}
                             </div>
 
-                            <p className="text-xs text-muted-foreground line-clamp-1">
+                            <p className="text-[10px] text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
                                 {title.description}
                             </p>
 

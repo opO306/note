@@ -33,6 +33,7 @@ import { MyContentListScreen } from "./MyContentListScreen"; // 작성 글/답�
 import { DELETED_USER_NAME } from "@/components/utils/deletedUserHelpers";
 import { getFunctions, httpsCallable } from "firebase/functions"; // 🆕 함수 호출용
 import { AlertDialogSimple } from "./ui/alert-dialog-simple";
+import { ALL_TITLE_LABELS, getTitleLabelById } from "@/data/titleData";
 
 // ─────────────────────────────────────────────────────────────
 // 헬퍼 함수들
@@ -90,6 +91,7 @@ interface UserProfileScreenProps {
   achievementCount?: number; // 달성한 업적 개수
   titleCount?: number; // 보유 칭호 개수
   guideCount?: number; // 길잡이로 선택된 횟수
+  currentTitle?: string; // 🔹 현재 착용 중인 칭호 ID
 
   // 🔹 팔로워 / 팔로잉 수 & 목록 (있으면 사용)
   followerCount?: number;
@@ -134,6 +136,7 @@ export function UserProfileDialog({
   achievementCount = 0,
   titleCount = 0,
   guideCount = 0,
+  currentTitle = "",
   followerCount = 0,
   followingCount = 0,
   followerUsers = [],
@@ -485,9 +488,16 @@ export function UserProfileDialog({
                   fallbackText={displayName.charAt(0).toUpperCase()}
                 />
                 <div className="flex flex-col gap-1 flex-1">
-                  <h3 className="font-semibold text-base">
-                    {userData.nickname}
-                  </h3>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h3 className="font-semibold text-base truncate">
+                      {userData.nickname}
+                    </h3>
+                    {currentTitle && getTitleLabelById(currentTitle) && (
+                      <Badge variant="secondary" className="text-xs shrink-0">
+                        {getTitleLabelById(currentTitle)}
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground leading-snug">
                     {userData.bio}
                   </p>

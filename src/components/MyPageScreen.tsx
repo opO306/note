@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, type MouseEvent } from "reac
 import { useScrollRestoration } from "./hooks/useScrollRestoration";
 import { Button } from "./ui/button";
 import { auth, db } from "@/firebase";
-import { titles as titleData } from "@/data/titleData";
+import { titles as titleData, ALL_TITLE_LABELS, getTitleLabelById } from "@/data/titleData";
 import { doc, updateDoc } from "firebase/firestore";
 import { Card, CardContent } from "./ui/card";
 import { OptimizedAvatar } from "./OptimizedAvatar";
@@ -209,6 +209,11 @@ export function MyPageScreen({
   }, [onProfileImageChange]);
 
   const getCurrentTitleName = () => {
+    if (!currentTitle) return "";
+    // ALL_TITLE_LABELS에서 먼저 찾기 (업적 칭호 포함)
+    const titleName = ALL_TITLE_LABELS[currentTitle];
+    if (titleName) return titleName;
+    // 없으면 titleData에서 찾기 (길잡이 칭호)
     const title = titleData.find(t => t.id === currentTitle);
     return title?.name || "";
   };

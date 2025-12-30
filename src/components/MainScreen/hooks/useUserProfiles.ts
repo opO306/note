@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { auth, db } from "@/firebase";
-import { doc, onSnapshot, collection, query, where } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, onSnapshot, QuerySnapshot, DocumentData } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 // 🔹 화면용 타입 정의
@@ -12,6 +12,7 @@ export interface UserProfileLite {
     currentTitleId: string | null;
     profileDescription: string | null;
     role: "admin" | "user";
+    lastUpdated?: number; // ✅ 캐시 TTL 관리를 위한 타임스탬프
 }
 
 export interface UserProfileWithDescription extends UserProfileLite {
@@ -91,61 +92,99 @@ function ensureCleanupTimer() {
     }
 }
 
-// 🔹 Firestore 구독 로직
+// ✅ 비용 절감: 프로필 폴링 간격 (1분)
+const PROFILE_POLLING_INTERVAL = 60000; // 1분
+const PROFILE_CACHE_TTL = 60000; // 1분 캐시
+
+// 🔹 Firestore 구독 로직 (폴링 방식으로 변경)
 function subscribeToFirestore(uid: string) {
     if (firestoreUnsubscribers.has(uid)) return;
     if (!auth.currentUser) return; // 로그인 체크
 
+    // 캐시된 데이터가 최신이면 구독하지 않음
+    const cached = userProfileCache.get(uid);
+    if (cached && cached.lastUpdated && Date.now() - cached.lastUpdated < PROFILE_CACHE_TTL) {
+        return;
+    }
+
     const userRef = doc(db, "users", uid);
-    const unsubscribe = onSnapshot(userRef, (snap) => {
-        touchCache(uid);
-        if (!snap.exists()) {
-            userProfileCache.delete(uid);
-        } else {
-            const data = snap.data() as any;
+    let pollingIntervalId: NodeJS.Timeout | null = null;
+    let isActive = true;
 
-            // 🔹 프로필 이미지 결정 로직
-            // - 1순위: 우리가 관리하는 커스텀 이미지(profileImage)
-            // - 2순위: Firestore photoURL 중에서 "구글 기본 이미지가 아닌 것"만 허용
-            // - 그 외에는 null → UI에서 Dicebear/API 기본 아바타 사용
-            let profileImage: string | null = null;
+    const fetchProfile = async () => {
+        if (!isActive) return;
 
-            if (typeof data.profileImage === "string" && data.profileImage) {
-                profileImage = data.profileImage;
-            } else if (typeof data.photoURL === "string" && data.photoURL) {
-                const photoUrl: string = data.photoURL;
-                const isGooglePhoto =
-                    photoUrl.includes("googleusercontent.com") ||
-                    photoUrl.includes("googleapis.com") ||
-                    photoUrl.includes("lh3.googleusercontent.com") ||
-                    photoUrl.includes("lh4.googleusercontent.com") ||
-                    photoUrl.includes("lh5.googleusercontent.com") ||
-                    photoUrl.includes("lh6.googleusercontent.com");
+        try {
+            touchCache(uid);
+            const snap = await getDoc(userRef);
+            
+            if (!isActive) return;
 
-                if (!isGooglePhoto) {
-                    profileImage = photoUrl;
+            if (!snap.exists()) {
+                userProfileCache.delete(uid);
+            } else {
+                const data = snap.data() as any;
+
+                // 🔹 프로필 이미지 결정 로직
+                // - 1순위: 우리가 관리하는 커스텀 이미지(profileImage)
+                // - 2순위: Firestore photoURL 중에서 "구글 기본 이미지가 아닌 것"만 허용
+                // - 그 외에는 null → UI에서 Dicebear/API 기본 아바타 사용
+                let profileImage: string | null = null;
+
+                if (typeof data.profileImage === "string" && data.profileImage) {
+                    profileImage = data.profileImage;
+                } else if (typeof data.photoURL === "string" && data.photoURL) {
+                    const photoUrl: string = data.photoURL;
+                    const isGooglePhoto =
+                        photoUrl.includes("googleusercontent.com") ||
+                        photoUrl.includes("googleapis.com") ||
+                        photoUrl.includes("lh3.googleusercontent.com") ||
+                        photoUrl.includes("lh4.googleusercontent.com") ||
+                        photoUrl.includes("lh5.googleusercontent.com") ||
+                        photoUrl.includes("lh6.googleusercontent.com");
+
+                    if (!isGooglePhoto) {
+                        profileImage = photoUrl;
+                    }
                 }
-            }
 
-            const profile: UserProfileLite = {
-                nickname: typeof data.nickname === "string" ? data.nickname : "알 수 없음",
-                profileImage,
-                currentTitleId: typeof data.currentTitle === "string" ? data.currentTitle : null,
-                profileDescription: typeof data.profileDescription === "string" ? data.profileDescription : null,
-                role: (data.role === "admin" || data.role === "user") ? data.role : "user",
-            };
-            userProfileCache.set(uid, profile);
+                const profile: UserProfileLite = {
+                    nickname: typeof data.nickname === "string" ? data.nickname : "알 수 없음",
+                    profileImage,
+                    currentTitleId: typeof data.currentTitle === "string" ? data.currentTitle : null,
+                    profileDescription: typeof data.profileDescription === "string" ? data.profileDescription : null,
+                    role: (data.role === "admin" || data.role === "user") ? data.role : "user",
+                    lastUpdated: Date.now(),
+                };
+                userProfileCache.set(uid, profile);
+            }
+            evictCacheIfNeeded();
+            const listeners = componentListeners.get(uid);
+            if (listeners) listeners.forEach((notify) => notify());
+        } catch (error: any) {
+            if (error.code === 'permission-denied') {
+                firestoreUnsubscribers.delete(uid);
+                isActive = false;
+                return;
+            }
+            // 사용자 프로필 조회 실패 (로그 제거)
         }
-        evictCacheIfNeeded();
-        const listeners = componentListeners.get(uid);
-        if (listeners) listeners.forEach((notify) => notify());
-    }, (error) => {
-        if (error.code === 'permission-denied') {
-            firestoreUnsubscribers.delete(uid);
-            return;
+    };
+
+    // 즉시 한 번 실행
+    fetchProfile();
+
+    // 이후 1분마다 폴링 (프로필은 자주 변경되지 않음)
+    pollingIntervalId = setInterval(fetchProfile, PROFILE_POLLING_INTERVAL);
+
+    const unsubscribe = () => {
+        isActive = false;
+        if (pollingIntervalId) {
+            clearInterval(pollingIntervalId);
+            pollingIntervalId = null;
         }
-        // 사용자 프로필 조회 실패 (로그 제거)
-    });
+    };
+
     firestoreUnsubscribers.set(uid, unsubscribe);
 }
 
@@ -297,7 +336,7 @@ export function useUserProfileByNickname(nickname?: string | null) {
         const usersRef = collection(db, "users");
         const q = query(usersRef, where("nickname", "==", nickname));
 
-        const unsubscribe = onSnapshot(q, (snap) => {
+        const unsubscribe = onSnapshot(q, (snap: QuerySnapshot<DocumentData>) => {
             if (snap.empty) {
                 setProfile(null);
                 return;
@@ -330,7 +369,7 @@ export function useUserProfileByNickname(nickname?: string | null) {
                 profileDescription: data.profileDescription ?? null,
                 role: (data.role === "admin" || data.role === "user") ? data.role : "user",
             });
-        }, (error) => {
+        }, (error: any) => {
             if (error.code === 'permission-denied') {
                 setProfile(null);
                 return;

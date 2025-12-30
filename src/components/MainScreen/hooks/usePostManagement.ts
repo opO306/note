@@ -42,9 +42,13 @@ export function usePostManagement({
   // 글 작성 시작 (경고 확인 후)
   const handleStartWriting = useCallback(
     (onConfirm: () => void) => {
-      // 신뢰도 0점 이하면 글 작성 불가
+      // ✅ 신뢰도 기반 제재 체크
       if (clampedTrust <= 0) {
         toast.error("신뢰도 0점에서는 글을 작성할 수 없습니다.");
+        return false;
+      }
+      if (clampedTrust <= 10) {
+        toast.error("신뢰도가 너무 낮아 글을 작성할 수 없습니다. (최소 10점 필요)");
         return false;
       }
 
@@ -73,6 +77,10 @@ export function usePostManagement({
         toast.error("신뢰도 0점에서는 글을 작성할 수 없습니다.");
         return;
       }
+      if (clampedTrust <= 10) {
+        toast.error("신뢰도가 너무 낮아 글을 작성할 수 없습니다. (최소 10점 필요)");
+        return;
+      }
 
       onConfirm();
     },
@@ -89,9 +97,13 @@ export function usePostManagement({
       type: "question" | "guide";
       tags: string[];
     }) => {
-      // 신뢰도 체크
+      // ✅ 신뢰도 기반 제재 체크
       if (clampedTrust <= 0) {
         toast.error("신뢰도 0점에서는 글을 작성할 수 없습니다.");
+        return null;
+      }
+      if (clampedTrust <= 10) {
+        toast.error("신뢰도가 너무 낮아 글을 작성할 수 없습니다. (최소 10점 필요)");
         return null;
       }
 

@@ -66,7 +66,8 @@ export function NotificationSettingsDialog({
   // 🔹 localStorage 저장 헬퍼 (계정별로 분리)
   const saveSettingsToLocal = useCallback(
     (enabled: Set<string>, allEnabled: boolean, uid?: string | null) => {
-      const owner = uid ?? auth.currentUser?.uid ?? "guest";
+      const owner = uid ?? auth.currentUser?.uid;
+      if (!owner) return; // 로그인하지 않은 경우 localStorage에 저장하지 않음
       const arr = Array.from(enabled);
       safeLocalStorage.setItem(`notificationSettings:${owner}`, JSON.stringify(arr));
       safeLocalStorage.setItem(`allNotificationsEnabled:${owner}`, allEnabled.toString());
@@ -122,14 +123,14 @@ export function NotificationSettingsDialog({
   // 🔹 초기 로드: localStorage → Firestore 순으로 합쳐서 상태 구성
   useEffect(() => {
     const defaultCategoryIds = categories.map((cat) => cat.id);
-    const owner = auth.currentUser?.uid ?? "guest";
+    const owner = auth.currentUser?.uid;
 
     // 1) localStorage 기반 기본값
     let initialEnabled = new Set<string>(defaultCategoryIds);
     let initialAllEnabled = true;
 
-    const savedSettings = safeLocalStorage.getItem(`notificationSettings:${owner}`);
-    const savedAllEnabled = safeLocalStorage.getItem(`allNotificationsEnabled:${owner}`);
+    const savedSettings = owner ? safeLocalStorage.getItem(`notificationSettings:${owner}`) : null;
+    const savedAllEnabled = owner ? safeLocalStorage.getItem(`allNotificationsEnabled:${owner}`) : null;
 
     if (savedSettings) {
       try {
@@ -150,6 +151,7 @@ export function NotificationSettingsDialog({
 
     const uid = auth.currentUser?.uid;
     if (!uid) {
+      // 로그인하지 않은 경우 기본값 사용
       setEnabledCategories(initialEnabled);
       setAllNotificationsEnabled(initialAllEnabled);
       setSettingsLoaded(true);

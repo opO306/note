@@ -25,6 +25,7 @@ import {
   Star,
   Bookmark,
   Eye,
+  RotateCw,
 } from "lucide-react";
 import type { Post, Reply } from "../types";
 
@@ -80,6 +81,10 @@ interface PostDetailViewProps {
   // 노트 저장 관련 (optional)
   onSaveNote?: () => void;
   hideSaveNote?: boolean;
+
+  // 새로고침 관련 (optional)
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 // 상대시간 전용 컴포넌트로 타이머 리렌더 범위 국소화
@@ -125,6 +130,8 @@ export function PostDetailView({
   onReportReply,
   renderContentWithMentions,
   canSubmitReply,
+  onRefresh,
+  isRefreshing = false,
 }: PostDetailViewProps) {
   const now = useNow(60_000);
   const scrollRef = useScrollRestoration({
@@ -194,12 +201,27 @@ export function PostDetailView({
   return (
     <div className="h-full flex flex-col">
       {/* 헤더 */}
-      <div className="bg-card/95 border-b border-border p-4 flex-shrink-0 safe-top">
-        <div className="flex items-center space-x-3">
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h2 className="font-medium">게시글 상세</h2>
+      <div className="bg-card/95 border-b border-border px-4 pb-4 flex-shrink-0 safe-top" style={{ paddingTop: 'calc(var(--safe-area-inset-top) + 1rem)' }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <h2 className="font-medium">게시글 상세</h2>
+          </div>
+          {onRefresh && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="touch-target"
+            >
+              <RotateCw
+                className={`w-5 h-5 text-muted-foreground ${isRefreshing ? "animate-spin" : ""}`}
+              />
+            </Button>
+          )}
         </div>
       </div>
 

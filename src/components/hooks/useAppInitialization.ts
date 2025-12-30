@@ -16,7 +16,6 @@ interface UseAppInitializationReturn {
         profileImage: string;
     };
     globalError: string | null;
-    isGuest: boolean;
     resetAuthState: () => Promise<void>;
 }
 
@@ -152,10 +151,6 @@ export function useAppInitialization(): UseAppInitializationReturn {
         return cacheResult?.userData ?? { nickname: "", email: "", profileImage: "" };
     });
     const [globalError] = useState<string | null>(null);
-    const [isGuest, setIsGuest] = useState(() => {
-        // 캐시가 있으면 게스트가 아님, 없으면 초기값은 null (아직 확인 안됨)
-        return !cacheResult;
-    });
     const authStateCheckedRef = useRef(false); // onAuthStateChanged 호출 여부 추적
 
     useEffect(() => {
@@ -245,7 +240,6 @@ export function useAppInitialization(): UseAppInitializationReturn {
                                 email: cache.email,
                                 profileImage: cache.profileImage,
                             });
-                            setIsGuest(false);
 
                             if (!cache.nickname) {
                                 setInitialScreen("nickname");
@@ -358,7 +352,6 @@ export function useAppInitialization(): UseAppInitializationReturn {
                                     email: cache.email,
                                     profileImage: cache.profileImage,
                                 });
-                                setIsGuest(false);
 
                                 if (!cache.nickname) {
                                     setInitialScreen("nickname");
@@ -465,14 +458,13 @@ export function useAppInitialization(): UseAppInitializationReturn {
                             });
                         }
                         const nextUserData = {
-                            nickname: "",
-                            email: user.email!,
-                            profileImage: "", // 항상 빈 문자열 (Dicebear 사용)
-                        };
-                        setUserData(nextUserData);
-                        setInitialScreen("nickname");
-                        setIsGuest(false);
-                        // 신규 유저 캐시 저장
+                                    nickname: "",
+                                    email: user.email!,
+                                    profileImage: "", // 항상 빈 문자열 (Dicebear 사용)
+                                };
+                                setUserData(nextUserData);
+                                setInitialScreen("nickname");
+                                // 신규 유저 캐시 저장
                         try {
                             if (typeof window !== "undefined") {
                                 const cache: AppInitCache = {
@@ -507,7 +499,6 @@ export function useAppInitialization(): UseAppInitializationReturn {
                         };
                         setUserData(nextUserData);
                         setInitialScreen("nickname");
-                        setIsGuest(false);
                         try {
                             if (typeof window !== "undefined") {
                                 const cache: AppInitCache = {
@@ -559,7 +550,6 @@ export function useAppInitialization(): UseAppInitializationReturn {
                             profileImage,
                         };
                         setUserData(nextUserData);
-                        setIsGuest(false);
 
                         if (!nickname) {
                             setInitialScreen("nickname");
@@ -604,7 +594,6 @@ export function useAppInitialization(): UseAppInitializationReturn {
                 // ✅ 로그아웃 상태 - 즉시 로그인 화면 표시
                 setUserData({ nickname: "", email: "", profileImage: "" });
                 setInitialScreen("login");
-                setIsGuest(true);
                 setIsLoading(false);
             }
 
@@ -661,7 +650,6 @@ export function useAppInitialization(): UseAppInitializationReturn {
         // ✅ 로그아웃 즉시 상태 업데이트 (onAuthStateChanged를 기다리지 않음)
         setUserData({ nickname: "", email: "", profileImage: "" });
         setInitialScreen("login");
-        setIsGuest(true);
         setIsLoading(false);
 
         // 네이티브 플랫폼과 웹 플랫폼 모두 처리
@@ -681,5 +669,5 @@ export function useAppInitialization(): UseAppInitializationReturn {
         }
     }, []);
 
-    return { isLoading, initialScreen, userData, globalError, isGuest, resetAuthState };
+    return { isLoading, initialScreen, userData, globalError, resetAuthState };
 }

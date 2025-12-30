@@ -376,9 +376,8 @@ const RankingCard = React.memo(function RankingCard({ item, index, type, profile
     <Card
       className={`list-optimized ${index < 3
         ? "bg-gradient-to-r from-muted/50 to-muted/30"
-        : ""
+        : "bg-card"
         }`}
-      style={index >= 3 ? { backgroundColor: 'var(--card)' } : undefined}
     >
       <CardContent className="p-4">
         <div className="flex items-center space-x-3">

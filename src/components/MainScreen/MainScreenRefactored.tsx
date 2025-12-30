@@ -938,6 +938,7 @@ function MainScreenInner({
   useEffect(() => syncLayer("category", showCategoryScreen), [showCategoryScreen, syncLayer]);
   useEffect(() => syncLayer("notificationSettings", showNotificationSettings), [showNotificationSettings, syncLayer]);
   useEffect(() => syncLayer("ranking", visibility.showRanking), [visibility.showRanking, syncLayer]);
+  useEffect(() => syncLayer("bookmarks", visibility.showBookmarks), [visibility.showBookmarks, syncLayer]);
   useEffect(() => syncLayer("search", showSearchScreen), [showSearchScreen, syncLayer]);
   useEffect(() => syncLayer("quiz", route.name === "quiz"), [route.name, syncLayer]);
   useEffect(() => syncLayer("notes", route.name === "notes"), [route.name, syncLayer]);
@@ -1111,6 +1112,10 @@ function MainScreenInner({
         break;
       case "ranking":
         goHome();
+        break;
+      case "bookmarks":
+        setRoute({ name: "home" });
+        setCurrentScreen("home");
         break;
       case "quiz":
         setRoute({ name: "home" });
@@ -1411,6 +1416,11 @@ function MainScreenInner({
             setShowWriteScreen(true);
             pushLayer("write");
           }}
+          onNavigateToNotes={() => {
+            // 노트 화면으로 이동
+            setRoute({ name: "notes" });
+            setCurrentScreen("home");
+          }}
         />
       </Suspense>
     );
@@ -1445,36 +1455,46 @@ function MainScreenInner({
   if (isNoteDetailVisible) {
     return (
       <Suspense fallback={<ScreenFallback />}>
-        <NoteDetailScreen
-          noteId={route.noteId}
-          onBack={() => {
-            setRoute({ name: "notes" });
-            setCurrentScreen("home");
-          }}
-          onGoWrite={(draft) => {
-            // 1) 초안 주입 (노트에서 온 건 일반 글)
-            setWriteDraft({ ...draft, postType: "guide" });
-            // 2) noteDetail 화면 닫고 home으로 복귀
-            setRoute({ name: "home" });
-            setCurrentScreen("home");
+        <div className="w-full h-full flex flex-col">
+          <NoteDetailScreen
+            noteId={route.noteId}
+            onBack={() => {
+              setRoute({ name: "notes" });
+              setCurrentScreen("home");
+            }}
+            onGoWrite={(draft) => {
+              // 1) 초안 주입 (노트에서 온 건 일반 글)
+              setWriteDraft({ ...draft, postType: "guide" });
+              // 2) noteDetail 화면 닫고 home으로 복귀
+              setRoute({ name: "home" });
+              setCurrentScreen("home");
 
-            // 3) 글쓰기 열기
-            setShowWriteScreen(true);
-          }}
-          onOpenSourcePost={(postId) => {
-            // ✅ 지금 보고 있는 noteDetail의 noteId를 기억해 둠 (돌아갈 곳)
-            postDetailReturnNoteIdRef.current = route.noteId;
+              // 3) 글쓰기 열기
+              setShowWriteScreen(true);
+            }}
+            onOpenSourcePost={(postId) => {
+              // ✅ 지금 보고 있는 noteDetail의 noteId를 기억해 둠 (돌아갈 곳)
+              postDetailReturnNoteIdRef.current = route.noteId;
 
-            const post = posts.find((p) => String(p.id) === String(postId));
-            if (!post) {
-              toast.error("원문 게시글을 찾을 수 없어요.");
-              return;
-            }
+              const post = posts.find((p) => String(p.id) === String(postId));
+              if (!post) {
+                toast.error("원문 게시글을 찾을 수 없어요.");
+                return;
+              }
 
-            // ✅ source를 notes로 설정해서 close 시 노트로 복귀시키기
-            openPostDetail(post, "notes" as any);
-          }}
-        />
+              // ✅ source를 notes로 설정해서 close 시 노트로 복귀시키기
+              openPostDetail(post, "notes" as any);
+            }}
+          />
+          <BottomNavigation
+            onHomeClick={navigateToHome}
+            onRankingClick={navigateToRanking}
+            onBookmarksClick={navigateToBookmarks}
+            onMyPageClick={navigateToMyPage}
+            onWriteClick={() => setShowCreateSheet(true)}
+            activeTab={currentScreen}
+          />
+        </div>
       </Suspense>
     );
   }
@@ -1580,6 +1600,8 @@ function MainScreenInner({
               renderContentWithMentions={renderContentWithMentions}
               canSubmitReply={replyActions.canSubmitReply}
               blockedUserIds={blockedUserIds} // 🆕 차단 목록 전달
+              onRefresh={handleRefresh}
+              isRefreshing={isRefreshing}
             />
           ) : (
             <>
@@ -1948,6 +1970,11 @@ function MainScreenInner({
                     achievementCount={0}
                     titleCount={0}
                     guideCount={0}
+                    currentTitle={
+                      isMyself
+                        ? titleActions.currentTitle
+                        : (profileOwnerProfile?.currentTitleId as string | undefined) ?? ""
+                    }
                     followerCount={followerCountForProfile}
                     followingCount={followingCountForProfile}
                     followerUsers={followerUsersForProfile}

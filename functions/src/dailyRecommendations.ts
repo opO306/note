@@ -68,10 +68,12 @@ interface DigestPayload {
     };
 }
 
-const WINDOW_DAYS = 14; // 최근 7~14일 신호만 사용 (최대 14일)
+// ✅ 비용 절감: 최근 7일만 조회 (14일 → 7일로 감소)
+const WINDOW_DAYS = 7; // 최근 7일 신호만 사용
 const DIGEST_COLLECTION = "user_morning_digest";
 const ACTIVITY_ROOT = "user_activity";
-const MAX_USERS_PER_RUN = 500;
+// ✅ 비용 절감: 한 번에 처리할 사용자 수 감소 (500 → 200)
+const MAX_USERS_PER_RUN = 200;
 
 const WEIGHTS = {
     view: 1,
@@ -134,11 +136,12 @@ async function collectCategorySignals(
 
     const activityRef = db.collection(ACTIVITY_ROOT).doc(uid);
 
+    // ✅ 비용 절감: limit 값 감소 (7일 데이터만 사용하므로 충분)
     const [viewsSnap, searchSnap, bookmarkSnap, lanternSnap] = await Promise.all([
-        activityRef.collection("viewLogs").where("createdAt", ">=", start).where("createdAt", "<", end).limit(800).get(),
-        activityRef.collection("searchLogs").where("createdAt", ">=", start).where("createdAt", "<", end).limit(300).get(),
-        db.collection("user_bookmarks").doc(uid).collection("posts").where("createdAt", ">=", start).where("createdAt", "<", end).limit(500).get(),
-        db.collection("user_lanterns").doc(uid).collection("posts").where("createdAt", ">=", start).where("createdAt", "<", end).limit(500).get(),
+        activityRef.collection("viewLogs").where("createdAt", ">=", start).where("createdAt", "<", end).limit(400).get(), // 800 → 400
+        activityRef.collection("searchLogs").where("createdAt", ">=", start).where("createdAt", "<", end).limit(150).get(), // 300 → 150
+        db.collection("user_bookmarks").doc(uid).collection("posts").where("createdAt", ">=", start).where("createdAt", "<", end).limit(250).get(), // 500 → 250
+        db.collection("user_lanterns").doc(uid).collection("posts").where("createdAt", ">=", start).where("createdAt", "<", end).limit(250).get(), // 500 → 250
     ]);
 
     viewsSnap.forEach((docSnap) => {

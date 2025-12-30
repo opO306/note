@@ -15,7 +15,7 @@ interface UsePostsOptions {
     includeHidden?: boolean;
 }
 
-const INITIAL_POST_LIMIT = 24; // 초기 진입 시 가져올 게시글 개수 (요금/렌더링 비용 균형)
+const INITIAL_POST_LIMIT = 10; // ✅ 비용 절감: 초기 로드 24개 → 10개로 감소
 
 export function usePosts(options?: UsePostsOptions) {
     const { includeHidden = false } = options ?? {};

@@ -74,6 +74,7 @@ export function usePostActions({
                     lanterns: 0,
                     replies: [],
                     replyCount: 0,
+                    comments: 0, // UI 표시용 comments 필드 초기화
                     views: 0,
                 });
 

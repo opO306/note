@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as logger from "firebase-functions/logger";
 import * as crypto from "crypto";
 
 // core.ts 파일에서 공유 모듈과 함수를 가져옵니다.
@@ -8,8 +9,10 @@ import {
     checkRateLimit,
     batchUpdateSnapshot,
     DELETED_USER_NAME,
-    updateTrustScore // 🚨 [수정 1] updateTrustScore를 import 목록에 추가합니다.
+    updateTrustScore, // 🚨 [수정 1] updateTrustScore를 import 목록에 추가합니다.
+    containsProfanity // ✅ 닉네임 욕설 필터링용
 } from "./core";
+import { sendPushNotification } from "./notificationService";
 
 // =====================================================
 // Callable Functions (Client-invokable)
@@ -28,6 +31,11 @@ export const finalizeOnboarding = onCall({ region: "asia-northeast3" }, async (r
 
     if (!/^[가-힣a-zA-Z0-9]{2,12}$/.test(nickname) || nickname === DELETED_USER_NAME) {
         throw new HttpsError("invalid-argument", "닉네임은 2~12자의 한글, 영문, 숫자만 사용할 수 있습니다.");
+    }
+
+    // ✅ 욕설 필터링 검사
+    if (await containsProfanity(nickname)) {
+        throw new HttpsError("invalid-argument", "부적절한 단어가 포함된 닉네임은 사용할 수 없습니다.");
     }
 
     const snap = await db.collection("users").where("nicknameLower", "==", nicknameLower).limit(1).get();
@@ -234,6 +242,52 @@ export const toggleLantern = onCall({ region: "asia-northeast3" }, async (reques
 });
 
 /**
+ * 4-1. 답글 등불 켜기/끄기 (좋아요 기능)
+ */
+export const toggleReplyLantern = onCall({ region: "asia-northeast3" }, async (request) => {
+    const { auth, data } = request;
+    if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+    
+    const postId = data?.postId as string;
+    const replyId = data?.replyId;
+    
+    if (!postId) throw new HttpsError("invalid-argument", "postId가 필요합니다.");
+    if (replyId === undefined || replyId === null) {
+        throw new HttpsError("invalid-argument", "replyId가 필요합니다.");
+    }
+
+    const postRef = db.collection("posts").doc(postId);
+    // 답글 등불 경로: posts/{postId}/replyLanterns/{replyId}_{uid}
+    const compositeId = `${replyId}_${auth.uid}`;
+    const replyLanternRef = postRef.collection("replyLanterns").doc(compositeId);
+
+    await db.runTransaction(async (tx) => {
+        // 1. 게시글 읽기 (존재 여부 확인)
+        const postSnap = await tx.get(postRef);
+        if (!postSnap.exists) {
+            throw new HttpsError("not-found", "게시글을 찾을 수 없습니다.");
+        }
+
+        // 2. 답글 등불 여부 읽기
+        const replyLanternSnap = await tx.get(replyLanternRef);
+
+        if (replyLanternSnap.exists) {
+            // [끄기] - 문서 삭제 (트리거가 자동으로 replies 배열의 lanterns 카운트를 -1)
+            tx.delete(replyLanternRef);
+        } else {
+            // [켜기] - 문서 생성 (트리거가 자동으로 replies 배열의 lanterns 카운트를 +1)
+            tx.set(replyLanternRef, {
+                replyId: Number(replyId),
+                uid: auth.uid,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+    });
+
+    return { success: true };
+});
+
+/**
  * 5. 칭호 구매
  */
 export const purchaseTitle = onCall({ region: "asia-northeast3" }, async (request) => {
@@ -289,31 +343,123 @@ export const selectGuide = onCall({ region: "asia-northeast3" }, async (request)
     const GUIDE_REWARD = 5;
 
     const postRef = db.collection("posts").doc(postIdStr);
-    const replyRef = postRef.collection("replies").doc(replyIdStr);
+    const replyIdNum = typeof replyId === "number" ? replyId : parseInt(replyIdStr, 10);
 
     await db.runTransaction(async (tx) => {
-        const [postSnap, replySnap] = await Promise.all([tx.get(postRef), tx.get(replyRef)]);
-        if (!postSnap.exists || !replySnap.exists) throw new HttpsError("not-found", "게시글 또는 댓글을 찾을 수 없습니다.");
+        const postSnap = await tx.get(postRef);
+        if (!postSnap.exists) throw new HttpsError("not-found", "게시글을 찾을 수 없습니다.");
 
         const postData = postSnap.data()!;
-        const replyData = replySnap.data()!;
+        const replies = (postData.replies || []) as any[];
 
-        if (postData.authorUid !== auth.uid) throw new HttpsError("permission-denied", "게시글 작성자만 길잡이를 채택할 수 있습니다.");
-        if (postData.guideReplyId) throw new HttpsError("failed-precondition", "이미 길잡이가 채택된 글입니다.");
+        // replies 배열에서 replyId와 일치하는 답글 찾기
+        const replyIndex = replies.findIndex((r: any) => {
+            const rId = typeof r.id === "number" ? r.id : parseInt(String(r.id || ""), 10);
+            return rId === replyIdNum;
+        });
+
+        if (replyIndex === -1) {
+            throw new HttpsError("not-found", "답글을 찾을 수 없습니다.");
+        }
+
+        const replyData = replies[replyIndex];
+
+        if (postData.authorUid !== auth.uid) {
+            throw new HttpsError("permission-denied", "게시글 작성자만 길잡이를 채택할 수 있습니다.");
+        }
+        if (postData.guideReplyId) {
+            throw new HttpsError("failed-precondition", "이미 길잡이가 채택된 글입니다.");
+        }
 
         const replyAuthorUid = replyData.authorUid;
-        if (replyAuthorUid === auth.uid) throw new HttpsError("failed-precondition", "자신의 댓글은 길잡이로 채택할 수 없습니다.");
-        if (!replyAuthorUid) throw new HttpsError("data-loss", "댓글 작성자 정보가 없습니다.");
+        if (replyAuthorUid === auth.uid) {
+            throw new HttpsError("failed-precondition", "자신의 댓글은 길잡이로 채택할 수 없습니다.");
+        }
+        if (!replyAuthorUid) {
+            throw new HttpsError("data-loss", "댓글 작성자 정보가 없습니다.");
+        }
+
+        // replies 배열에서 해당 답글의 isGuide를 true로 업데이트
+        const updatedReplies = [...replies];
+        updatedReplies[replyIndex] = { ...replyData, isGuide: true };
 
         const replyUserRef = db.collection("users").doc(replyAuthorUid);
 
-        tx.update(postRef, { guideReplyId: replyId, guideReplyAuthorUid: replyAuthorUid });
-        tx.update(replyRef, { isGuide: true });
+        tx.update(postRef, {
+            guideReplyId: replyIdNum,
+            guideReplyAuthorUid: replyAuthorUid,
+            replies: updatedReplies,
+        });
         tx.set(replyUserRef, {
             guideCount: admin.firestore.FieldValue.increment(1),
             lumenBalance: admin.firestore.FieldValue.increment(GUIDE_REWARD),
             lumenTotalEarned: admin.firestore.FieldValue.increment(GUIDE_REWARD),
         }, { merge: true });
     });
+
+    // ✅ 길잡이 선택 알림 발송
+    try {
+        const postSnap = await postRef.get();
+        if (postSnap.exists) {
+            const postData = postSnap.data()!;
+            const replies = (postData.replies || []) as any[];
+            const replyData = replies.find((r: any) => {
+                const rId = typeof r.id === "number" ? r.id : parseInt(String(r.id || ""), 10);
+                return rId === replyIdNum;
+            });
+
+            if (replyData) {
+                const replyAuthorUid = replyData.authorUid;
+                const postTitle = postData.title || "게시글";
+                const postAuthorNickname = postData.author || "작성자";
+                
+                if (replyAuthorUid && replyAuthorUid !== auth.uid) {
+                    // 1. Firestore에 알림 문서 생성
+                    const notifRef = db
+                        .collection("user_notifications")
+                        .doc(replyAuthorUid)
+                        .collection("items")
+                        .doc();
+                    
+                    const nowMs = Date.now();
+                    const notificationTitle = "길잡이로 채택되었어요 ⭐";
+                    const notificationBody = `"${postTitle.substring(0, 30)}${postTitle.length > 30 ? '...' : ''}" 글에서 회원님의 답변이 길잡이로 선택되었습니다.`;
+                    
+                    await notifRef.set({
+                        id: notifRef.id,
+                        type: "guide",
+                        priority: "high",
+                        title: notificationTitle,
+                        message: notificationBody,
+                        timestamp: nowMs,
+                        read: false,
+                        data: {
+                            postId: postIdStr,
+                            replyId: replyIdNum,
+                            userId: auth.uid,
+                            userName: postAuthorNickname,
+                        },
+                        toUserUid: replyAuthorUid,
+                        fromUserUid: auth.uid,
+                        categoryId: postData.categoryId ?? postData.category ?? null,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                    
+                    // 2. 푸시 알림 발송 (onNotificationCreated 트리거가 자동으로 처리하지만, 여기서도 직접 발송)
+                    await sendPushNotification({
+                        targetUid: replyAuthorUid,
+                        type: "guide_selected",
+                        title: notificationTitle,
+                        body: notificationBody,
+                        link: `/post/${postIdStr}`
+                    });
+                }
+            }
+        }
+    } catch (error) {
+        // 알림 발송 실패는 로그만 남기고 계속 진행
+        logger.error("[selectGuide] 알림 발송 실패", error);
+    }
+
     return { success: true };
 });

@@ -9,6 +9,7 @@ import { auth, functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
 import { NicknameConfirmModal } from "./modals/NicknameConfirmModal";
 import { FloatingSymbolItem } from "@/components/FloatingSymbolItem";
+import { containsProfanity } from "./utils/profanityFilter";
 
 const cursiveSymbols = [
   "𝓐", "𝓑", "𝓒", "𝓓", "𝓔", "𝓕",
@@ -71,6 +72,12 @@ export function NicknameScreen({
     }
     if (!/^[가-힣a-zA-Z0-9]+$/.test(trimmed)) {
       setErrorMsg("한글, 영문, 숫자만 사용할 수 있어요.");
+      return;
+    }
+    
+    // ✅ 욕설 필터링 검사
+    if (containsProfanity(trimmed)) {
+      setErrorMsg("부적절한 단어가 포함되어 있습니다.");
       return;
     }
 

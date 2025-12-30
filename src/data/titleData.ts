@@ -71,6 +71,7 @@ export const ALL_TITLE_LABELS: Record<string, string> = {
     'explore_inquirer': '질문자',
     'explore_investigator': '조사자',
     'explore_philosopher': '사색가',
+    'explore_seeker': '탐색자',
     'explore_steady_questioner': '꾸준한 질문러',
     'famous_guide': '유명한 길잡이',
     'first_explore': '탐색자',

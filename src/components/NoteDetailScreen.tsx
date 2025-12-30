@@ -2,6 +2,10 @@
 import React from "react";
 import { doc, onSnapshot, deleteDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/firebase";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ArrowLeft, MoreHorizontal, Edit, Trash2, FileText } from "lucide-react";
 
 type Props = {
     noteId: string;
@@ -98,125 +102,230 @@ export default function NoteDetailScreen({ noteId, onBack, onGoWrite, onOpenSour
         }
     };
 
+    // 본문을 섹션별로 파싱하는 함수
+    const parseBodySections = React.useMemo(() => {
+        if (!note?.body) return [];
+        
+        const lines = note.body.split('\n');
+        const sections: Array<{ title: string; content: string }> = [];
+        let currentSection: { title: string; content: string } | null = null;
+
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            
+            // "- " 또는 "### "로 시작하는 줄은 새 섹션
+            if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('### ')) {
+                // 이전 섹션 저장
+                if (currentSection) {
+                    sections.push({
+                        ...currentSection,
+                        content: currentSection.content.trim()
+                    });
+                }
+                // 새 섹션 시작
+                const title = trimmedLine.replace(/^(?:- |### )/, '').trim();
+                currentSection = {
+                    title,
+                    content: ''
+                };
+            } else if (currentSection) {
+                // 현재 섹션에 내용 추가
+                if (currentSection.content) {
+                    currentSection.content += '\n' + line;
+                } else {
+                    currentSection.content = line;
+                }
+            }
+        }
+
+        // 마지막 섹션 저장
+        if (currentSection) {
+            sections.push({
+                ...currentSection,
+                content: currentSection.content.trim()
+            });
+        }
+
+        return sections;
+    }, [note?.body]);
+
     return (
-        <div className="w-full h-full bg-background text-foreground flex flex-col">
-            {/* 상단바 */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="px-3 py-2 rounded-xl text-sm bg-accent/50 hover:bg-accent"
-                >
-                    뒤로
-                </button>
-
-                <div className="flex-1">
-                    <div className="text-base font-semibold leading-tight">노트</div>
-                    <div className="text-xs text-muted-foreground">저장된 내용</div>
-                </div>
-
-                {!isEditing ? (
-                    <>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (!note) return;
-                                setIsEditing(true);
-                                setEditTitle(note.title ?? "");
-                                setEditBody(note.body ?? "");
-                            }}
-                            className="px-3 py-2 rounded-xl text-sm bg-accent/50 hover:bg-accent"
-                        >
-                            수정
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={handleDelete}
-                            className="px-3 py-2 rounded-xl text-sm bg-destructive text-destructive-foreground hover:opacity-90"
-                        >
-                            삭제
-                        </button>
-
-                        {sourcePostId && (
-                            <button
-                                type="button"
-                                onClick={() => onOpenSourcePost?.(sourcePostId)}
-                                className="px-3 py-2 rounded-xl text-sm bg-accent/50 hover:bg-accent"
+        <div className="h-full flex flex-col">
+            {/* 헤더 */}
+            <div className="bg-card/95 border-b border-border px-4 pb-4 flex-shrink-0 safe-top" style={{ paddingTop: 'calc(var(--safe-area-inset-top) + 1rem)' }}>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                        <Button variant="ghost" size="icon" onClick={onBack}>
+                            <ArrowLeft className="w-5 h-5" />
+                        </Button>
+                        <h2 className="font-medium">노트 상세</h2>
+                    </div>
+                    {!isEditing && (
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="ghost" size="icon" className="touch-target">
+                                    <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 p-2" align="end">
+                                <div className="space-y-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full justify-start"
+                                        onClick={() => {
+                                            if (!note) return;
+                                            setIsEditing(true);
+                                            setEditTitle(note.title ?? "");
+                                            setEditBody(note.body ?? "");
+                                        }}
+                                    >
+                                        <Edit className="w-4 h-4 mr-2" />
+                                        수정하기
+                                    </Button>
+                                    {sourcePostId && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="w-full justify-start"
+                                            onClick={() => onOpenSourcePost?.(sourcePostId)}
+                                        >
+                                            <FileText className="w-4 h-4 mr-2" />
+                                            원문 보기
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full justify-start"
+                                        onClick={() => {
+                                            if (!note) return;
+                                            onGoWrite({ title: note.title || "", body: note.body || "" });
+                                        }}
+                                    >
+                                        <FileText className="w-4 h-4 mr-2" />
+                                        글쓰기 이어서
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full justify-start text-red-500"
+                                        onClick={handleDelete}
+                                    >
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        삭제하기
+                                    </Button>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                    )}
+                    {isEditing && (
+                        <div className="flex items-center space-x-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                    setIsEditing(false);
+                                    setEditTitle(note?.title ?? "");
+                                    setEditBody(note?.body ?? "");
+                                }}
                             >
-                                원문 보기
-                            </button>
-                        )}
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (!note) return;
-                                onGoWrite({ title: note.title || "", body: note.body || "" });
-                            }}
-                            className="px-3 py-2 rounded-xl text-sm bg-primary text-primary-foreground hover:bg-primary/90"
-                        >
-                            글쓰기 이어서
-                        </button>
-
-                    </>
-                ) : (
-                    <>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setIsEditing(false);
-                                setEditTitle(note?.title ?? "");
-                                setEditBody(note?.body ?? "");
-                            }}
-                            className="px-3 py-2 rounded-xl text-sm bg-accent/50 hover:bg-accent"
-                        >
-                            취소
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={handleSave}
-                            className="px-3 py-2 rounded-xl text-sm bg-primary text-primary-foreground hover:bg-primary/90"
-                        >
-                            저장
-                        </button>
-                    </>
-                )}
+                                취소
+                            </Button>
+                            <Button
+                                variant="default"
+                                size="sm"
+                                onClick={handleSave}
+                            >
+                                저장
+                            </Button>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-4">
-                {loading && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
-                {!loading && error && <div className="text-sm text-red-500">{error}</div>}
+            {/* 노트 내용 */}
+            <div className="flex-1 scroll-container">
+                <div className="px-4 py-3 pb-4 space-y-4">
+                    {loading && (
+                        <Card className="border-border/60 shadow-sm bg-card/80 backdrop-blur-sm">
+                            <CardContent className="p-6">
+                                <div className="text-sm text-muted-foreground">불러오는 중...</div>
+                            </CardContent>
+                        </Card>
+                    )}
+                    {!loading && error && (
+                        <Card className="border-border/60 shadow-sm bg-card/80 backdrop-blur-sm">
+                            <CardContent className="p-6">
+                                <div className="text-sm text-red-500">{error}</div>
+                            </CardContent>
+                        </Card>
+                    )}
 
-                {!loading && !error && note && (
-                    <div className="space-y-3">
-                        {!isEditing ? (
-                            <>
-                                <div className="text-lg font-bold">{note.title || "(제목 없음)"}</div>
-                                <pre className="whitespace-pre-wrap text-sm leading-6 bg-card/60 border border-border rounded-2xl p-4">
-                                    {note.body || ""}
-                                </pre>
-                            </>
-                        ) : (
-                            <>
-                                <input
-                                    value={editTitle}
-                                    onChange={(e) => setEditTitle(e.target.value)}
-                                    className="w-full px-3 py-3 rounded-2xl bg-card border border-border outline-none focus:ring-2 focus:ring-primary/30"
-                                    placeholder="제목"
-                                />
-                                <textarea
-                                    value={editBody}
-                                    onChange={(e) => setEditBody(e.target.value)}
-                                    rows={12}
-                                    className="w-full px-3 py-3 rounded-2xl bg-card border border-border outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-                                    placeholder="내용"
-                                />
-                            </>
-                        )}
-                    </div>
-                )}
+                    {!loading && !error && note && (
+                        <>
+                            {/* 제목 카드 */}
+                            <Card className="border-border/60 shadow-sm bg-card/80 backdrop-blur-sm">
+                                <CardContent className="p-6">
+                                    {!isEditing ? (
+                                        <h1 className="text-xl font-medium">{note.title || "(제목 없음)"}</h1>
+                                    ) : (
+                                        <input
+                                            value={editTitle}
+                                            onChange={(e) => setEditTitle(e.target.value)}
+                                            className="w-full px-3 py-3 rounded-2xl bg-card border border-border outline-none focus:ring-2 focus:ring-primary/30"
+                                            placeholder="제목"
+                                        />
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* 본문 카드 (모든 섹션 포함) */}
+                            <Card className="border-border/60 shadow-sm bg-card/80 backdrop-blur-sm">
+                                <CardContent className="p-6">
+                                    {!isEditing ? (
+                                        (() => {
+                                            // 파싱된 섹션이 있고, 실제로 섹션이 있는 경우
+                                            if (parseBodySections.length > 0) {
+                                                return (
+                                                    <div className="space-y-6">
+                                                        {parseBodySections.map((section, index) => (
+                                                            <div key={index} className="space-y-3">
+                                                                <h3 className="text-base font-semibold text-foreground">
+                                                                    {section.title}
+                                                                </h3>
+                                                                <div className="text-base text-foreground/90 leading-7 break-words whitespace-pre-wrap">
+                                                                    {section.content || "-"}
+                                                                </div>
+                                                                {index < parseBodySections.length - 1 && (
+                                                                    <div className="border-t border-border/60 pt-6 -mb-3"></div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            }
+                                            // 파싱된 섹션이 없으면 기존 형식으로 표시
+                                            return (
+                                                <div className="text-base text-foreground/90 leading-7 break-words whitespace-pre-wrap">
+                                                    {note.body || ""}
+                                                </div>
+                                            );
+                                        })()
+                                    ) : (
+                                        <textarea
+                                            value={editBody}
+                                            onChange={(e) => setEditBody(e.target.value)}
+                                            rows={12}
+                                            className="w-full px-3 py-3 rounded-2xl bg-card border border-border outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                                            placeholder="내용"
+                                        />
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );

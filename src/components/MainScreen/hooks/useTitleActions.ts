@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { auth, db } from "@/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { toast } from "@/toastHelper";
 import { safeLocalStorage } from "@/components/utils/storageUtils";
 import { getUserDataFromFirestore, invalidateUserDataCache } from "@/utils/userDataLoader";
@@ -204,7 +204,55 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
     },
     [currentTitle, titlesSyncReady]
   );
-  const addSpecialTitle = useCallback((_titleId: string, _titleName: string) => { /* ... */ }, []);
+  const addSpecialTitle = useCallback(
+    async (titleId: string, titleName: string): Promise<void> => {
+      if (!titlesSyncReady) {
+        console.warn("칭호 정보가 아직 준비되지 않았습니다.");
+        return;
+      }
+
+      // 이미 보유한 칭호인지 확인
+      if (ownedTitles.includes(titleId)) {
+        console.log(`이미 보유한 칭호입니다: ${titleName}`);
+        return;
+      }
+
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        console.warn("로그인이 필요합니다.");
+        return;
+      }
+
+      // 로컬 상태에 칭호 추가
+      setOwnedTitles((prev) => {
+        if (prev.includes(titleId)) return prev;
+        const updated = [...prev, titleId];
+        const ownedTitlesKey = getUserScopedStorageKey("ownedTitles");
+        safeLocalStorage.setJSON(ownedTitlesKey, updated);
+        return updated;
+      });
+
+      // Firestore에 칭호 추가
+      try {
+        const userRef = doc(db, "users", uid);
+        await updateDoc(userRef, {
+          ownedTitles: arrayUnion(titleId),
+        });
+        invalidateUserDataCache(uid);
+        toast.success(`칭호 "${titleName}" 획득! 🎉`);
+      } catch (error) {
+        console.error("칭호 추가 실패:", error);
+        // 실패 시 로컬 상태도 되돌림
+        setOwnedTitles((prev) => {
+          const filtered = prev.filter((id) => id !== titleId);
+          const ownedTitlesKey = getUserScopedStorageKey("ownedTitles");
+          safeLocalStorage.setJSON(ownedTitlesKey, filtered);
+          return filtered;
+        });
+      }
+    },
+    [ownedTitles, titlesSyncReady]
+  );
   const hasTitle = useCallback((titleId: string) => ownedTitles.includes(titleId), [ownedTitles]);
 
   return { ownedTitles, currentTitle, titlesSyncReady, handleTitlePurchase, handleTitleEquip, handleTitleUnequip, addSpecialTitle, hasTitle, setOwnedTitles, setCurrentTitle };

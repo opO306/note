@@ -32,8 +32,8 @@ interface WeeklyQuiz {
 }
 
 const PROJECT_ID = process.env.GCLOUD_PROJECT || process.env.VERTEX_PROJECT_ID; // Firebase 배포 시 GCLOUD_PROJECT 자동 설정됨
-const LOCATION = "asia-northeast3";
-const MODEL_ID = "gemini-1.5-flash-001"; // Flash 모델이 빠르고 저렴하며 퀴즈 생성에 충분함
+const LOCATION = "us-central1"; // Gemini 2.0은 us-central1에서만 사용 가능
+const MODEL_ID = "gemini-2.0-flash"; // Gemini 2.0 Flash 모델 사용
 
 const QUIZ_COLLECTION = "weekly_quizzes";
 const QUESTIONS_PER_CATEGORY = 5; // 한 주차, 한 카테고리당 문제 수 (적절히 조절)
@@ -95,7 +95,7 @@ function getWeekStartEnd(weekId: string): { start: Date; end: Date } {
 async function collectSubCategoryPosts(
     subCategory: string,
     limit: number = 30,
-): Promise<Array<{ id: string; title: string; content: string; hasGuide: boolean }>> {
+): Promise<Array<{ id: string; title: string; content: string; hasGuide: boolean; lanterns: number; replyCount: number }>> {
     // 2주 이내 게시글 중 조회
     const twoWeeksAgo = admin.firestore.Timestamp.fromDate(
         new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
@@ -110,21 +110,52 @@ async function collectSubCategoryPosts(
         .limit(limit)
         .get();
 
-    const posts = postsSnap.docs.map((doc) => {
-        const data = doc.data();
-        const replies = Array.isArray(data.replies) ? data.replies : [];
-        const hasGuide = replies.some((r: any) => r?.isGuide === true);
+    const posts = postsSnap.docs
+        .map((doc) => {
+            const data = doc.data();
+            const replies = Array.isArray(data.replies) ? data.replies : [];
+            const hasGuide = replies.some((r: any) => r?.isGuide === true);
 
-        return {
-            id: doc.id,
-            title: data.title || "",
-            content: data.content || "",
-            hasGuide,
-        };
-    });
+            return {
+                id: doc.id,
+                title: (data.title || "").trim(),
+                content: (data.content || "").trim(),
+                hasGuide,
+                lanterns: data.lanterns || data.lanternCount || 0,
+                replyCount: data.replyCount || replies.length || 0,
+            };
+        })
+        // ✅ 영양가 없는 게시글 필터링
+        .filter((post) => {
+            // 제목이 너무 짧거나 비어있으면 제외
+            if (!post.title || post.title.length < 3) return false;
+            
+            // 내용이 너무 짧거나 비어있으면 제외 (최소 50자 이상)
+            if (!post.content || post.content.length < 50) return false;
+            
+            // 의미 없는 단어들만 있는 경우 제외
+            const meaninglessPatterns = /^(테스트|안녕|하이|ㅎㅎ|ㅋㅋ|ㅇㅇ|\.|,|\s)+$/i;
+            if (meaninglessPatterns.test(post.title) || meaninglessPatterns.test(post.content.slice(0, 20))) {
+                return false;
+            }
+            
+            return true;
+        });
 
     // 🚀 개선: '길잡이 채택'이 된 게시글을 우선순위로 정렬
-    posts.sort((a, b) => (b.hasGuide ? 1 : 0) - (a.hasGuide ? 1 : 0));
+    // 그 다음 등불 수, 댓글 수 순으로 정렬
+    posts.sort((a, b) => {
+        // 1순위: 길잡이 채택 여부
+        if (b.hasGuide !== a.hasGuide) {
+            return b.hasGuide ? 1 : -1;
+        }
+        // 2순위: 등불 수
+        if (b.lanterns !== a.lanterns) {
+            return b.lanterns - a.lanterns;
+        }
+        // 3순위: 댓글 수
+        return b.replyCount - a.replyCount;
+    });
 
     return posts.slice(0, 15); // 상위 15개만 후보로 사용
 }
@@ -251,13 +282,13 @@ async function getRecentSubCategories(limit = 5): Promise<string[]> {
         new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
     );
 
-    // 최근 글 200개 정도만 긁어서 카테고리 분포 확인
+    // ✅ 비용 절감: 최근 글 수 감소 (200 → 100)
     const snap = await db
         .collection("posts")
         .where("createdAt", ">=", oneWeekAgo)
         .where("hidden", "==", false)
         .orderBy("createdAt", "desc")
-        .limit(200)
+        .limit(100)
         .get();
 
     const counts: Record<string, number> = {};
@@ -293,7 +324,8 @@ export const generateWeeklyQuiz = onSchedule(
         logger.info(`[weeklyQuiz] Start generating for ${weekId}`);
 
         // 1. 핫한 서브카테고리 선정
-        const subCategories = await getRecentSubCategories(3); // 상위 3개 카테고리만
+        // ✅ 비용 절감: 서브카테고리 수 감소 (3 → 2)
+        const subCategories = await getRecentSubCategories(2); // 상위 2개 카테고리만
 
         for (const subCategory of subCategories) {
             const posts = await collectSubCategoryPosts(subCategory);
