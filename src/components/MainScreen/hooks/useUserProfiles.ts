@@ -11,6 +11,8 @@ export interface UserProfileLite {
     profileImage: string | null;
     currentTitleId: string | null;
     profileDescription: string | null;
+    currentTheme?: string | null; // 현재 사용 중인 테마
+    trustScore?: number; // 신뢰도 점수 (0~100)
     role: "admin" | "user";
     lastUpdated?: number; // ✅ 캐시 TTL 관리를 위한 타임스탬프
 }
@@ -117,7 +119,7 @@ function subscribeToFirestore(uid: string) {
         try {
             touchCache(uid);
             const snap = await getDoc(userRef);
-            
+
             if (!isActive) return;
 
             if (!snap.exists()) {
@@ -153,6 +155,8 @@ function subscribeToFirestore(uid: string) {
                     profileImage,
                     currentTitleId: typeof data.currentTitle === "string" ? data.currentTitle : null,
                     profileDescription: typeof data.profileDescription === "string" ? data.profileDescription : null,
+                    currentTheme: typeof data.currentTheme === "string" ? data.currentTheme : null,
+                    trustScore: typeof data.trustScore === "number" ? data.trustScore : undefined,
                     role: (data.role === "admin" || data.role === "user") ? data.role : "user",
                     lastUpdated: Date.now(),
                 };

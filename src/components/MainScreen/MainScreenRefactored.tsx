@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
 import type { PluginListenerHandle } from "@capacitor/core";
-import { auth, db, functions } from "../../firebase";
+import { auth, db, functions, app } from "../../firebase";
 import {
   addDoc,
   collection,
@@ -287,6 +287,34 @@ function MainScreenInner({
   onMainScreenReady,
   onSettingsOpenedFromMain,
 }: MainScreenProps) {
+  // 현재 테마 확인 (커스텀 테마일 때는 dark 클래스 적용하지 않음)
+  const [currentTheme, setCurrentTheme] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("app-theme") || "default";
+    }
+    return "default";
+  });
+
+  // 테마 변경 감지
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const savedTheme = localStorage.getItem("app-theme") || "default";
+      setCurrentTheme(savedTheme);
+    };
+
+    window.addEventListener("theme-changed", handleThemeChange);
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "app-theme") {
+        setCurrentTheme(e.newValue || "default");
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("theme-changed", handleThemeChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
   // ========================================
   // 1. 화면 상태 (Navigation)
   // ========================================
@@ -722,6 +750,17 @@ function MainScreenInner({
   const profileOwnerProfile =
     profileOwnerUid ? profileOwnerProfiles[profileOwnerUid] ?? null : null;
 
+  // 디버깅: profileOwnerProfile 확인
+  useEffect(() => {
+    if (profileOwnerUid && profileOwnerProfile) {
+      console.log("[MainScreen] profileOwnerProfile:", {
+        uid: profileOwnerUid,
+        profile: profileOwnerProfile,
+        currentTheme: profileOwnerProfile.currentTheme,
+      });
+    }
+  }, [profileOwnerUid, profileOwnerProfile]);
+
   const otherFollowStats = useOtherUserFollowStats({
     viewedNickname: activeUserProfileNickname,
     currentUserNickname: userNickname,
@@ -821,7 +860,7 @@ function MainScreenInner({
   const navigateToTheme = useCallback(() => {
     setSelectedPost(null);
     setRoute({ name: "theme" });
-  }, []);
+  }, [setRoute]);
 
   const { isOnline, wasOffline } = useOnlineStatus();
 
@@ -1041,6 +1080,16 @@ function MainScreenInner({
   const handleLayerBackInternal = useCallback((): boolean => {
     const top = popLayer();
     if (!top) {
+      // 레이어 스택이 비어있으면 route를 확인하여 처리
+      if (route.name === "theme") {
+        setRoute({ name: "myPage" });
+        return true;
+      }
+      if (route.name === "myPage") {
+        setRoute({ name: "home" });
+        setCurrentScreen("home");
+        return true;
+      }
       return false;
     }
 
@@ -1134,6 +1183,10 @@ function MainScreenInner({
         break;
       case "search":
         setRoute({ name: "home" });
+        setCurrentScreen("home");
+        break;
+      case "theme":
+        setRoute({ name: "myPage" });
         setCurrentScreen("home");
         break;
       default:
@@ -1525,8 +1578,14 @@ function MainScreenInner({
     );
   }
 
+  // 커스텀 테마인지 확인
+  const isCustomTheme = currentTheme !== "default";
+
+  // 기본 테마이면서 다크모드일 때만 'dark' 클래스 적용
+  const shouldApplyDark = !isCustomTheme && isDarkMode;
+
   return (
-    <div className={`w-full h-full relative ${isDarkMode ? "dark" : ""}`}>
+    <div className={`w-full h-full relative ${shouldApplyDark ? "dark" : ""}`}>
       <div
         className={`w-full h-full bg-background text-foreground flex flex-col absolute inset-0 ${currentScreen === "home" && !isCategoryVisible && !isSearchVisible && !isTitleShopVisible && !isUserProfileVisible && !route.name.includes('admin')
           ? "z-10 opacity-100"
@@ -1690,6 +1749,7 @@ function MainScreenInner({
                 onShowTerms={onShowTerms}
                 onShowPrivacy={onShowPrivacy}
                 onShowOpenSourceLicenses={onShowOpenSourceLicenses}
+                currentTheme={typeof window !== "undefined" ? localStorage.getItem("app-theme") || "default" : "default"}
                 onShowAttributions={onShowAttributions}
                 userPosts={myPageData.userPostsForMyPage}
                 userReplies={myPageData.userRepliesForMyPage}
@@ -1980,7 +2040,11 @@ function MainScreenInner({
                         : profileOwnerProfile?.profileDescription ?? ""
                     }
                     posts={profilePosts}
-                    trustScore={isMyself ? clampedTrust : undefined}
+                    trustScore={
+                      isMyself
+                        ? clampedTrust
+                        : (profileOwnerProfile?.trustScore as number | undefined) ?? undefined
+                    }
                     reportCount={0}
                     achievementCount={0}
                     titleCount={0}
@@ -1990,6 +2054,19 @@ function MainScreenInner({
                         ? titleActions.currentTitle
                         : (profileOwnerProfile?.currentTitleId as string | undefined) ?? ""
                     }
+                    currentTheme={(() => {
+                      if (isMyself) {
+                        return typeof window !== "undefined" ? localStorage.getItem("app-theme") || "default" : "default";
+                      }
+                      const otherUserTheme = profileOwnerProfile?.currentTheme;
+                      console.log("[MainScreen] 다른 유저 프로필 테마:", {
+                        profileOwnerUid,
+                        profileOwnerProfile,
+                        currentTheme: otherUserTheme,
+                        isMyself,
+                      });
+                      return (otherUserTheme && otherUserTheme !== "default") ? otherUserTheme : null;
+                    })()}
                     followerCount={followerCountForProfile}
                     followingCount={followingCountForProfile}
                     followerUsers={followerUsersForProfile}
@@ -2112,6 +2189,15 @@ function MainScreenInner({
                 onBack={handleLayerBack}
                 posts={myContentData.myPosts}
                 replies={myContentData.myReplies}
+                userNickname={userNickname}
+                userProfileImage={userProfileImage}
+                currentTitle={titleActions.currentTitle}
+                isPostLanterned={lanternActions.isPostLanterned}
+                isBookmarked={bookmarkActions.isBookmarked}
+                formatTimeAgo={formatTimeAgo}
+                formatCreatedAt={formatCreatedAt}
+                onLanternToggle={lanternActions.handleLanternToggle}
+                onBookmarkToggle={bookmarkActions.handleBookmarkToggle}
                 onPostClick={(postId) => {
                   const post = visiblePosts.find((p) => p.id === postId);
                   if (post) {

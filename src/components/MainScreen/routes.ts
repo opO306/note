@@ -23,6 +23,7 @@ export type MainRoute =
     | { name: "titleShop" }
     | { name: "titlesCollection" }
     | { name: "achievements" }
+    | { name: "theme" }
     | { name: "quiz" }
     | { name: "followList"; mode: "followers" | "following" }
     | { name: "myContentList"; mode: "posts" | "replies" }

@@ -129,6 +129,108 @@
   --sidebar-ring: rgba(201, 165, 50, 0.3);
 }
 
+/* 📜 전자 종이 (E-Ink) 테마: 저대비, 오래된 종이 질감 */
+:root[data-theme='e-ink'],
+html[data-theme='e-ink'],
+html[data-theme='e-ink'].dark {
+  --background: #f4f1e8;
+  --foreground: #3d3a32;
+  --card: #faf8f3;
+  --card-foreground: #3d3a32;
+  --popover: #faf8f3;
+  --popover-foreground: #3d3a32;
+  --primary: #5a564d;
+  --primary-foreground: #faf8f3;
+  --secondary: #e8e4d9;
+  --secondary-foreground: #5a564d;
+  --muted: #ede9df;
+  --muted-foreground: #7a766c;
+  --accent: #e3dfd3;
+  --accent-foreground: #3d3a32;
+  --destructive: #a85a55;
+  --destructive-foreground: #faf8f3;
+  --border: #d4cfc2;
+  --input: transparent;
+  --input-background: #f7f5ef;
+  --switch-background: #c4bfb2;
+  --ring: #5a564d33;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: #6b6b6b;
+  --chart-2: #8b8b8b;
+  --chart-3: #4a4a4a;
+  --chart-4: #b85450;
+  --chart-5: #7a7a7a;
+  --success: #5a8a5a;
+  --warning: #b8a050;
+  --info: #5a7a9a;
+  --shadow-sm: 0 1px 2px 0 rgba(61, 58, 50, 0.12);
+  --shadow-md: 0 2px 4px 0 rgba(61, 58, 50, 0.15), 0 1px 2px 0 rgba(61, 58, 50, 0.1);
+  --shadow-lg: 0 4px 8px 0 rgba(61, 58, 50, 0.18), 0 2px 4px 0 rgba(61, 58, 50, 0.12);
+  --transition-fast: .15s ease-out;
+  --transition-medium: .25s ease-out;
+  --transition-slow: .35s ease-out;
+  --sidebar: #faf8f3;
+  --sidebar-foreground: #3d3a32;
+  --sidebar-primary: #5a564d;
+  --sidebar-primary-foreground: #faf8f3;
+  --sidebar-accent: #e8e4d9;
+  --sidebar-accent-foreground: #5a564d;
+  --sidebar-border: #d4cfc2;
+  --sidebar-ring: #5a564d33;
+}
+
+/* 🏛 심야 도서관 (Midnight) 테마: 깊은 암청색, 황금색 포인트 (부드러운 색감) */
+:root[data-theme='midnight'],
+html[data-theme='midnight'],
+html[data-theme='midnight'].dark {
+  --background: #1a1f2e;
+  --foreground: #e8dcc4;
+  --card: #232937;
+  --card-foreground: #e8dcc4;
+  --popover: #232937;
+  --popover-foreground: #e8dcc4;
+  --primary: #d4af37;
+  --primary-foreground: #1a1f2e;
+  --secondary: #2a3441;
+  --secondary-foreground: #e8dcc4;
+  --muted: #2a3441;
+  --muted-foreground: #9a9a8a;
+  --accent: #2f3847;
+  --accent-foreground: #e8dcc4;
+  --destructive: #c97a6a;
+  --destructive-foreground: #1a1f2e;
+  --border: rgba(212, 175, 55, 0.3);
+  --input: #2a3441;
+  --input-background: #232937;
+  --switch-background: rgba(212, 175, 55, 0.4);
+  --ring: #d4af374d;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: #d4af37;
+  --chart-2: #a68b5b;
+  --chart-3: #8b7a5a;
+  --chart-4: #c97a6a;
+  --chart-5: #9a8b7a;
+  --success: #7a9a7a;
+  --warning: #d4af37;
+  --info: #6a8ba8;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.7), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
+  --transition-fast: .15s ease-out;
+  --transition-medium: .25s ease-out;
+  --transition-slow: .35s ease-out;
+  --sidebar: #232937;
+  --sidebar-foreground: #e8dcc4;
+  --sidebar-primary: #d4af37;
+  --sidebar-primary-foreground: #1a1f2e;
+  --sidebar-accent: #2a3441;
+  --sidebar-accent-foreground: #e8dcc4;
+  --sidebar-border: rgba(212, 175, 55, 0.3);
+  --sidebar-ring: #d4af374d;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -168,6 +270,27 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* 전자 종이 테마: 종이 질감 효과 */
+:root[data-theme='e-ink'] body,
+html[data-theme='e-ink'] body {
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(61, 58, 50, 0.03) 2px,
+      rgba(61, 58, 50, 0.03) 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      rgba(61, 58, 50, 0.02) 2px,
+      rgba(61, 58, 50, 0.02) 4px
+    );
+  background-size: 100% 100%, 100% 100%;
 }
 
 @layer base {

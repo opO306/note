@@ -467,12 +467,28 @@ export const PostCard = React.memo(
       [onBookmarkToggle, post.id]
     );
 
+    // 현재 테마 확인 (useMemo로 최적화)
+    const cardThemeClass = useMemo(() => {
+      const currentTheme = typeof window !== "undefined" 
+        ? document.documentElement.getAttribute("data-theme") || "default"
+        : "default";
+      
+      const themeClasses = {
+        "midnight": "border-l-4 border-l-[#d4af37] shadow-md bg-card/90 hover:shadow-lg hover:border-l-[#e6c85a]",
+        "e-ink": "border-l-2 border-l-[#5a564d] shadow-sm bg-card/98 border-t border-t-[#d4cfc2]/50",
+        "golden-library": "border-l-4 border-l-[#d4af37] shadow-md bg-card/90 hover:shadow-lg hover:border-l-[#e6c85a] theme-post-card-math-bg",
+        "default": "border-border/60 shadow-sm bg-card/80"
+      };
+      
+      return themeClasses[currentTheme as keyof typeof themeClasses] || themeClasses.default;
+    }, []);
+
     return (
       <Card
-        className="border-border/60 shadow-sm bg-card/80 backdrop-blur-sm hover:shadow-md transition-shadow cursor-pointer list-optimized"
+        className={`${cardThemeClass} backdrop-blur-sm transition-all cursor-pointer list-optimized`}
         onClick={handleCardClick}
       >
-        <CardContent className="p-4">
+        <CardContent className="p-4 relative z-10">
           <div className="space-y-3">
             {/* 작성자 + 시간 */}
             <div className="flex items-center space-x-3">

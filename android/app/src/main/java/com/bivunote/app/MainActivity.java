@@ -16,6 +16,9 @@ import com.getcapacitor.Bridge;
 
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.view.Window;
+import android.view.WindowManager;
+import android.graphics.Color;
 
 // Firebase 인증 플러그인 수동 등록을 위한 import
 import io.capawesome.capacitorjs.plugins.firebase.authentication.FirebaseAuthenticationPlugin;
@@ -33,6 +36,14 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(FirebaseAuthenticationPlugin.class);
         registerPlugin(InAppPurchasesPlugin.class);
         super.onCreate(savedInstanceState);
+
+        // 네비게이션 바 색상 설정 (Android 5.0+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            Window window = getWindow();
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            // 기본적으로 어두운 배경으로 설정 (테마에 따라 JavaScript에서 변경)
+            window.setNavigationBarColor(Color.parseColor("#1a1a1a"));
+        }
 
         // 첫 실행 시 권한 요청
         if (isFirstRun()) {

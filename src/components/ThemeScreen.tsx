@@ -7,7 +7,7 @@ import { Label } from "./ui/label";
 import { ArrowLeft, Palette, Moon, Sun, Sparkles, Check, Lock } from "lucide-react";
 import { toast } from "@/toastHelper";
 import { auth, db } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { app } from "../firebase";
@@ -52,6 +52,14 @@ const THEMES: Theme[] = [
     price: "₩1,000",
     preview: "🏛",
     productId: THEME_PRODUCT_IDS["midnight"],
+  },
+  {
+    id: "golden-library",
+    name: "황금빛 서재",
+    description: "고급스러운 금색과 기하학적 문양으로 프리미엄 학술 분위기를 완성합니다.",
+    price: "₩10,000",
+    preview: "✨",
+    productId: THEME_PRODUCT_IDS["golden-library"],
   },
 ];
 
@@ -124,7 +132,35 @@ export function ThemeScreen({
         localStorage.setItem("app-theme", "default");
         const htmlElement = document.documentElement;
         htmlElement.setAttribute("data-theme", "default");
-        // 기본 테마는 다크 모드 설정 유지
+        // 기본 테마는 다크 모드 설정 복원
+        const savedDarkMode = localStorage.getItem("darkMode");
+        const isDark = savedDarkMode !== null ? savedDarkMode === "true" : true;
+        if (isDark) {
+          htmlElement.classList.add("dark");
+        } else {
+          htmlElement.classList.remove("dark");
+        }
+
+        // Firestore에 기본 테마 저장
+        const uid = auth.currentUser?.uid;
+        if (uid) {
+          try {
+            await setDoc(
+              doc(db, "users", uid),
+              {
+                currentTheme: "default",
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
+          } catch (error) {
+            console.error("테마 저장 실패:", error);
+          }
+        }
+
+        // App.tsx에 테마 변경 알림
+        window.dispatchEvent(new CustomEvent("theme-changed"));
+
         toast.success("기본 테마가 적용되었습니다.");
         return;
       }
@@ -191,6 +227,24 @@ export function ThemeScreen({
       setCurrentTheme(themeId);
       localStorage.setItem("app-theme", themeId);
 
+      // Firestore에 현재 테마 저장 (프로필에 표시하기 위해)
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        try {
+          await setDoc(
+            doc(db, "users", uid),
+            {
+              currentTheme: themeId,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } catch (error) {
+          console.error("테마 저장 실패:", error);
+          // 실패해도 테마는 적용되므로 계속 진행
+        }
+      }
+
       // data-theme 속성 설정
       const htmlElement = document.documentElement;
       htmlElement.setAttribute("data-theme", themeId);
@@ -198,7 +252,22 @@ export function ThemeScreen({
       // 테마가 적용되면 다크 모드 클래스 제거 (테마가 자체 색상을 가지고 있으므로)
       if (themeId !== "default") {
         htmlElement.classList.remove("dark");
+      } else {
+        // 기본 테마로 돌아갈 때는 다크 모드 설정 복원
+        const savedDarkMode = localStorage.getItem("darkMode");
+        const isDark = savedDarkMode !== null ? savedDarkMode === "true" : true;
+        if (isDark) {
+          htmlElement.classList.add("dark");
+        } else {
+          htmlElement.classList.remove("dark");
+        }
       }
+
+      // CSS 재계산 강제 (getComputedStyle 호출로 브라우저에 재계산 요청)
+      void htmlElement.offsetHeight;
+
+      // App.tsx에 테마 변경 알림 (같은 탭에서 변경된 경우)
+      window.dispatchEvent(new CustomEvent("theme-changed"));
 
       const theme = THEMES.find((t) => t.id === themeId);
       if (!isPurchasing) {

@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 // Firebase
 import { auth, db } from "./firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 
 // App init hook
 import { useAppInitialization } from "./components/hooks/useAppInitialization";
@@ -33,6 +33,7 @@ import { LoadingOverlay } from "./components/ui/loading-animations";
 import "./styles/globals.css";
 import { uploadAndUpdateProfileImage } from "./profileImageService";
 import { toast } from "./toastHelper";
+import { setSystemBarsForTheme } from "./utils/systemBars";
 
 type AppScreen =
   | "login"
@@ -76,6 +77,12 @@ export default function App() {
   });
 
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [currentTheme, setCurrentTheme] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("app-theme") || "default";
+    }
+    return "default";
+  });
   const isInitialized = useRef(false);
 
   // initialScreen 따라 화면 이동 - 로딩이 완료되고 initialScreen이 결정된 후에만 화면 전환
@@ -96,6 +103,59 @@ export default function App() {
         email: initUserData.email,
         profileImage: initUserData.profileImage,
       });
+
+      // 사용자가 변경되었을 때 Firestore에서 테마 불러오기
+      const loadUserTheme = async () => {
+        const uid = auth.currentUser?.uid;
+        if (uid) {
+          try {
+            const userRef = doc(db, "users", uid);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+              const data = userSnap.data();
+              const userTheme = data.currentTheme || "default";
+              setCurrentTheme(userTheme);
+              localStorage.setItem("app-theme", userTheme);
+
+              const htmlElement = document.documentElement;
+              htmlElement.setAttribute("data-theme", userTheme);
+
+              if (userTheme !== "default") {
+                htmlElement.classList.remove("dark");
+              } else {
+                const savedDark = localStorage.getItem("darkMode");
+                const isDark = savedDark !== null ? savedDark === "true" : true;
+                htmlElement.classList.toggle("dark", isDark);
+              }
+
+              // 시스템 바 색상 업데이트
+              await setSystemBarsForTheme(userTheme);
+
+              // 테마 변경 이벤트 발생
+              window.dispatchEvent(new CustomEvent("theme-changed"));
+            }
+          } catch (error) {
+            console.error("테마 불러오기 실패:", error);
+          }
+        }
+      };
+
+      loadUserTheme();
+    } else if (!isLoading && !initUserData.nickname) {
+      // 로그아웃된 경우 기본 테마로 초기화
+      const resetToDefaultTheme = async () => {
+        setCurrentTheme("default");
+        localStorage.setItem("app-theme", "default");
+        const htmlElement = document.documentElement;
+        htmlElement.setAttribute("data-theme", "default");
+        const savedDark = localStorage.getItem("darkMode");
+        const isDark = savedDark !== null ? savedDark === "true" : true;
+        htmlElement.classList.toggle("dark", isDark);
+        // 시스템 바 색상 업데이트
+        await setSystemBarsForTheme("default");
+        window.dispatchEvent(new CustomEvent("theme-changed"));
+      };
+      resetToDefaultTheme();
     }
   }, [initUserData, isLoading]);
 
@@ -104,24 +164,106 @@ export default function App() {
     if (globalError) toast.error(globalError);
   }, [globalError]);
 
-  // 다크모드 및 테마 초기화
+  // 다크모드 및 테마 초기화 (Firestore에서 사용자별 테마 불러오기)
   useEffect(() => {
-    const saved = localStorage.getItem("darkMode");
-    const isDark = saved !== null ? saved === "true" : true;
-    setIsDarkMode(isDark);
-    
-    // 저장된 테마 불러오기
-    const savedTheme = localStorage.getItem("app-theme") || "default";
-    const htmlElement = document.documentElement;
-    htmlElement.setAttribute("data-theme", savedTheme);
-    
-    // 테마가 "default"가 아닐 때는 다크 모드 클래스 제거 (테마가 자체 색상을 가지고 있으므로)
-    if (savedTheme !== "default") {
-      htmlElement.classList.remove("dark");
-    } else {
-      // 기본 테마는 다크 모드 설정 유지
-      htmlElement.classList.toggle("dark", isDark);
-    }
+    const initializeTheme = async () => {
+      const saved = localStorage.getItem("darkMode");
+      const isDark = saved !== null ? saved === "true" : true;
+      setIsDarkMode(isDark);
+
+      // 현재 로그인한 사용자가 있으면 Firestore에서 테마 불러오기
+      const uid = auth.currentUser?.uid;
+      let savedTheme = "default";
+
+      if (uid) {
+        try {
+          const userRef = doc(db, "users", uid);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const data = userSnap.data();
+            savedTheme = data.currentTheme || "default";
+            // Firestore에서 불러온 테마를 localStorage에도 저장 (캐싱)
+            localStorage.setItem("app-theme", savedTheme);
+          } else {
+            // Firestore에 데이터가 없으면 기본 테마 사용
+            savedTheme = localStorage.getItem("app-theme") || "default";
+          }
+        } catch (error) {
+          console.error("테마 불러오기 실패:", error);
+          // 실패 시 localStorage에서 불러오기
+          savedTheme = localStorage.getItem("app-theme") || "default";
+        }
+      } else {
+        // 로그인하지 않은 경우 localStorage에서 불러오기
+        savedTheme = localStorage.getItem("app-theme") || "default";
+      }
+
+      setCurrentTheme(savedTheme);
+
+      const htmlElement = document.documentElement;
+      htmlElement.setAttribute("data-theme", savedTheme);
+
+      // 테마가 "default"가 아닐 때는 다크 모드 클래스 제거 (테마가 자체 색상을 가지고 있으므로)
+      if (savedTheme !== "default") {
+        htmlElement.classList.remove("dark");
+      } else {
+        // 기본 테마는 다크 모드 설정 유지
+        htmlElement.classList.toggle("dark", isDark);
+      }
+
+      // 시스템 바 색상 업데이트
+      await setSystemBarsForTheme(savedTheme);
+    };
+
+    initializeTheme();
+  }, []);
+
+  // 테마 변경 감지 (localStorage 변경 또는 커스텀 이벤트)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "app-theme") {
+        const newTheme = e.newValue || "default";
+        setCurrentTheme(newTheme);
+        const htmlElement = document.documentElement;
+        htmlElement.setAttribute("data-theme", newTheme);
+        if (newTheme !== "default") {
+          htmlElement.classList.remove("dark");
+        } else {
+          const savedDark = localStorage.getItem("darkMode");
+          const isDark = savedDark !== null ? savedDark === "true" : true;
+          htmlElement.classList.toggle("dark", isDark);
+        }
+      }
+    };
+
+    const handleThemeChange = () => {
+      const savedTheme = localStorage.getItem("app-theme") || "default";
+      setCurrentTheme(savedTheme);
+      const htmlElement = document.documentElement;
+      htmlElement.setAttribute("data-theme", savedTheme);
+      if (savedTheme !== "default") {
+        htmlElement.classList.remove("dark");
+      } else {
+        const savedDark = localStorage.getItem("darkMode");
+        const isDark = savedDark !== null ? savedDark === "true" : true;
+        htmlElement.classList.toggle("dark", isDark);
+      }
+      // 시스템 바 색상 업데이트 (비동기 처리)
+      setSystemBarsForTheme(savedTheme).catch((error) => {
+        console.warn("시스템 바 색상 업데이트 실패:", error);
+      });
+    };
+
+    // localStorage 변경 감지 (다른 탭에서 변경된 경우)
+    window.addEventListener("storage", handleStorageChange);
+
+    // 커스텀 이벤트 감지 (같은 탭에서 변경된 경우)
+    window.addEventListener("theme-changed", handleThemeChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("theme-changed", handleThemeChange);
+    };
   }, []);
 
   const toggleDarkMode = useCallback(() => {
@@ -190,7 +332,7 @@ export default function App() {
   const [shouldOpenSettingsOnMyPage, setShouldOpenSettingsOnMyPage] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const currentScreenRef = useRef<AppScreen | null>(currentScreen);
-  useEffect(() => { 
+  useEffect(() => {
     if (currentScreen !== null) {
       currentScreenRef.current = currentScreen;
     }
@@ -201,7 +343,7 @@ export default function App() {
 
   useEffect(() => {
     if (currentScreen === null) return; // currentScreen이 null이면 처리하지 않음
-    
+
     if (isNavigatingBackRef.current) {
       isNavigatingBackRef.current = false;
       previousScreenRef.current = currentScreen;
@@ -259,13 +401,19 @@ export default function App() {
   const InitialLoadingFallback = () => (
     <LoadingOverlay isLoading={true} variant="blur" message="불러오는 중..." />
   );
-  
+
   const ScreenLoadingFallback = () => (
     <DelayedLoadingOverlay delay={200} variant="blur" />
   );
 
+  // 커스텀 테마인지 확인
+  const isCustomTheme = currentTheme !== "default";
+
+  // 기본 테마이면서 다크모드일 때만 'dark' 클래스 적용
+  const shouldApplyDark = !isCustomTheme && isDarkMode;
+
   return (
-    <div className={`w-full h-screen ${isDarkMode ? "dark bg-background text-foreground" : "bg-white text-gray-900"}`}>
+    <div className={`w-full h-screen ${shouldApplyDark ? "dark" : ""} bg-background text-foreground`}>
       {/* ✅ 초기 로딩: initialScreen이 결정되기 전까지는 항상 로딩 화면 표시 */}
       {(isLoading || initialScreen === null) && <InitialLoadingFallback />}
 

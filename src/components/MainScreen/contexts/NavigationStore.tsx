@@ -28,7 +28,8 @@ export type Layer =
   | "ranking"
   | "bookmarks"
   | "search"
-  | "quiz";
+  | "quiz"
+  | "theme";
 
 interface NavigationStoreValue {
   route: MainRoute;

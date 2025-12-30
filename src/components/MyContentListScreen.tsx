@@ -1,14 +1,9 @@
-import { useCallback } from "react";
-import { Card, CardContent } from "./ui/card";
-import { LanternFilledIcon } from "./icons/Lantern";
-import { FileText, MessageCircle, Bookmark } from "lucide-react";
+import { useCallback, useMemo } from "react";
+import { FileText, MessageCircle } from "lucide-react";
 import { AppHeader } from "./layout/AppHeader";
-// Avatar 대신 공통 최적화 컴포넌트 사용
-import { OptimizedAvatar } from "@/components/OptimizedAvatar";
-import { Badge } from "./ui/badge";
 import { useUserProfiles, type UserProfileLite } from "@/components/MainScreen/hooks/useUserProfiles";
-import { getTitleLabelById } from "@/data/titleData";
-import { filterGoogleProfileImage } from "@/utils/profileImageUtils";
+import { PostCard } from "@/components/MainScreen/components/PostListView";
+import type { Post } from "@/components/MainScreen/types";
 
 interface PostItem {
     id: string;
@@ -58,6 +53,15 @@ export function MyContentListScreen({
     onBack,
     onPostClick,
     onReplyClick,
+    userNickname,
+    userProfileImage,
+    currentTitle,
+    isPostLanterned = () => false,
+    isBookmarked = () => false,
+    formatTimeAgo = () => "",
+    formatCreatedAt = () => "",
+    onLanternToggle = () => {},
+    onBookmarkToggle = () => {},
 }: MyContentListScreenProps) {
     const isPostsMode = mode === "posts";
 
@@ -105,6 +109,45 @@ export function MyContentListScreen({
         [onReplyClick],
     );
 
+    // PostItem을 Post 타입으로 변환하는 헬퍼 함수
+    const convertPostItemToPost = useCallback((postItem: PostItem): Post => {
+        // timeAgo나 createdAtText에서 Date 추출 시도
+        let createdAt = new Date();
+        if (postItem.createdAtText) {
+            const parsed = new Date(postItem.createdAtText);
+            if (!isNaN(parsed.getTime())) {
+                createdAt = parsed;
+            }
+        }
+
+        return {
+            id: postItem.id,
+            title: postItem.title || "",
+            content: postItem.content || "",
+            category: postItem.category || "기타",
+            subCategory: postItem.subCategory || "기타",
+            type: (postItem.type === "guide" ? "guide" : "question") as "question" | "guide",
+            tags: postItem.tags || [],
+            author: postItem.author || "",
+            authorUid: postItem.authorUid || null,
+            authorAvatar: postItem.authorAvatar || "",
+            createdAt,
+            lanterns: postItem.lanterns || 0,
+            replies: [],
+            replyCount: postItem.comments || 0,
+            comments: postItem.comments || 0,
+            views: postItem.views || 0,
+            isBookmarked: postItem.isBookmarked || false,
+            isOwner: true, // 내 글 목록이므로 항상 true
+            timeAgo: postItem.timeAgo,
+        };
+    }, []);
+
+    // PostCard에 전달할 핸들러
+    const handlePostCardClickWrapper = useCallback((post: Post) => {
+        onPostClick?.(post.id);
+    }, [onPostClick]);
+
     return (
         <div className="flex-1 flex flex-col scrollbar-hide">
             {/* 공통 헤더 사용 */}
@@ -130,118 +173,36 @@ export function MyContentListScreen({
                             </div>
                         </div>
                     ) : (
-                        // 리스트 모드
+                        // 리스트 모드 - PostCard 컴포넌트 사용
                         <div className="space-y-3">
-                            {posts.map((post) => {
-                                // 🔹 실시간 users 기준 프로필/칭호 가져오기
-                                const authorProfile: UserProfileLite | undefined = post.authorUid
-                                    ? userProfiles[post.authorUid]
+                            {posts.map((postItem, index) => {
+                                const post = convertPostItemToPost(postItem);
+                                const authorProfile: UserProfileLite | undefined = postItem.authorUid
+                                    ? userProfiles[postItem.authorUid]
                                     : undefined;
 
-                                // 🔹 프로필 이미지 결정 (구글 이미지 필터링)
-                                const authorAvatarUrl = authorProfile?.profileImage ?? filterGoogleProfileImage(post.authorAvatar) ?? "";
-
-                                const authorTitleLabel = authorProfile?.currentTitleId
-                                    ? getTitleLabelById(authorProfile.currentTitleId)
-                                    : null;
+                                // createdAt에서 timeAgo와 createdAtText 생성
+                                const timeAgoText = postItem.timeAgo || formatTimeAgo(post.createdAt);
+                                const createdAtText = postItem.createdAtText || formatCreatedAt(post.createdAt);
 
                                 return (
-                                    <Card
-                                        key={post.id}
-                                        className="border-border/60 shadow-sm bg-card/80 backdrop-blur-sm hover:shadow-md transition-shadow cursor-pointer list-optimized"
-                                        onClick={handlePostCardClick(post.id)}
-                                    >
-                                        <CardContent className="p-4">
-                                            <div className="space-y-3">
-                                                {/* 상단: 작성자 + 시간 (게시판 스타일) */}
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center space-x-3">
-                                                        <OptimizedAvatar
-                                                            src={authorAvatarUrl}
-                                                            alt={post.author}
-                                                            size={40}
-                                                            className="ring-2 ring-border/20"
-                                                            fallbackText={post.author?.charAt(0)?.toUpperCase() || "?"}
-                                                        />
-                                                        <div>
-                                                            <div className="flex items-center space-x-2">
-                                                                <p className="font-medium text-sm">
-                                                                    {post.author}
-                                                                </p>
-                                                                {authorTitleLabel && (
-                                                                    <Badge
-                                                                        variant="secondary"
-                                                                        className="text-[10px] px-2 py-0.5 h-auto bg-primary/10 text-primary border-primary/20"
-                                                                    >
-                                                                        {authorTitleLabel}
-                                                                    </Badge>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-1">
-                                                                {(post.timeAgo || post.createdAtText) && (
-                                                                    <span title={post.createdAtText || undefined}>
-                                                                        {post.timeAgo ?? post.createdAtText}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            {/* 타입/카테고리 텍스트 (닉네임 아래) */}
-                                                            {(() => {
-                                                                const parts = [
-                                                                    post.category && post.category !== "전체" ? post.category : null,
-                                                                    post.subCategory && post.subCategory !== "전체" ? post.subCategory : null,
-                                                                    post.type ? (post.type === "guide" ? "길잡이 글" : "질문글") : null,
-                                                                ].filter(Boolean) as string[];
-                                                                return parts.length ? (
-                                                                    <div className="text-xs text-muted-foreground mt-2">
-                                                                        {parts.join(" · ")}
-                                                                    </div>
-                                                                ) : null;
-                                                            })()}
-                                                        </div>
-                                                    </div>
-                                                    {/* 북마크 아이콘 (메인 피드 스타일) */}
-                                                    <Bookmark
-                                                        className={`w-4 h-4 ${post.isBookmarked ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`}
-                                                    />
-                                                </div>
-
-                                                {/* 제목 */}
-                                                {post.title && (
-                                                    <h2 className="text-sm font-medium line-clamp-1">
-                                                        {post.title}
-                                                    </h2>
-                                                )}
-
-                                                {/* 내용 요약 */}
-                                                {post.content && (
-                                                    <p className="text-sm text-muted-foreground line-clamp-2">
-                                                        {post.content}
-                                                    </p>
-                                                )}
-
-                                                {/* 하단: 등불 / 댓글 / 조회수 / 태그 → 메인 피드 스타일 */}
-                                                <div className="flex items-center justify-between pt-1">
-                                                    <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                                                        <div className="flex items-center space-x-1">
-                                                            <LanternFilledIcon className="w-4 h-4 text-amber-500" />
-                                                            <span>{post.lanterns ?? 0}</span>
-                                                        </div>
-                                                        <div className="flex items-center space-x-1">
-                                                            <MessageCircle className="w-4 h-4" />
-                                                            <span>{post.comments ?? 0}</span>
-                                                        </div>
-                                                        <div className="flex items-center space-x-1">
-                                                            <span className="w-1 h-1 rounded-full bg-muted-foreground/60 inline-block" />
-                                                            <span>{post.views ?? 0} 조회</span>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* 태그만 (나머지 뱃지는 상단으로 이동) */}
-                                                    {/* 목록에서는 태그 미표시 (상세에서만 표시) */}
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                                    <div key={post.id} className="px-0 py-1.5">
+                                        <PostCard
+                                            post={post}
+                                            userNickname={userNickname}
+                                            userProfileImage={userProfileImage}
+                                            isLanterned={isPostLanterned(post.id)}
+                                            isBookmarked={isBookmarked(post.id)}
+                                            timeAgo={timeAgoText}
+                                            createdAtText={createdAtText}
+                                            currentTitle={currentTitle}
+                                            authorProfile={authorProfile}
+                                            onPostClick={handlePostCardClickWrapper}
+                                            onLanternToggle={onLanternToggle}
+                                            onBookmarkToggle={onBookmarkToggle}
+                                            index={index}
+                                        />
+                                    </div>
                                 );
                             })}
                         </div>

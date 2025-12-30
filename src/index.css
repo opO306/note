@@ -4894,30 +4894,31 @@
   --sidebar-ring: #c9a5324d;
 }
 
-/* 📜 전자 종이 (E-Ink) 테마: 저대비, 종이 질감 */
+/* 📜 전자 종이 (E-Ink) 테마: 저대비, 오래된 종이 질감 */
+:root[data-theme='e-ink'],
 html[data-theme='e-ink'],
 html[data-theme='e-ink'].dark {
-  --background: #f5f5f5;
-  --foreground: #2a2a2a;
-  --card: #f0f0f0;
-  --card-foreground: #2a2a2a;
-  --popover: #f0f0f0;
-  --popover-foreground: #2a2a2a;
-  --primary: #4a4a4a;
-  --primary-foreground: #ffffff;
-  --secondary: #e5e5e5;
-  --secondary-foreground: #4a4a4a;
-  --muted: #e8e8e8;
-  --muted-foreground: #6b6b6b;
-  --accent: #e0e0e0;
-  --accent-foreground: #2a2a2a;
-  --destructive: #b85450;
-  --destructive-foreground: #ffffff;
-  --border: #d0d0d0;
+  --background: #f4f1e8;
+  --foreground: #3d3a32;
+  --card: #faf8f3;
+  --card-foreground: #3d3a32;
+  --popover: #faf8f3;
+  --popover-foreground: #3d3a32;
+  --primary: #5a564d;
+  --primary-foreground: #faf8f3;
+  --secondary: #e8e4d9;
+  --secondary-foreground: #5a564d;
+  --muted: #ede9df;
+  --muted-foreground: #7a766c;
+  --accent: #e3dfd3;
+  --accent-foreground: #3d3a32;
+  --destructive: #a85a55;
+  --destructive-foreground: #faf8f3;
+  --border: #d4cfc2;
   --input: transparent;
-  --input-background: #fafafa;
-  --switch-background: #b8b8b8;
-  --ring: #4a4a4a33;
+  --input-background: #f7f5ef;
+  --switch-background: #c4bfb2;
+  --ring: #5a564d33;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --chart-1: #6b6b6b;
@@ -4928,45 +4929,46 @@ html[data-theme='e-ink'].dark {
   --success: #5a8a5a;
   --warning: #b8a050;
   --info: #5a7a9a;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 2px 0 rgba(61, 58, 50, 0.12);
+  --shadow-md: 0 2px 4px 0 rgba(61, 58, 50, 0.15), 0 1px 2px 0 rgba(61, 58, 50, 0.1);
+  --shadow-lg: 0 4px 8px 0 rgba(61, 58, 50, 0.18), 0 2px 4px 0 rgba(61, 58, 50, 0.12);
   --transition-fast: .15s ease-out;
   --transition-medium: .25s ease-out;
   --transition-slow: .35s ease-out;
-  --sidebar: #f0f0f0;
-  --sidebar-foreground: #2a2a2a;
-  --sidebar-primary: #4a4a4a;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e5e5e5;
-  --sidebar-accent-foreground: #4a4a4a;
-  --sidebar-border: #d0d0d0;
-  --sidebar-ring: #4a4a4a33;
+  --sidebar: #faf8f3;
+  --sidebar-foreground: #3d3a32;
+  --sidebar-primary: #5a564d;
+  --sidebar-primary-foreground: #faf8f3;
+  --sidebar-accent: #e8e4d9;
+  --sidebar-accent-foreground: #5a564d;
+  --sidebar-border: #d4cfc2;
+  --sidebar-ring: #5a564d33;
 }
 
-/* 🏛 심야 도서관 (Midnight) 테마: 깊은 암청색, 황금색 포인트 */
+/* 🏛 심야 도서관 (Midnight) 테마: 깊은 암청색, 황금색 포인트 (부드러운 색감) */
+:root[data-theme='midnight'],
 html[data-theme='midnight'],
 html[data-theme='midnight'].dark {
-  --background: #0a0d14;
-  --foreground: #e6d8b8;
-  --card: #141920;
-  --card-foreground: #e6d8b8;
-  --popover: #141920;
-  --popover-foreground: #e6d8b8;
+  --background: #1a1f2e;
+  --foreground: #e8dcc4;
+  --card: #232937;
+  --card-foreground: #e8dcc4;
+  --popover: #232937;
+  --popover-foreground: #e8dcc4;
   --primary: #d4af37;
-  --primary-foreground: #0a0d14;
-  --secondary: #1a1f2a;
-  --secondary-foreground: #e6d8b8;
-  --muted: #1a1f2a;
-  --muted-foreground: #8b8b7a;
-  --accent: #1f2530;
-  --accent-foreground: #e6d8b8;
+  --primary-foreground: #1a1f2e;
+  --secondary: #2a3441;
+  --secondary-foreground: #e8dcc4;
+  --muted: #2a3441;
+  --muted-foreground: #9a9a8a;
+  --accent: #2f3847;
+  --accent-foreground: #e8dcc4;
   --destructive: #c97a6a;
-  --destructive-foreground: #0a0d14;
-  --border: #2a3441;
-  --input: #1a1f2a;
-  --input-background: #141920;
-  --switch-background: #2a3441;
+  --destructive-foreground: #1a1f2e;
+  --border: rgba(212, 175, 55, 0.3);
+  --input: #2a3441;
+  --input-background: #232937;
+  --switch-background: rgba(212, 175, 55, 0.4);
   --ring: #d4af374d;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
@@ -4978,20 +4980,65 @@ html[data-theme='midnight'].dark {
   --success: #7a9a7a;
   --warning: #d4af37;
   --info: #6a8ba8;
+}
+
+/* 황금빛 서재 테마 (₩10,000 프리미엄) */
+:root[data-theme='golden-library'],
+html[data-theme='golden-library'],
+html[data-theme='golden-library'].dark {
+  --background: #1a1a1a;
+  --foreground: #d4af37;
+  --card: #252525;
+  --card-foreground: #d4af37;
+  --popover: #252525;
+  --popover-foreground: #d4af37;
+  --primary: #d4af37;
+  --primary-foreground: #1a1a1a;
+  --secondary: #2d2d2d;
+  --secondary-foreground: #d4af37;
+  --muted: #2d2d2d;
+  --muted-foreground: #a68b5b;
+  --accent: #333333;
+  --accent-foreground: #d4af37;
+  --destructive: #c97a6a;
+  --destructive-foreground: #1a1a1a;
+  --border: rgba(212, 175, 55, 0.4);
+  --input: #2d2d2d;
+  --input-background: #252525;
+  --switch-background: rgba(212, 175, 55, 0.5);
+  --ring: #d4af3766;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  --chart-1: #d4af37;
+  --chart-2: #c9a855;
+  --chart-3: #b8963a;
+  --chart-4: #c97a6a;
+  --chart-5: #a68b5b;
+  --success: #7a9a7a;
+  --warning: #d4af37;
+  --info: #6a8ba8;
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.7), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
   --transition-fast: .15s ease-out;
   --transition-medium: .25s ease-out;
   --transition-slow: .35s ease-out;
-  --sidebar: #141920;
-  --sidebar-foreground: #e6d8b8;
+  --sidebar: #232937;
+  --sidebar-foreground: #e8dcc4;
   --sidebar-primary: #d4af37;
-  --sidebar-primary-foreground: #0a0d14;
-  --sidebar-accent: #1a1f2a;
-  --sidebar-accent-foreground: #e6d8b8;
-  --sidebar-border: #2a3441;
+  --sidebar-primary-foreground: #1a1f2e;
+  --sidebar-accent: #2a3441;
+  --sidebar-accent-foreground: #e8dcc4;
+  --sidebar-border: rgba(212, 175, 55, 0.3);
   --sidebar-ring: #d4af374d;
+}
+
+/* 황금빛 서재 테마 - 프리텐다드 폰트 적용 */
+:root[data-theme='golden-library'],
+html[data-theme='golden-library'],
+html[data-theme='golden-library'].dark {
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
 }
 
 @property --tw-translate-x {
@@ -5412,5 +5459,144 @@ html[data-theme='midnight'].dark {
   to {
     opacity: var(--tw-exit-opacity, 1);
     transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0));
+  }
+}
+
+/* 황금빛 서재 테마 - 수학 기호 배경 (프로필 카드용) */
+.theme-border-greek-key {
+  position: relative;
+  border: 3px solid #d4af37;
+  box-shadow: 0 0 16px rgba(212, 175, 55, 0.5), inset 0 0 12px rgba(212, 175, 55, 0.15);
+  overflow: hidden;
+}
+
+/* 황금빛 서재 테마 - 수학 기호 배경 (게시글 카드용 - 하이브리드 방식) */
+.theme-post-card-math-bg {
+  position: relative;
+  overflow: hidden;
+  /* GPU 가속 및 렌더링 최적화 */
+  contain: layout style paint;
+  will-change: contents;
+}
+
+.theme-post-card-math-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  /* GPU 가속 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  /* 렌더링 최적화 */
+  will-change: background-image;
+  background-image:
+    /* Layer 3: 우측 하단 큰 기호 (∫, ∞) - 얇고 유려한 스타일 */
+    url("data:image/svg+xml,%3Csvg width='120' height='120' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='20' y='90' font-family='Latin Modern Math, Computer Modern, serif' font-size='80' font-weight='300' fill='none' stroke='%23d4af37' stroke-width='0.8' opacity='0.025'%3E∫%3C/text%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='15' y='75' font-family='Latin Modern Math, Computer Modern, serif' font-size='70' font-weight='300' fill='none' stroke='%23d4af37' stroke-width='0.7' opacity='0.025'%3E∞%3C/text%3E%3C/svg%3E"),
+    /* Layer 2: 작은 수학 기호들 랜덤 배치 - 얇고 유려한 스타일 */
+    url("data:image/svg+xml,%3Csvg width='50' height='50' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='5' y='35' font-family='Latin Modern Math, Computer Modern, serif' font-size='35' font-weight='300' fill='none' stroke='%23d4af37' stroke-width='0.6' opacity='0.015'%3Eα%3C/text%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg width='50' height='50' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='5' y='35' font-family='Latin Modern Math, Computer Modern, serif' font-size='35' font-weight='300' fill='none' stroke='%23d4af37' stroke-width='0.6' opacity='0.015'%3Eβ%3C/text%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg width='50' height='50' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='5' y='35' font-family='Latin Modern Math, Computer Modern, serif' font-size='35' font-weight='300' fill='none' stroke='%23d4af37' stroke-width='0.6' opacity='0.015'%3Eπ%3C/text%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg width='50' height='50' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='5' y='35' font-family='Latin Modern Math, Computer Modern, serif' font-size='35' font-weight='300' fill='none' stroke='%23d4af37' stroke-width='0.6' opacity='0.015'%3Eθ%3C/text%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg width='50' height='50' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='5' y='35' font-family='Latin Modern Math, Computer Modern, serif' font-size='35' font-weight='300' fill='none' stroke='%23d4af37' stroke-width='0.6' opacity='0.015'%3Eλ%3C/text%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg width='50' height='50' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='5' y='35' font-family='Latin Modern Math, Computer Modern, serif' font-size='35' font-weight='300' fill='none' stroke='%23d4af37' stroke-width='0.6' opacity='0.015'%3EΔ%3C/text%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg width='50' height='50' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='5' y='35' font-family='Latin Modern Math, Computer Modern, serif' font-size='35' font-weight='300' fill='none' stroke='%23d4af37' stroke-width='0.6' opacity='0.015'%3EΣ%3C/text%3E%3C/svg%3E"),
+    /* Layer 1: 미세한 그리드 */
+    url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,0 L40,0 M0,0 L0,40' stroke='%23d4af37' stroke-width='0.5' opacity='0.01'/%3E%3C/svg%3E");
+  background-size:
+    120px 120px,
+    100px 100px,
+    50px 50px,
+    50px 50px,
+    50px 50px,
+    50px 50px,
+    50px 50px,
+    50px 50px,
+    50px 50px,
+    40px 40px;
+  background-position:
+    92% 85%,
+    88% 90%,
+    15% 20%,
+    75% 15%,
+    25% 60%,
+    80% 45%,
+    10% 80%,
+    70% 70%,
+    45% 35%,
+    0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 1;
+  /* 성능 최적화: 하드웨어 가속 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.theme-border-greek-key::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  /* 페이드 인/아웃 애니메이션 */
+  animation: mathSymbolsFade 8s ease-in-out infinite;
+  background-image:
+    /* 사인파 곡선 */
+    url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,100 Q50,50 100,100 T200,100' stroke='%23d4af37' stroke-width='1.5' fill='none' opacity='0.08'/%3E%3C/svg%3E"),
+    /* 적분 기호 */
+    url("data:image/svg+xml,%3Csvg width='150' height='150' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='20' y='80' font-family='serif' font-size='60' fill='%23d4af37' opacity='0.06'%3E∫%3C/text%3E%3C/svg%3E"),
+    /* 파이 */
+    url("data:image/svg+xml,%3Csvg width='120' height='120' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='10' y='70' font-family='serif' font-size='50' fill='%23d4af37' opacity='0.05'%3Eπ%3C/text%3E%3C/svg%3E"),
+    /* 시그마 */
+    url("data:image/svg+xml,%3Csvg width='140' height='140' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='15' y='75' font-family='serif' font-size='55' fill='%23d4af37' opacity='0.06'%3EΣ%3C/text%3E%3C/svg%3E"),
+    /* 델타 */
+    url("data:image/svg+xml,%3Csvg width='130' height='130' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='12' y='75' font-family='serif' font-size='52' fill='%23d4af37' opacity='0.05'%3EΔ%3C/text%3E%3C/svg%3E"),
+    /* 알파 - 얇고 유려한 스타일 */
+    url("data:image/svg+xml,%3Csvg width='110' height='110' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='8' y='65' font-family='Latin Modern Math, Computer Modern, serif' font-size='48' font-weight='300' fill='none' stroke='%23d4af37' stroke-width='0.6' opacity='0.05'%3Eα%3C/text%3E%3C/svg%3E"),
+    /* 베타 - 얇고 유려한 스타일 */
+    url("data:image/svg+xml,%3Csvg width='110' height='110' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='8' y='65' font-family='Latin Modern Math, Computer Modern, serif' font-size='48' font-weight='300' fill='none' stroke='%23d4af37' stroke-width='0.6' opacity='0.05'%3Eβ%3C/text%3E%3C/svg%3E"),
+    /* 수식 f(x) - 얇고 유려한 스타일 */
+    url("data:image/svg+xml,%3Csvg width='180' height='180' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='15' y='90' font-family='Latin Modern Math, Computer Modern, serif' font-size='35' font-weight='300' fill='none' stroke='%23d4af37' stroke-width='0.5' opacity='0.04'%3Ef(x)%3C/text%3E%3C/svg%3E"),
+    /* 미세한 그리드 */
+    url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,0 L40,0 M0,0 L0,40' stroke='%23d4af37' stroke-width='0.5' opacity='0.03'/%3E%3C/svg%3E");
+  background-size:
+    200px 200px,
+    150px 150px,
+    120px 120px,
+    140px 140px,
+    130px 130px,
+    110px 110px,
+    110px 110px,
+    180px 180px,
+    40px 40px;
+  background-position:
+    25% 25%,
+    75% 15%,
+    10% 65%,
+    80% 55%,
+    45% 10%,
+    35% 80%,
+    90% 75%,
+    55% 45%,
+    0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 1;
+  /* 전체 배경 페이드 인/아웃 애니메이션 - 부드럽고 미묘하게 */
+  animation: mathSymbolsFade 6s ease-in-out infinite;
+}
+
+/* 프로필 카드 수학 기호 페이드 인/아웃 애니메이션 */
+@keyframes mathSymbolsFade {
+
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 0.7;
   }
 }

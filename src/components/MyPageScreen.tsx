@@ -53,6 +53,40 @@ function getTrustDescription(score: number): string {
   return "매우 높은 신뢰도예요. 이곳에서 믿고 보는 길잡이로, 당신의 설명이 길이 되고 있어요.";
 }
 
+// 🔹 테마별 스타일 (프로필에 테마 색감 미리보기)
+function getThemeStyle(theme: string | null | undefined): {
+  borderColor: string;
+  borderWidth: string;
+  boxShadow: string;
+} | null {
+  // 테마가 없거나 "default"이면 null 반환 (테두리 없음)
+  if (!theme || theme === "default" || theme.trim() === "") return null;
+
+  // 테마별 스타일 반환
+  switch (theme) {
+    case "midnight":
+      return {
+        borderColor: "#d4af37", // 금색
+        borderWidth: "2px",
+        boxShadow: "0 0 12px rgba(212, 175, 55, 0.4), inset 0 0 8px rgba(212, 175, 55, 0.1)",
+      };
+    case "e-ink":
+      return {
+        borderColor: "#5a564d", // 베이지 톤
+        borderWidth: "2px",
+        boxShadow: "0 0 8px rgba(90, 86, 77, 0.3), inset 0 0 4px rgba(90, 86, 77, 0.08)",
+      };
+    case "golden-library":
+      return {
+        borderColor: "#d4af37", // 금색
+        borderWidth: "2px",
+        boxShadow: "0 0 16px rgba(212, 175, 55, 0.5), inset 0 0 12px rgba(212, 175, 55, 0.15)",
+      };
+    default:
+      return null;
+  }
+}
+
 interface MyPageScreenProps {
   userNickname: string;
   userProfileImage?: string;
@@ -108,6 +142,9 @@ interface MyPageScreenProps {
 
   /** 🆕 차단 관리 버튼 클릭 콜백 */
   onManageBlockedUsers?: () => void;
+
+  /** 🔹 현재 사용 중인 테마 */
+  currentTheme?: string | null;
 }
 
 export function MyPageScreen({
@@ -145,10 +182,16 @@ export function MyPageScreen({
   autoOpenSettings,
   onAutoSettingsOpened,
   onManageBlockedUsers,
+  currentTheme,
 }: MyPageScreenProps) {
 
   const [profileDescription, setProfileDescription] =
     useState(initialProfileDescription);
+
+  // 디버깅: currentTheme 확인
+  useEffect(() => {
+    console.log("[MyPageScreen] currentTheme:", currentTheme);
+  }, [currentTheme]);
 
   useEffect(() => {
     setProfileDescription(initialProfileDescription);
@@ -422,66 +465,102 @@ export function MyPageScreen({
         ref={scrollRef}
         className="flex-1 scroll-container scrollbar-hide p-4 pb-24 space-y-4"
       >
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <OptimizedAvatar
-                  src={userProfileImage}
-                  alt={userNickname ? `${userNickname}님의 프로필` : "프로필 이미지"}
-                  fallbackText={userNickname?.charAt(0)?.toUpperCase() || "?"}
-                  nickname={userNickname}
-                  className="w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-xl"
-                />
+        {(() => {
+          const themeStyle = getThemeStyle(currentTheme);
+          return (
+            <div
+              className={`bg-card text-card-foreground flex flex-col gap-6 rounded-xl transition-all ${currentTheme === "golden-library"
+                ? "theme-border-greek-key" // 기하학적 문양 테두리
+                : themeStyle
+                  ? "" // 테마가 있으면 기본 border 클래스 제거
+                  : "border border-border/70 shadow-sm"
+                }`}
+              style={themeStyle && currentTheme !== "golden-library" ? {
+                borderColor: themeStyle.borderColor,
+                borderWidth: themeStyle.borderWidth,
+                borderStyle: "solid",
+                boxShadow: themeStyle.boxShadow,
+              } : currentTheme === "golden-library" ? {
+                boxShadow: "0 0 16px rgba(212, 175, 55, 0.5), inset 0 0 12px rgba(212, 175, 55, 0.15)",
+              } : undefined}
+            >
+              <CardContent className="p-6 relative z-10">
+                <div className="flex items-center space-x-4">
+                  <div className="relative">
+                    <div
+                      className={`rounded-full overflow-hidden ${currentTheme === "golden-library" ? "theme-border-greek-key" : ""
+                        }`}
+                      style={currentTheme === "golden-library" ? {
+                        borderWidth: "4px",
+                      } : themeStyle ? {
+                        borderColor: themeStyle.borderColor,
+                        borderWidth: "4px",
+                        borderStyle: "solid",
+                      } : {
+                        borderColor: "white",
+                        borderWidth: "4px",
+                        borderStyle: "solid",
+                      }}
+                    >
+                      <OptimizedAvatar
+                        src={userProfileImage}
+                        alt={userNickname ? `${userNickname}님의 프로필` : "프로필 이미지"}
+                        fallbackText={userNickname?.charAt(0)?.toUpperCase() || "?"}
+                        nickname={userNickname}
+                        className="w-20 h-20 rounded-full shadow-xl"
+                      />
+                    </div>
 
-                <div className="absolute -bottom-1 -right-1">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    id="profile-image-upload"
-                    onChange={handleProfileImageUpload}
-                  />
-                  <Button
-                    size="icon"
-                    asChild
-                    className="w-9 h-9 rounded-full cursor-pointer touch-target"
-                  >
-                    <label htmlFor="profile-image-upload">
-                      <Camera className="w-4 h-4" />
-                    </label>
-                  </Button>
-                </div>
-              </div>
-              <div className="flex-1 min-h-20 flex flex-col">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <h2 className="text-xl font-semibold truncate">{userNickname}</h2>
-                    {currentTitleName && (
-                      <Badge variant="secondary" className="text-xs shrink-0">
-                        {currentTitleName}
-                      </Badge>
-                    )}
+                    <div className="absolute -bottom-1 -right-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        id="profile-image-upload"
+                        onChange={handleProfileImageUpload}
+                      />
+                      <Button
+                        size="icon"
+                        asChild
+                        className="w-9 h-9 rounded-full cursor-pointer touch-target"
+                      >
+                        <label htmlFor="profile-image-upload">
+                          <Camera className="w-4 h-4" />
+                        </label>
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="touch-target"
-                    onClick={() => handleDescriptionOpenChange(true)}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                </div>
-                {profileDescription && (
-                  <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap break-words leading-snug line-clamp-2">
-                    {profileDescription}
-                  </p>
-                )}
+                  <div className="flex-1 min-h-20 flex flex-col">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <h2 className="text-xl font-semibold truncate">{userNickname}</h2>
+                        {currentTitleName && (
+                          <Badge variant="secondary" className="text-xs shrink-0">
+                            {currentTitleName}
+                          </Badge>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="touch-target"
+                        onClick={() => handleDescriptionOpenChange(true)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    {profileDescription && (
+                      <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap break-words leading-snug line-clamp-2">
+                        {profileDescription}
+                      </p>
+                    )}
 
-              </div>
+                  </div>
+                </div>
+              </CardContent>
             </div>
-          </CardContent>
-        </Card>
+          );
+        })()}
 
         {/* 신뢰도 정보 카드 */}
         <Card className="border-border/70 shadow-sm rounded-xl mt-3">

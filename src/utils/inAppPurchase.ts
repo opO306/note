@@ -8,6 +8,7 @@ import { InAppPurchases } from "../plugins/in-app-purchases";
 export const THEME_PRODUCT_IDS: Record<string, string> = {
   "e-ink": "theme_e_ink", // Google Play / App Store에 등록할 상품 ID
   "midnight": "theme_midnight",
+  "golden-library": "theme_golden_library", // ₩10,000 프리미엄 테마
 };
 
 // 현자의 종 상품 ID

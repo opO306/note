@@ -1,6 +1,6 @@
 // src/components/UserProfileDialog.tsx
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { OptimizedAvatar } from "@/components/OptimizedAvatar";
 import { Badge } from "./ui/badge";
@@ -92,6 +92,7 @@ interface UserProfileScreenProps {
   titleCount?: number; // 보유 칭호 개수
   guideCount?: number; // 길잡이로 선택된 횟수
   currentTitle?: string; // 🔹 현재 착용 중인 칭호 ID
+  currentTheme?: string | null; // 🔹 현재 사용 중인 테마
 
   // 🔹 팔로워 / 팔로잉 수 & 목록 (있으면 사용)
   followerCount?: number;
@@ -137,6 +138,7 @@ export function UserProfileDialog({
   titleCount = 0,
   guideCount = 0,
   currentTitle = "",
+  currentTheme,
   followerCount = 0,
   followingCount = 0,
   followerUsers = [],
@@ -193,6 +195,58 @@ export function UserProfileDialog({
   const currentTitleLabel = useMemo(() => {
     return getTitleLabelById(currentTitle);
   }, [currentTitle]);
+
+  // 🔹 테마별 스타일 (프로필에 테마 색감 미리보기)
+  // 배경색은 제거하고 테두리와 그림자만 적용하여 내 테마와 겹치지 않도록 함
+  const getThemeStyle = (theme: string | null | undefined) => {
+    // null, undefined, 빈 문자열, "default" 모두 무시
+    if (!theme || theme === "default" || theme.trim() === "") return null;
+
+    switch (theme) {
+      case "midnight":
+        return {
+          borderColor: "#d4af37",
+          borderWidth: "2px",
+          boxShadow: "0 0 12px rgba(212, 175, 55, 0.4), inset 0 0 8px rgba(212, 175, 55, 0.1)",
+        };
+      case "e-ink":
+        return {
+          borderColor: "#5a564d",
+          borderWidth: "2px",
+          boxShadow: "0 0 8px rgba(90, 86, 77, 0.3), inset 0 0 4px rgba(90, 86, 77, 0.08)",
+        };
+      case "golden-library":
+        return {
+          borderColor: "#d4af37",
+          borderWidth: "2px",
+          boxShadow: "0 0 16px rgba(212, 175, 55, 0.5), inset 0 0 12px rgba(212, 175, 55, 0.15)",
+        };
+      default:
+        return null;
+    }
+  };
+
+  // 디버깅: currentTheme 값 확인
+  useEffect(() => {
+    console.log("[UserProfileDialog] currentTheme:", {
+      currentTheme,
+      isMyself,
+      themeStyle: getThemeStyle(currentTheme),
+    });
+  }, [currentTheme, isMyself]);
+
+  const themeStyle = getThemeStyle(currentTheme);
+
+  // 디버깅: themeStyle이 null인지 확인
+  useEffect(() => {
+    if (!isMyself) {
+      console.log("[UserProfileDialog] 테마 스타일 적용:", {
+        currentTheme,
+        themeStyle,
+        hasStyle: !!themeStyle,
+      });
+    }
+  }, [themeStyle, currentTheme, isMyself]);
 
   // 🔹 유저 데이터 집계 (인기글, 인기답글 등)
   const userData = useMemo(() => {
@@ -481,19 +535,52 @@ export function UserProfileDialog({
       <main className="flex-1 scroll-container scrollbar-hide">
         <div className="w-full max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto p-4 space-y-4">
           {/* 프로필 헤더 카드 */}
-          <Card className="border-border/70 shadow-sm rounded-xl">
-            <CardContent className="p-4 flex items-center justify-between gap-4">
+          <div
+            className={`bg-card text-card-foreground flex flex-col gap-6 rounded-xl transition-all ${
+              currentTheme === "golden-library"
+                ? "theme-border-greek-key" // 기하학적 문양 테두리
+                : themeStyle
+                ? "" // 테마가 있으면 기본 border 클래스 제거
+                : "border border-border/70 shadow-sm"
+            }`}
+            style={themeStyle && currentTheme !== "golden-library" ? {
+              borderColor: themeStyle.borderColor,
+              borderWidth: themeStyle.borderWidth,
+              borderStyle: "solid",
+              boxShadow: themeStyle.boxShadow,
+            } : currentTheme === "golden-library" ? {
+              boxShadow: "0 0 16px rgba(212, 175, 55, 0.5), inset 0 0 12px rgba(212, 175, 55, 0.15)",
+            } : undefined}
+          >
+            <CardContent className="p-4 flex items-center justify-between gap-4 relative z-10">
               {/* 왼쪽: 아바타 + 닉네임/소개 */}
               <div className="flex items-center gap-4 flex-1">
-                <OptimizedAvatar
-                  src={userAvatar}
-                  alt={displayName}
-                  nickname={displayName}
-                  size={64}
-                  fallbackText={displayName.charAt(0).toUpperCase()}
-                />
+                <div
+                  className={`rounded-full overflow-hidden ${
+                    currentTheme === "golden-library" ? "theme-border-greek-key" : ""
+                  }`}
+                  style={currentTheme === "golden-library" ? {
+                    borderWidth: "4px",
+                  } : themeStyle ? {
+                    borderColor: themeStyle.borderColor,
+                    borderWidth: "4px",
+                    borderStyle: "solid",
+                  } : {
+                    borderColor: "white",
+                    borderWidth: "4px",
+                    borderStyle: "solid",
+                  }}
+                >
+                  <OptimizedAvatar
+                    src={userAvatar}
+                    alt={displayName}
+                    nickname={displayName}
+                    size={64}
+                    fallbackText={displayName.charAt(0).toUpperCase()}
+                  />
+                </div>
                 <div className="flex flex-col gap-1 flex-1">
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
                     <h3 className="font-semibold text-base truncate">
                       {userData.nickname}
                     </h3>
@@ -534,7 +621,7 @@ export function UserProfileDialog({
                 </div>
               )}
             </CardContent>
-          </Card>
+          </div>
 
           {/* 신뢰도 정보 카드 */}
           <Card className="border-border/70 shadow-sm rounded-xl">
