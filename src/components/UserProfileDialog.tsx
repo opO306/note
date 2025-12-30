@@ -189,6 +189,11 @@ export function UserProfileDialog({
   const trustColorClass = getTrustColorClass(trust);
   const trustDescription = getTrustDescription(trust);
 
+  // 🔹 현재 칭호 이름 계산
+  const currentTitleLabel = useMemo(() => {
+    return getTitleLabelById(currentTitle);
+  }, [currentTitle]);
+
   // 🔹 유저 데이터 집계 (인기글, 인기답글 등)
   const userData = useMemo(() => {
     const totalPosts = posts.length;
@@ -492,9 +497,9 @@ export function UserProfileDialog({
                     <h3 className="font-semibold text-base truncate">
                       {userData.nickname}
                     </h3>
-                    {currentTitle && getTitleLabelById(currentTitle) && (
+                    {currentTitleLabel && (
                       <Badge variant="secondary" className="text-xs shrink-0">
-                        {getTitleLabelById(currentTitle)}
+                        {currentTitleLabel}
                       </Badge>
                     )}
                   </div>

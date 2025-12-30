@@ -17,7 +17,7 @@ import {
   where,
   limit,
 } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { toast } from "@/toastHelper";
 import { useUserProfiles, useCurrentUserProfileLite } from "./hooks/useUserProfiles";
 import { formatRelativeOrDate } from "@/components/utils/timeUtils";
@@ -89,6 +89,9 @@ const TitleShop = lazy(() => import("../TitleShop").then((m) => ({ default: m.Ti
 const TitlesCollection = lazy(() => import("../TitlesCollection").then((m) => ({ default: m.TitlesCollection })));
 const AchievementsScreen = lazy(() =>
   import("../AchievementsScreen").then((m) => ({ default: m.AchievementsScreen }))
+);
+const ThemeScreen = lazy(() =>
+  import("../ThemeScreen").then((m) => ({ default: m.ThemeScreen }))
 );
 const FollowListScreen = lazy(() =>
   import("../FollowListScreen").then((m) => ({ default: m.FollowListScreen }))
@@ -339,6 +342,7 @@ function MainScreenInner({
   const isRankingVisible = visibility.showRanking;
   const isSearchVisible = visibility.showSearchScreen;
   const isAchievementsVisible = visibility.showAchievements;
+  const isThemeVisible = visibility.showTheme;
   const isBookmarksVisible = visibility.showBookmarks || currentScreen === "bookmarks";
   const showNotificationSettings = visibility.showNotificationSettings;
   const isQuizVisible = route.name === "quiz";
@@ -351,6 +355,7 @@ function MainScreenInner({
   const showTitleShop = visibility.showTitleShop;
   const showTitlesCollection = visibility.showTitlesCollection;
   const showAchievements = visibility.showAchievements;
+  const showTheme = visibility.showTheme;
   const showUserProfile = visibility.showUserProfile;
   const isNotesVisible = route.name === "notes";
   const effectiveFollowList = showFollowList;
@@ -813,6 +818,11 @@ function MainScreenInner({
     goAchievements();
   }, [goAchievements]);
 
+  const navigateToTheme = useCallback(() => {
+    setSelectedPost(null);
+    setRoute({ name: "theme" });
+  }, []);
+
   const { isOnline, wasOffline } = useOnlineStatus();
 
   const handleNotificationToggle = useCallback(
@@ -931,6 +941,7 @@ function MainScreenInner({
   useEffect(() => syncLayer("titlesCollection", showTitlesCollection), [showTitlesCollection, syncLayer]);
   useEffect(() => syncLayer("titleShop", showTitleShop), [showTitleShop, syncLayer]);
   useEffect(() => syncLayer("achievements", showAchievements), [showAchievements, syncLayer]);
+  useEffect(() => syncLayer("theme", showTheme), [showTheme, syncLayer]);
   useEffect(() => syncLayer("userProfile", !!showUserProfile), [showUserProfile, syncLayer]);
   useEffect(() => syncLayer("myContentList", !!showMyContentList), [showMyContentList, syncLayer]);
   useEffect(() => syncLayer("followList", !!showFollowList), [showFollowList, syncLayer]);
@@ -1370,6 +1381,7 @@ function MainScreenInner({
       else if (visibility.showTitleShop) screenKey = "titleShop";
       else if (visibility.showTitlesCollection) screenKey = "titlesCollection";
       else if (visibility.showAchievements) screenKey = "achievements";
+      else if (visibility.showTheme) screenKey = "theme";
       else if (route.name === "quiz") screenKey = "quiz";
       else if (visibility.showFollowList) screenKey = "followList";
       else if (visibility.showMyContentList) screenKey = "myContentList";
@@ -1694,6 +1706,7 @@ function MainScreenInner({
                   setRoute({ name: "titleShop" });
                 }}
                 onAchievementsClick={navigateToAchievements}
+                onThemeClick={navigateToTheme}
                 onTitlesCollectionClick={() => {
                   setRoute({ name: "titlesCollection" });
                 }}
@@ -2140,6 +2153,45 @@ function MainScreenInner({
                 onBack={handleLayerBack}
                 userNickname={userNickname}
                 isDarkMode={isDarkMode}
+              />
+              <BottomNavigation
+                onHomeClick={navigateToHome}
+                onRankingClick={navigateToRanking}
+                onBookmarksClick={navigateToBookmarks}
+                onMyPageClick={navigateToMyPage}
+                onWriteClick={() => setShowCreateSheet(true)}
+                activeTab={currentScreen}
+              />
+            </div>
+          </Suspense>
+        </div>
+      )}
+
+      {isThemeVisible && (
+        <div className="absolute inset-0 z-30 bg-background transition-all duration-200 ease-out opacity-100 translate-y-0">
+          <Suspense fallback={<ScreenFallback />}>
+            <div className="w-full h-full flex flex-col">
+              <ThemeScreen
+                onBack={handleLayerBack}
+                isDarkMode={isDarkMode}
+                onToggleDarkMode={onToggleDarkMode}
+                lumenBalance={lumenBalance}
+                onThemePurchase={async (themeId: string, cost: number) => {
+                  const success = await lumenActions.spendLumens(cost, `테마 구매: ${themeId}`, themeId);
+                  if (success) {
+                    // Firestore에 구매 정보 저장은 ThemeScreen 내부에서 처리
+                    const functions = getFunctions(app, "asia-northeast3");
+                    const purchaseThemeFn = httpsCallable(functions, "purchaseTheme");
+                    try {
+                      await purchaseThemeFn({ themeId, cost });
+                    } catch (error) {
+                      console.error("테마 구매 정보 저장 실패:", error);
+                      toast.error("테마 구매 정보 저장에 실패했습니다.");
+                      return false;
+                    }
+                  }
+                  return success;
+                }}
               />
               <BottomNavigation
                 onHomeClick={navigateToHome}

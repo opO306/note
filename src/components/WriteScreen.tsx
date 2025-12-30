@@ -9,6 +9,7 @@ import { Card, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Badge } from "./ui/badge";
+import { Switch } from "./ui/switch";
 import { useNavigation } from "./MainScreen/contexts/NavigationContext";
 import { AlertDialogSimple } from "./ui/alert-dialog-simple";
 import {
@@ -21,6 +22,7 @@ import {
   MessageCircle,
   Compass,
   Save,
+  Bell,
 } from "lucide-react";
 import { toast } from "@/toastHelper";
 import { containsProfanity } from "./utils/profanityFilter";
@@ -67,6 +69,7 @@ interface WriteScreenProps {
     subCategory: string;
     type: "question" | "guide";
     tags: string[];
+    useSagesBell?: boolean;
   }) => void;
   categories: Array<{
     id: string;
@@ -88,6 +91,7 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [useSagesBell, setUseSagesBell] = useState(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasUnsavedChanges = useRef(false);
 
@@ -382,6 +386,7 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
       subCategory: selectedSubCategory,
       type: postType,
       tags,
+      useSagesBell: useSagesBell && postType === "question", // 질문글일 때만 현자의 종 사용 가능
     });
 
     // 쿨타임 시간 저장
@@ -731,6 +736,28 @@ export function WriteScreen({ onBack, onSubmit, categories }: WriteScreenProps) 
             </CardContent>
           </Card>
 
+          {/* 현자의 종 호출 */}
+          {postType === "question" && (
+            <Card className="border-amber-200/50 bg-amber-500/5">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-500/10 rounded-full">
+                    <Bell className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">현자의 종 호출</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">
+                      이 분야의 길잡이들에게 지혜를 요청합니다. (유료)
+                    </p>
+                  </div>
+                </div>
+                <Switch 
+                  checked={useSagesBell} 
+                  onCheckedChange={setUseSagesBell}
+                />
+              </CardContent>
+            </Card>
+          )}
 
         </div>
       </main>

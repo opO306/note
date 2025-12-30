@@ -1,8 +1,13 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+
 /*! tailwindcss v4.1.3 | MIT License | https://tailwindcss.com */
 @layer properties {
   @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
-    *, :before, :after, ::backdrop {
+
+    *,
+    :before,
+    :after,
+    ::backdrop {
       --tw-translate-x: 0;
       --tw-translate-y: 0;
       --tw-translate-z: 0;
@@ -78,7 +83,9 @@
 }
 
 @layer theme {
-  :root, :host {
+
+  :root,
+  :host {
     --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --color-red-500: oklch(.637 .237 25.331);
@@ -184,7 +191,11 @@
 }
 
 @layer base {
-  *, :after, :before, ::backdrop {
+
+  *,
+  :after,
+  :before,
+  ::backdrop {
     box-sizing: border-box;
     border: 0 solid;
     margin: 0;
@@ -198,7 +209,8 @@
     padding: 0;
   }
 
-  html, :host {
+  html,
+  :host {
     -webkit-text-size-adjust: 100%;
     tab-size: 4;
     line-height: 1.5;
@@ -223,7 +235,12 @@
     text-decoration: underline dotted;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-size: inherit;
     font-weight: inherit;
   }
@@ -235,11 +252,15 @@
     text-decoration: inherit;
   }
 
-  b, strong {
+  b,
+  strong {
     font-weight: bolder;
   }
 
-  code, kbd, samp, pre {
+  code,
+  kbd,
+  samp,
+  pre {
     font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
     font-feature-settings: var(--default-mono-font-feature-settings, normal);
     font-variation-settings: var(--default-mono-font-variation-settings, normal);
@@ -250,7 +271,8 @@
     font-size: 80%;
   }
 
-  sub, sup {
+  sub,
+  sup {
     vertical-align: baseline;
     font-size: 75%;
     line-height: 0;
@@ -283,21 +305,35 @@
     display: list-item;
   }
 
-  ol, ul, menu {
+  ol,
+  ul,
+  menu {
     list-style: none;
   }
 
-  img, svg, video, canvas, audio, iframe, embed, object {
+  img,
+  svg,
+  video,
+  canvas,
+  audio,
+  iframe,
+  embed,
+  object {
     vertical-align: middle;
     display: block;
   }
 
-  img, video {
+  img,
+  video {
     max-width: 100%;
     height: auto;
   }
 
-  button, input, select, optgroup, textarea {
+  button,
+  input,
+  select,
+  optgroup,
+  textarea {
     font: inherit;
     font-feature-settings: inherit;
     font-variation-settings: inherit;
@@ -403,7 +439,8 @@
     box-shadow: none;
   }
 
-  button, input:where([type="button"], [type="reset"], [type="submit"]) {
+  button,
+  input:where([type="button"], [type="reset"], [type="submit"]) {
     appearance: button;
   }
 
@@ -490,7 +527,9 @@
     display: inline-block !important;
   }
 
-  button svg, a svg, [role="button"] svg {
+  button svg,
+  a svg,
+  [role="button"] svg {
     stroke: currentColor !important;
     fill: none !important;
     display: inline-block !important;
@@ -505,7 +544,8 @@
     outline-offset: 2px;
   }
 
-  .smooth-transition, .card-hover {
+  .smooth-transition,
+  .card-hover {
     transition: all var(--transition-fast);
   }
 
@@ -543,7 +583,8 @@
     transform: translate(-50%, -50%);
   }
 
-  button[size="icon"].touch-safe, .touch-safe {
+  button[size="icon"].touch-safe,
+  .touch-safe {
     min-width: 44px !important;
     min-height: 44px !important;
     padding: .625rem !important;
@@ -629,7 +670,7 @@
   }
 
   .safe-header {
-    padding-top: calc(var(--safe-area-inset-top)  + .75rem);
+    padding-top: calc(var(--safe-area-inset-top) + .75rem);
   }
 
   .safe-nav-bottom {
@@ -673,7 +714,11 @@
     transform: scale(1.02);
   }
 
-  .nav-button:focus, .nav-button:focus-visible, .nav-button-override, .nav-button-override:focus, .nav-button-override:focus-visible {
+  .nav-button:focus,
+  .nav-button:focus-visible,
+  .nav-button-override,
+  .nav-button-override:focus,
+  .nav-button-override:focus-visible {
     box-shadow: none !important;
     outline: none !important;
   }
@@ -711,7 +756,8 @@
     transform: scale(1.05);
   }
 
-  .write-button:focus, .write-button:focus-visible {
+  .write-button:focus,
+  .write-button:focus-visible {
     box-shadow: none !important;
     outline: none !important;
   }
@@ -773,29 +819,41 @@
   }
 
   @keyframes fadeInOut1 {
-    0%, 100% {
+
+    0%,
+    100% {
       opacity: 0;
     }
+
     50% {
-      opacity: 0.6;  /* 이전 0.04 → 0.6로 변경 */
+      opacity: 0.6;
+      /* 이전 0.04 → 0.6로 변경 */
     }
   }
 
   @keyframes fadeInOut2 {
-    0%, 100% {
+
+    0%,
+    100% {
       opacity: 0;
     }
+
     50% {
-      opacity: 0.8;  /* 이전 0.06 → 0.8로 변경 */
+      opacity: 0.8;
+      /* 이전 0.06 → 0.8로 변경 */
     }
   }
 
   @keyframes fadeInOut3 {
-    0%, 100% {
+
+    0%,
+    100% {
       opacity: 0;
     }
+
     50% {
-      opacity: 1;  /* 이전 0.08 → 0.4로 변경 */
+      opacity: 1;
+      /* 이전 0.08 → 0.4로 변경 */
     }
   }
 
@@ -827,7 +885,11 @@
     transform: translateY(-2px);
   }
 
-  input[type="text"], input[type="email"], input[type="password"], input[type="search"], textarea {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  textarea {
     font-size: 16px !important;
   }
 
@@ -884,7 +946,10 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    *, :before, :after {
+
+    *,
+    :before,
+    :after {
       transition-duration: .01ms !important;
       animation-duration: .01ms !important;
       animation-iteration-count: 1 !important;
@@ -984,7 +1049,9 @@
   }
 
   @keyframes bounce {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: translateY(0);
     }
 
@@ -994,7 +1061,9 @@
   }
 
   @keyframes shake {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: translateX(0);
     }
 
@@ -1018,7 +1087,9 @@
   }
 
   @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
       opacity: 1;
       transform: scale(1);
     }
@@ -1030,7 +1101,9 @@
   }
 
   @keyframes wiggle {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: rotate(0);
     }
 
@@ -1093,11 +1166,14 @@
       border-color: currentColor !important;
     }
 
-    button, a {
+    button,
+    a {
       text-decoration: underline;
     }
 
-    .bg-primary, .bg-secondary, .bg-accent {
+    .bg-primary,
+    .bg-secondary,
+    .bg-accent {
       border: 2px solid;
     }
   }
@@ -1107,7 +1183,8 @@
       forced-color-adjust: auto;
     }
 
-    button, a {
+    button,
+    a {
       border: 1px solid buttontext;
     }
 
@@ -1149,19 +1226,32 @@
     text-decoration-skip-ink: auto;
   }
 
-  button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
 
   @media (pointer: coarse) {
-    button, a, input[type="checkbox"], input[type="radio"] {
+
+    button,
+    a,
+    input[type="checkbox"],
+    input[type="radio"] {
       min-width: 44px;
       min-height: 44px;
     }
   }
 
-  input:invalid, textarea:invalid, select:invalid, input[aria-invalid="true"], textarea[aria-invalid="true"], select[aria-invalid="true"] {
+  input:invalid,
+  textarea:invalid,
+  select:invalid,
+  input[aria-invalid="true"],
+  textarea[aria-invalid="true"],
+  select[aria-invalid="true"] {
     border-color: var(--destructive);
   }
 
@@ -1169,12 +1259,14 @@
     cursor: wait;
   }
 
-  [aria-disabled="true"], :disabled {
+  [aria-disabled="true"],
+  :disabled {
     cursor: not-allowed;
     opacity: .5;
   }
 
-  [aria-hidden="true"], [hidden] {
+  [aria-hidden="true"],
+  [hidden] {
     display: none !important;
   }
 
@@ -1256,7 +1348,8 @@
     line-height: 1.5;
   }
 
-  label:not([class*="text-"]), button:not([class*="text-"]) {
+  label:not([class*="text-"]),
+  button:not([class*="text-"]) {
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
@@ -1888,7 +1981,8 @@
     flex: 1;
   }
 
-  .flex-shrink-0, .shrink-0 {
+  .flex-shrink-0,
+  .shrink-0 {
     flex-shrink: 0;
   }
 
@@ -2187,7 +2281,7 @@
   }
 
   .rounded-md {
-    border-radius: calc(var(--radius)  - 2px);
+    border-radius: calc(var(--radius) - 2px);
   }
 
   .rounded-none {
@@ -2195,11 +2289,11 @@
   }
 
   .rounded-sm {
-    border-radius: calc(var(--radius)  - 4px);
+    border-radius: calc(var(--radius) - 4px);
   }
 
   .rounded-xl {
-    border-radius: calc(var(--radius)  + 4px);
+    border-radius: calc(var(--radius) + 4px);
   }
 
   .rounded-xs {
@@ -3729,7 +3823,8 @@
     user-select: none;
   }
 
-  .fade-in, .fade-in-0 {
+  .fade-in,
+  .fade-in-0 {
     --tw-enter-opacity: 0;
   }
 
@@ -3768,11 +3863,13 @@
     opacity: .5;
   }
 
-  .selection\:bg-primary ::selection, .selection\:bg-primary::selection {
+  .selection\:bg-primary ::selection,
+  .selection\:bg-primary::selection {
     background-color: var(--primary);
   }
 
-  .selection\:text-primary-foreground ::selection, .selection\:text-primary-foreground::selection {
+  .selection\:text-primary-foreground ::selection,
+  .selection\:text-primary-foreground::selection {
     color: var(--primary-foreground);
   }
 
@@ -4147,23 +4244,23 @@
     grid-template-columns: 1fr auto;
   }
 
-  .has-\[\>svg\]\:grid-cols-\[calc\(var\(--spacing\)\*4\)_1fr\]:has( > svg) {
+  .has-\[\>svg\]\:grid-cols-\[calc\(var\(--spacing\)\*4\)_1fr\]:has(> svg) {
     grid-template-columns: calc(var(--spacing) * 4) 1fr;
   }
 
-  .has-\[\>svg\]\:gap-x-3:has( > svg) {
+  .has-\[\>svg\]\:gap-x-3:has(> svg) {
     column-gap: calc(var(--spacing) * 3);
   }
 
-  .has-\[\>svg\]\:px-2\.5:has( > svg) {
+  .has-\[\>svg\]\:px-2\.5:has(> svg) {
     padding-inline: calc(var(--spacing) * 2.5);
   }
 
-  .has-\[\>svg\]\:px-3:has( > svg) {
+  .has-\[\>svg\]\:px-3:has(> svg) {
     padding-inline: calc(var(--spacing) * 3);
   }
 
-  .has-\[\>svg\]\:px-4:has( > svg) {
+  .has-\[\>svg\]\:px-4:has(> svg) {
     padding-inline: calc(var(--spacing) * 4);
   }
 
@@ -4285,37 +4382,37 @@
     background-color: var(--switch-background);
   }
 
-  @media (width >= 40rem) {
+  @media (width >=40rem) {
     .sm\:inline {
       display: inline;
     }
   }
 
-  @media (width >= 40rem) {
+  @media (width >=40rem) {
     .sm\:max-w-lg {
       max-width: var(--container-lg);
     }
   }
 
-  @media (width >= 40rem) {
+  @media (width >=40rem) {
     .sm\:flex-row {
       flex-direction: row;
     }
   }
 
-  @media (width >= 40rem) {
+  @media (width >=40rem) {
     .sm\:justify-end {
       justify-content: flex-end;
     }
   }
 
-  @media (width >= 40rem) {
+  @media (width >=40rem) {
     .sm\:text-left {
       text-align: left;
     }
   }
 
-  @media (width >= 48rem) {
+  @media (width >=48rem) {
     .md\:text-sm {
       font-size: var(--text-sm);
       line-height: var(--tw-leading, var(--text-sm--line-height));
@@ -4613,26 +4710,26 @@
     padding-bottom: calc(var(--spacing) * 6);
   }
 
-  .\[\&\>svg\]\:pointer-events-none > svg {
+  .\[\&\>svg\]\:pointer-events-none>svg {
     pointer-events: none;
   }
 
-  .\[\&\>svg\]\:size-3 > svg {
+  .\[\&\>svg\]\:size-3>svg {
     width: calc(var(--spacing) * 3);
     height: calc(var(--spacing) * 3);
   }
 
-  .\[\&\>svg\]\:size-4 > svg {
+  .\[\&\>svg\]\:size-4>svg {
     width: calc(var(--spacing) * 4);
     height: calc(var(--spacing) * 4);
   }
 
-  .\[\&\>svg\]\:translate-y-0\.5 > svg {
+  .\[\&\>svg\]\:translate-y-0\.5>svg {
     --tw-translate-y: calc(var(--spacing) * .5);
     translate: var(--tw-translate-x) var(--tw-translate-y);
   }
 
-  .\[\&\>svg\]\:text-current > svg {
+  .\[\&\>svg\]\:text-current>svg {
     color: currentColor;
   }
 
@@ -4795,6 +4892,52 @@
   --sidebar-accent-foreground: #e8eaed;
   --sidebar-border: #9aa0a633;
   --sidebar-ring: #c9a5324d;
+}
+
+/* 📜 전자 종이 (E-Ink) 테마: 저대비, 종이 질감 */
+[data-theme='e-ink'] {
+  --background: #f5f5f5;
+  --foreground: #333333;
+  --card: #f0f0f0;
+  --card-foreground: #333333;
+  --popover: #f0f0f0;
+  --popover-foreground: #333333;
+  --primary: #4d4d4d;
+  --primary-foreground: #ffffff;
+  --secondary: #e8e8e8;
+  --secondary-foreground: #4d4d4d;
+  --muted: #f0f0f0;
+  --muted-foreground: #737373;
+  --accent: #e8e8e8;
+  --accent-foreground: #333333;
+  --border: #d1d1d1;
+  --input: transparent;
+  --input-background: #fafafa;
+  --switch-background: #b8b8b8;
+  --ring: #4d4d4d33;
+}
+
+/* 🏛 심야 도서관 (Midnight) 테마: 깊은 암청색, 황금색 포인트 */
+[data-theme='midnight'] {
+  --background: #0a0d14;
+  --foreground: #e6d8b8;
+  --card: #141920;
+  --card-foreground: #e6d8b8;
+  --popover: #141920;
+  --popover-foreground: #e6d8b8;
+  --primary: #d4af37;
+  --primary-foreground: #0a0d14;
+  --secondary: #1a1f2a;
+  --secondary-foreground: #e6d8b8;
+  --muted: #1a1f2a;
+  --muted-foreground: #999999;
+  --accent: #1a1f2a;
+  --accent-foreground: #e6d8b8;
+  --border: #2a3441;
+  --input: #1a1f2a;
+  --input-background: #141920;
+  --switch-background: #2a3441;
+  --ring: #d4af374d;
 }
 
 @property --tw-translate-x {
@@ -5191,7 +5334,9 @@
 }
 
 @keyframes bounce {
-  0%, 100% {
+
+  0%,
+  100% {
     animation-timing-function: cubic-bezier(.8, 0, 1, 1);
     transform: translateY(-25%);
   }

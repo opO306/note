@@ -55,13 +55,30 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
           });
         }
 
-        if (userData.currentTitle) {
+        // 🔹 currentTitle 처리: Firestore 값이 우선, 없으면 로컬 스토리지 값 유지
+        const currentTitleKey = getUserScopedStorageKey("currentTitle");
+        const savedCurrentTitle = safeLocalStorage.getItem(currentTitleKey) || "";
+        
+        if (userData.currentTitle !== null) {
+          // Firestore에 값이 있으면 사용 (최신 값)
           setCurrentTitle(userData.currentTitle);
-          const currentTitleKey = getUserScopedStorageKey("currentTitle");
           safeLocalStorage.setItem(currentTitleKey, userData.currentTitle);
+        } else if (savedCurrentTitle && savedCurrentTitle.trim() !== "") {
+          // Firestore에 값이 없고 로컬 스토리지에 값이 있으면 Firestore에 동기화
+          setCurrentTitle(savedCurrentTitle);
+          try {
+            const userRef = doc(db, "users", uid);
+            await updateDoc(userRef, {
+              currentTitle: savedCurrentTitle,
+            });
+            invalidateUserDataCache(uid);
+          } catch (syncError) {
+            console.error("로컬 칭호 Firestore 동기화 실패:", syncError);
+            // 동기화 실패해도 로컬 값은 유지
+          }
         } else {
+          // 둘 다 없으면 빈 문자열
           setCurrentTitle("");
-          const currentTitleKey = getUserScopedStorageKey("currentTitle");
           safeLocalStorage.setItem(currentTitleKey, "");
         }
       } catch (error) {

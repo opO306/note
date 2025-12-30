@@ -369,6 +369,7 @@ export function SettingsScreen({
       setIsDeleting(false); // 오류 발생 시 로딩 종료
     }
   }, [onLogout]);
+
   // localStorage에서 화면 알림 설정 불러오기
   const [toastEnabled, setToastEnabledState] = useState(isToastEnabled());
 
@@ -426,6 +427,7 @@ export function SettingsScreen({
             </div>
           </CardContent>
         </Card>
+
 
         {/* 알림 설정 */}
         <Card className="bg-card border-border">

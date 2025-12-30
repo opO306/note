@@ -10,7 +10,7 @@ import { tracedFirestoreCall } from "@/utils/performanceMonitoring";
 export interface UserDataFromFirestore {
   trustScore: number;
   ownedTitles: string[];
-  currentTitle: string;
+  currentTitle: string | null; // 🔹 null이면 Firestore에 값이 없음을 의미
 }
 
 /**
@@ -35,7 +35,7 @@ export async function getUserDataFromFirestore(
           return {
             trustScore: 30,
             ownedTitles: [],
-            currentTitle: "",
+            currentTitle: null, // 🔹 문서가 없으면 null 반환
           };
         }
 
@@ -47,7 +47,10 @@ export async function getUserDataFromFirestore(
           ownedTitles: Array.isArray(data.ownedTitles)
             ? data.ownedTitles.filter((id: unknown): id is string => typeof id === "string")
             : [],
-          currentTitle: typeof data.currentTitle === "string" ? data.currentTitle : "",
+          // 🔹 currentTitle: string이면 그대로, null/undefined면 null 반환 (빈 문자열과 구분)
+          currentTitle: typeof data.currentTitle === "string" && data.currentTitle.trim() !== ""
+            ? data.currentTitle
+            : null,
         };
       });
     },

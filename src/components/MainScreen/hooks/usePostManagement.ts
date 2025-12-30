@@ -2,7 +2,7 @@
 // 게시물 작성/삭제/관리 관련 로직을 관리하는 훅
 
 import { useState, useCallback } from "react";
-import { auth, db } from "@/firebase";
+import { auth, db, app } from "@/firebase";
 import {
   collection,
   addDoc,
@@ -13,6 +13,7 @@ import {
   serverTimestamp,
   runTransaction,
 } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { toast } from "@/toastHelper";
 import { containsProfanity } from "@/components/utils/profanityFilter";
 import type { Post } from "../types";
@@ -96,6 +97,7 @@ export function usePostManagement({
       subCategory: string;
       type: "question" | "guide";
       tags: string[];
+      useSagesBell?: boolean;
     }) => {
       // ✅ 신뢰도 기반 제재 체크
       if (clampedTrust <= 0) {
@@ -130,7 +132,8 @@ export function usePostManagement({
         views: 0,
         isBookmarked: false,
         isOwner: true,
-      };
+        useSagesBell: postData.useSagesBell || false, // 현자의 종 사용 여부
+      } as Omit<Post, "id">;
 
       try {
         // Firestore에 저장
@@ -171,6 +174,23 @@ export function usePostManagement({
           updateActivity({ explorePosts: 1 });
         } else {
           updateActivity({ sharePosts: 1 });
+        }
+
+        // 현자의 종 호출 (질문글이고 useSagesBell이 true일 때만)
+        if (postData.type === "question" && postData.useSagesBell) {
+          try {
+            const functions = getFunctions(app, "asia-northeast3");
+            const callSagesBellFn = httpsCallable(functions, "callSagesBell");
+            await callSagesBellFn({
+              postId: docRef.id,
+              categoryId: postData.category,
+              questionTitle: postData.title,
+            });
+            toast.success("현자의 종이 울렸습니다. 고수들의 답변을 기다려주세요!");
+          } catch (error) {
+            console.error("현자의 종 호출 실패:", error);
+            // 실패해도 글 작성은 성공했으므로 에러 토스트는 표시하지 않음
+          }
         }
 
         toast.success("게시글이 작성되었습니다!");

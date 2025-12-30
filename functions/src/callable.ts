@@ -12,7 +12,7 @@ import {
     updateTrustScore, // 🚨 [수정 1] updateTrustScore를 import 목록에 추가합니다.
     containsProfanity // ✅ 닉네임 욕설 필터링용
 } from "./core";
-import { sendPushNotification } from "./notificationService";
+import { sendPushNotification, callSagesForQuestion } from "./notificationService";
 
 // =====================================================
 // Callable Functions (Client-invokable)
@@ -341,6 +341,7 @@ export const selectGuide = onCall({ region: "asia-northeast3" }, async (request)
     }
 
     const GUIDE_REWARD = 5;
+    const SAGES_BELL_BONUS_REWARD = 10; // 현자의 종으로 채택된 경우 추가 보상
 
     const postRef = db.collection("posts").doc(postIdStr);
     const replyIdNum = typeof replyId === "number" ? replyId : parseInt(replyIdStr, 10);
@@ -379,6 +380,11 @@ export const selectGuide = onCall({ region: "asia-northeast3" }, async (request)
             throw new HttpsError("data-loss", "댓글 작성자 정보가 없습니다.");
         }
 
+        // 현자의 종으로 호출된 글인지 확인
+        const isSagesBell = postData.useSagesBell === true;
+        const totalReward = isSagesBell ? GUIDE_REWARD + SAGES_BELL_BONUS_REWARD : GUIDE_REWARD;
+        const trustScoreBonus = isSagesBell ? SAGES_BELL_BONUS_REWARD : 0;
+
         // replies 배열에서 해당 답글의 isGuide를 true로 업데이트
         const updatedReplies = [...replies];
         updatedReplies[replyIndex] = { ...replyData, isGuide: true };
@@ -390,10 +396,13 @@ export const selectGuide = onCall({ region: "asia-northeast3" }, async (request)
             guideReplyAuthorUid: replyAuthorUid,
             replies: updatedReplies,
         });
+        
+        // 보상 지급 (현자의 종으로 채택된 경우 추가 보상)
         tx.set(replyUserRef, {
             guideCount: admin.firestore.FieldValue.increment(1),
-            lumenBalance: admin.firestore.FieldValue.increment(GUIDE_REWARD),
-            lumenTotalEarned: admin.firestore.FieldValue.increment(GUIDE_REWARD),
+            lumenBalance: admin.firestore.FieldValue.increment(totalReward),
+            lumenTotalEarned: admin.firestore.FieldValue.increment(totalReward),
+            trustScore: admin.firestore.FieldValue.increment(trustScoreBonus), // 현자의 종 보너스 신뢰도
         }, { merge: true });
     });
 
@@ -422,8 +431,13 @@ export const selectGuide = onCall({ region: "asia-northeast3" }, async (request)
                         .doc();
                     
                     const nowMs = Date.now();
-                    const notificationTitle = "길잡이로 채택되었어요 ⭐";
-                    const notificationBody = `"${postTitle.substring(0, 30)}${postTitle.length > 30 ? '...' : ''}" 글에서 회원님의 답변이 길잡이로 선택되었습니다.`;
+                    const isSagesBell = postData.useSagesBell === true;
+                    const notificationTitle = isSagesBell 
+                        ? "🌟 현자의 종으로 채택되었어요! (보너스 보상)" 
+                        : "길잡이로 채택되었어요 ⭐";
+                    const notificationBody = isSagesBell
+                        ? `"${postTitle.substring(0, 30)}${postTitle.length > 30 ? '...' : ''}" 글에서 회원님의 답변이 현자의 종으로 선택되었습니다! 추가 보상이 지급되었어요.`
+                        : `"${postTitle.substring(0, 30)}${postTitle.length > 30 ? '...' : ''}" 글에서 회원님의 답변이 길잡이로 선택되었습니다.`;
                     
                     await notifRef.set({
                         id: notifRef.id,
@@ -461,5 +475,84 @@ export const selectGuide = onCall({ region: "asia-northeast3" }, async (request)
         logger.error("[selectGuide] 알림 발송 실패", error);
     }
 
+    return { success: true };
+});
+
+/**
+ * 7. 현자의 종 호출 (질문 작성 시 고수들에게 알림 발송)
+ */
+export const callSagesBell = onCall({ region: "asia-northeast3" }, async (request) => {
+    const { auth, data } = request;
+    if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+    
+    const { postId, categoryId, questionTitle } = data as any;
+    
+    if (!postId || !categoryId || !questionTitle) {
+        throw new HttpsError("invalid-argument", "postId, categoryId, questionTitle이 필요합니다.");
+    }
+
+    const questionLink = `/post/${postId}`;
+    const successCount = await callSagesForQuestion(categoryId, questionTitle, questionLink);
+
+    return { success: true, notifiedCount: successCount };
+});
+
+/**
+ * 8. 테마 구매 (인앱 구매 검증)
+ */
+export const verifyThemePurchase = onCall({ region: "asia-northeast3" }, async (request) => {
+    const { auth, data } = request;
+    if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+    await checkRateLimit(auth.uid, "verifyThemePurchase");
+    
+    const themeId = data?.themeId as string;
+    const transactionId = data?.transactionId as string;
+    const receipt = data?.receipt as string;
+    const platform = data?.platform as string; // "android" | "ios"
+    
+    if (!themeId || !transactionId || !receipt || !platform) {
+        throw new HttpsError("invalid-argument", "themeId, transactionId, receipt, platform이 필요합니다.");
+    }
+
+    // TODO: 실제 구매 영수증 검증 로직 추가
+    // Google Play Billing 또는 App Store 영수증 검증
+    // 현재는 기본적인 검증만 수행
+    
+    const userRef = db.collection("users").doc(auth.uid);
+    
+    await db.runTransaction(async (tx) => {
+        const userSnap = await tx.get(userRef);
+        if (!userSnap.exists) throw new HttpsError("not-found", "사용자 정보를 찾을 수 없습니다.");
+
+        const purchasedThemes = userSnap.data()?.purchasedThemes || [];
+        
+        if (purchasedThemes.includes(themeId)) {
+            throw new HttpsError("already-exists", "이미 구매한 테마입니다.");
+        }
+
+        // 구매 내역 저장 (중복 구매 방지)
+        const purchaseHistoryRef = db.collection("theme_purchases").doc(transactionId);
+        const purchaseSnap = await tx.get(purchaseHistoryRef);
+        
+        if (purchaseSnap.exists) {
+            throw new HttpsError("already-exists", "이미 처리된 구매입니다.");
+        }
+
+        // 구매 내역 저장
+        tx.set(purchaseHistoryRef, {
+            userId: auth.uid,
+            themeId,
+            transactionId,
+            platform,
+            receipt,
+            purchasedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // 사용자에게 테마 추가
+        tx.update(userRef, {
+            purchasedThemes: admin.firestore.FieldValue.arrayUnion(themeId),
+        });
+    });
+    
     return { success: true };
 });

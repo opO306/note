@@ -149,6 +149,7 @@ export function NavigationStoreProvider({ children }: { children: React.ReactNod
         showTitlesCollection: false,
         showRanking: false,
         showAchievements: false,
+        showTheme: false,
         showGuidelines: false,
         showNotifications: false,
         showFollowList: null,
@@ -175,6 +176,8 @@ export function NavigationStoreProvider({ children }: { children: React.ReactNod
           return { ...base, showTitlesCollection: true };
         case "achievements":
           return { ...base, showAchievements: true };
+        case "theme":
+          return { ...base, showTheme: true };
         case "quiz":
           return base;
         case "followList":

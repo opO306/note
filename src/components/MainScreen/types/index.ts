@@ -116,6 +116,7 @@ export interface ScreenVisibility {
   showTitlesCollection: boolean;
   showRanking: boolean;
   showAchievements: boolean;
+  showTheme: boolean;
   showGuidelines: boolean;
   showNotifications: boolean;
   showFollowList: "followers" | "following" | null;

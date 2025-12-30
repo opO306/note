@@ -31,6 +31,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // Bridge가 초기화되기 전에 플러그인을 등록합니다.
         registerPlugin(FirebaseAuthenticationPlugin.class);
+        registerPlugin(InAppPurchasesPlugin.class);
         super.onCreate(savedInstanceState);
 
         // 첫 실행 시 권한 요청

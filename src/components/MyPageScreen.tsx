@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, type MouseEvent } from "reac
 import { useScrollRestoration } from "./hooks/useScrollRestoration";
 import { Button } from "./ui/button";
 import { auth, db } from "@/firebase";
-import { titles as titleData, ALL_TITLE_LABELS, getTitleLabelById } from "@/data/titleData";
+import { getTitleLabelById } from "@/data/titleData";
 import { doc, updateDoc } from "firebase/firestore";
 import { Card, CardContent } from "./ui/card";
 import { OptimizedAvatar } from "./OptimizedAvatar";
@@ -31,6 +31,7 @@ import {
   Users,
   UserCheck,
   UserX,
+  Palette,
 } from "lucide-react";
 import { AppHeader } from "./layout/AppHeader";
 // 신뢰도 점수에 따라 텍스트 색 클래스 결정 (Tailwind)
@@ -95,6 +96,7 @@ interface MyPageScreenProps {
 
   onTitleShopClick?: () => void;
   onAchievementsClick?: () => void;
+  onThemeClick?: () => void;
   onTitlesCollectionClick?: () => void;
   onBadgeShopClick?: () => void;
   onPostClick?: (postId: string) => void;
@@ -130,6 +132,7 @@ export function MyPageScreen({
   profileDescription: initialProfileDescription = "",
   onProfileDescriptionChange,
   onAchievementsClick,
+  onThemeClick,
   onTitlesCollectionClick,
   followerCount = 0,
   followingCount = 0,
@@ -208,15 +211,10 @@ export function MyPageScreen({
     }
   }, [onProfileImageChange]);
 
-  const getCurrentTitleName = () => {
-    if (!currentTitle) return "";
-    // ALL_TITLE_LABELS에서 먼저 찾기 (업적 칭호 포함)
-    const titleName = ALL_TITLE_LABELS[currentTitle];
-    if (titleName) return titleName;
-    // 없으면 titleData에서 찾기 (길잡이 칭호)
-    const title = titleData.find(t => t.id === currentTitle);
-    return title?.name || "";
-  };
+  const currentTitleName = useMemo(() => {
+    return getTitleLabelById(currentTitle);
+  }, [currentTitle]);
+
 
   const mockUserPosts = userPosts;
   const mockUserReplies = userReplies;
@@ -459,9 +457,9 @@ export function MyPageScreen({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
                     <h2 className="text-xl font-semibold truncate">{userNickname}</h2>
-                    {getCurrentTitleName() && (
+                    {currentTitleName && (
                       <Badge variant="secondary" className="text-xs shrink-0">
-                        {getCurrentTitleName()}
+                        {currentTitleName}
                       </Badge>
                     )}
                   </div>
@@ -718,6 +716,22 @@ export function MyPageScreen({
                 <p className="font-medium">업적</p>
                 <p className="text-sm text-muted-foreground">
                   질문과 답변으로 쌓인 나의 기록을 확인해 보세요.
+                </p>
+              </div>
+            </Button>
+          )}
+
+          {onThemeClick && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start p-4 h-auto"
+              onClick={onThemeClick}
+            >
+              <Palette className="w-5 h-5 mr-3 text-purple-500" />
+              <div className="text-left">
+                <p className="font-medium">테마 설정</p>
+                <p className="text-sm text-muted-foreground">
+                  몰입을 위한 테마를 선택하고 구매할 수 있어요.
                 </p>
               </div>
             </Button>
