@@ -10,6 +10,7 @@ import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 // App init hook
 import { useAppInitialization } from "./components/hooks/useAppInitialization";
 import { usePushToken } from "./components/hooks/usePushToken";
+import { useLumens } from "./components/useLumens";
 
 // Screens - Lazy loading으로 전환하여 초기 번들 크기 감소
 const LoginScreen = lazy(() => import("@/components/LoginScreen").then(m => ({ default: m.LoginScreen })));
@@ -22,6 +23,7 @@ const PrivacyPolicyScreen = lazy(() => import("./components/PrivacyPolicyScreen"
 const TermsOfServiceScreen = lazy(() => import("./components/TermsOfServiceScreen").then(m => ({ default: m.TermsOfServiceScreen })));
 const OpenSourceLicensesScreen = lazy(() => import("./components/OpenSourceLicensesScreen").then(m => ({ default: m.OpenSourceLicensesScreen })));
 const AttributionsScreen = lazy(() => import("./components/AttributionsScreen").then(m => ({ default: m.AttributionsScreen })));
+const ThemeScreen = lazy(() => import("./components/ThemeScreen").then(m => ({ default: m.ThemeScreen })));
 
 import { Toaster } from "./components/ui/sonner";
 const AlertDialogSimple = lazy(() => import("./components/ui/alert-dialog-simple").then(m => ({ default: m.AlertDialogSimple })));
@@ -44,7 +46,8 @@ type AppScreen =
   | "privacy"
   | "terms"
   | "openSourceLicenses"
-  | "attributions";
+  | "attributions"
+  | "theme";
 
 interface UserData {
   nickname: string;
@@ -63,6 +66,9 @@ export default function App() {
 
   // 푸시 알림 초기화 및 토큰 관리
   usePushToken();
+
+  // 루멘 잔액 가져오기
+  const { balance: lumenBalance } = useLumens();
 
   // 화면 전환 - 로딩이 완료되기 전까지는 화면을 설정하지 않음
   const [currentScreen, setCurrentScreen] = useState<AppScreen | null>(null);
@@ -88,11 +94,11 @@ export default function App() {
   // 초기 테마 적용 (앱 시작 시) - 스킨 기능 비활성화
   useEffect(() => {
     if (typeof window === "undefined") return;
-    
+
     const savedTheme = localStorage.getItem("app-theme") || "default";
     const htmlElement = document.documentElement;
     htmlElement.setAttribute("data-theme", savedTheme);
-    
+
     // 스킨 기능 비활성화 - 질감 없음
     htmlElement.removeAttribute("data-skin");
   }, []);
@@ -131,7 +137,7 @@ export default function App() {
 
               const htmlElement = document.documentElement;
               htmlElement.setAttribute("data-theme", userTheme);
-              
+
               // 스킨 기능 비활성화 - 질감 없음
               htmlElement.removeAttribute("data-skin");
 
@@ -163,10 +169,10 @@ export default function App() {
         localStorage.setItem("app-theme", "default");
         const htmlElement = document.documentElement;
         htmlElement.setAttribute("data-theme", "default");
-        
+
         // 기본 테마는 질감 없음
         htmlElement.removeAttribute("data-skin");
-        
+
         const savedDark = localStorage.getItem("darkMode");
         const isDark = savedDark !== null ? savedDark === "true" : true;
         htmlElement.classList.toggle("dark", isDark);
@@ -397,7 +403,7 @@ export default function App() {
           setShowExitConfirm(true);
         } else if (screen === "privacy" || screen === "terms") {
           setCurrentScreen(legalBackTarget);
-        } else if (screen === "openSourceLicenses" || screen === "attributions") {
+        } else if (screen === "openSourceLicenses" || screen === "attributions" || screen === "theme") {
           setCurrentScreen("main");
         } else if (screen === "nickname") {
           handleRestart();
@@ -511,25 +517,31 @@ export default function App() {
               )}
 
               {currentScreen === "main" && (
-                <Suspense fallback={<ScreenLoadingFallback />}>
-                  <MainScreen
-                    userNickname={userNickname}
-                    userProfileImage={userProfileImage}
-                    onProfileImageChange={handleProfileImageChange}
-                    onLogout={handleRestart}
-                    isDarkMode={isDarkMode}
-                    onToggleDarkMode={toggleDarkMode}
-                    onRequestExit={() => setShowExitConfirm(true)}
-                    onShowTerms={() => { setLegalBackTarget("main"); setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("terms"); }}
-                    onShowPrivacy={() => { setLegalBackTarget("main"); setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("privacy"); }}
-                    onShowOpenSourceLicenses={() => { setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("openSourceLicenses"); }}
-                    onShowAttributions={() => { setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("attributions"); }}
-                    shouldOpenMyPageOnMain={shouldOpenMyPageOnMain}
-                    shouldOpenSettingsOnMyPage={shouldOpenSettingsOnMyPage}
-                    onMainScreenReady={() => setShouldOpenMyPageOnMain(false)}
-                    onSettingsOpenedFromMain={() => setShouldOpenSettingsOnMyPage(false)}
-                  />
-                </Suspense>
+                <>
+                  <Suspense fallback={<ScreenLoadingFallback />}>
+                    <MainScreen
+                      userNickname={userNickname}
+                      userProfileImage={userProfileImage}
+                      onProfileImageChange={handleProfileImageChange}
+                      onLogout={handleRestart}
+                      isDarkMode={isDarkMode}
+                      onToggleDarkMode={toggleDarkMode}
+                      onRequestExit={() => setShowExitConfirm(true)}
+                      onShowTerms={() => { setLegalBackTarget("main"); setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("terms"); }}
+                      onShowPrivacy={() => { setLegalBackTarget("main"); setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("privacy"); }}
+                      onShowOpenSourceLicenses={() => { setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("openSourceLicenses"); }}
+                      onShowAttributions={() => { setShouldOpenMyPageOnMain(true); setShouldOpenSettingsOnMyPage(true); setCurrentScreen("attributions"); }}
+                      onThemeClick={() => { setLegalBackTarget("main"); setCurrentScreen("theme"); }}
+                      shouldOpenMyPageOnMain={shouldOpenMyPageOnMain}
+                      shouldOpenSettingsOnMyPage={shouldOpenSettingsOnMyPage}
+                      onMainScreenReady={() => setShouldOpenMyPageOnMain(false)}
+                      onSettingsOpenedFromMain={() => setShouldOpenSettingsOnMyPage(false)}
+                    />
+                  </Suspense>
+                  <Suspense fallback={null}>
+                    <OfflineIndicator position="top" variant="toast" showReconnectButton />
+                  </Suspense>
+                </>
               )}
 
               {currentScreen === "privacy" && (
@@ -556,9 +568,14 @@ export default function App() {
                 </Suspense>
               )}
 
-              {currentScreen === "main" && (
-                <Suspense fallback={null}>
-                  <OfflineIndicator position="top" variant="toast" showReconnectButton />
+              {currentScreen === "theme" && (
+                <Suspense fallback={<ScreenLoadingFallback />}>
+                  <ThemeScreen
+                    onBack={() => setCurrentScreen(legalBackTarget)}
+                    isDarkMode={isDarkMode}
+                    onToggleDarkMode={toggleDarkMode}
+                    lumenBalance={lumenBalance}
+                  />
                 </Suspense>
               )}
             </>

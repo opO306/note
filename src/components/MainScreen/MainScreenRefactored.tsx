@@ -282,6 +282,7 @@ function MainScreenInner({
   onShowPrivacy,
   onShowOpenSourceLicenses,
   onShowAttributions,
+  onThemeClick,
   shouldOpenMyPageOnMain,
   shouldOpenSettingsOnMyPage,
   onMainScreenReady,
@@ -1756,6 +1757,7 @@ function MainScreenInner({
                   setRoute({ name: "titleShop" });
                 }}
                 onAchievementsClick={navigateToAchievements}
+                onThemeClick={onThemeClick}
                 onTitlesCollectionClick={() => {
                   setRoute({ name: "titlesCollection" });
                 }}

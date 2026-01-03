@@ -813,7 +813,6 @@ export function MyPageScreen({
             </Button>
           )}
 
-          {/* 테마 기능 숨김 (출시 전까지 비활성화) */}
           {false && onThemeClick && (
             <Button
               variant="ghost"

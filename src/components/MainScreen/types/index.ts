@@ -217,6 +217,7 @@ export interface MainScreenProps {
   onShowGuidelines?: () => void;
   onShowOpenSourceLicenses?: () => void;
   onShowAttributions?: () => void;
+  onThemeClick?: () => void;
   shouldOpenMyPageOnMain?: boolean;
   shouldOpenSettingsOnMyPage?: boolean;
   onMainScreenReady?: () => void;

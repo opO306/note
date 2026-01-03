@@ -44,28 +44,35 @@ public class MainActivity extends BridgeActivity {
         
         super.onCreate(savedInstanceState);
 
-        // 네비게이션 바 색상 설정 (Android 5.0+)
-        // Android 15+에서는 WindowInsets API를 사용하여 더 넓은 화면 지원
+        // 시스템 바 설정 (Android 5.0+)
+        // Android 15 (API 35) 이상에서는 setStatusBarColor, setNavigationBarColor가 지원 중단됨
+        // WindowInsets API를 사용하여 시스템 바 색상 설정
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             Window window = getWindow();
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             
-            // Android 15 (API 35) 이상에서는 setNavigationBarColor가 지원 중단됨
-            // WindowInsets API를 사용하여 네비게이션 바 색상 설정
+            View decorView = window.getDecorView();
+            
+            // Android 11+ (API 30+): WindowInsetsController 사용
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // Android 11+ (API 30+): WindowInsetsController 사용
-                View decorView = window.getDecorView();
                 WindowInsetsController insetsController = decorView.getWindowInsetsController();
                 if (insetsController != null) {
-                    // 네비게이션 바를 어두운 색상으로 설정
+                    // 네비게이션 바를 어두운 색상으로 설정 (light navigation bar 비활성화)
                     insetsController.setSystemBarsAppearance(
                         0, // light navigation bar 비활성화
                         WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
                     );
+                    // 상태 바를 어두운 색상으로 설정 (light status bar 비활성화)
+                    insetsController.setSystemBarsAppearance(
+                        0, // light status bar 비활성화
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    );
                 }
-            } else {
-                // Android 10 이하: 기존 방식 유지
+            } else if (Build.VERSION.SDK_INT < 35) {
+                // Android 10 이하 (API 29 이하): 기존 방식 유지
+                // Android 15 (API 35) 이상에서는 setStatusBarColor, setNavigationBarColor가 지원 중단되므로 사용하지 않음
                 window.setNavigationBarColor(Color.parseColor("#1a1a1a"));
+                window.setStatusBarColor(Color.parseColor("#1a1a1a"));
             }
         }
 
