@@ -92,10 +92,10 @@ export function TitleShop({
           return (
             <Card
               key={title.id}
-              className={`transition-all duration-200 ${cardOpacity} ${borderStyle}`}
+              className={`transition-all duration-200 relative overflow-hidden ${cardOpacity} ${borderStyle}`}
             >
               <CardContent className="p-3 sm:p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
 
                   {/* 정보 영역 */}
                   <div className="flex-1 min-w-0 space-y-2 sm:space-y-3">
@@ -163,8 +163,8 @@ export function TitleShop({
                     </div>
                   </div>
 
-                  {/* 버튼 영역 */}
-                  <div className="flex-shrink-0 w-full sm:w-auto sm:self-center">
+                  {/* 버튼 영역 - 위치 고정 및 겹침 방지 */}
+                  <div className="flex-shrink-0 w-full sm:w-auto sm:self-start mt-1 sm:mt-0">
                     {isOwned ? (
                       isEquipped ? (
                         <Button disabled variant="secondary" size="sm" className="w-full sm:w-auto min-w-[5rem] bg-primary/10 text-primary">

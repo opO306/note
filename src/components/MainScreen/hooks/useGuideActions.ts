@@ -103,7 +103,7 @@ export function useGuideActions({
         try {
           // 답변에서 작성자 UID 찾기
           const selectedReply = post.replies?.find((r: any) => r.id === replyId);
-          const replyAuthorUid = selectedReply?.authorUid || selectedReply?.userId;
+          const replyAuthorUid = selectedReply?.authorUid;
           
           if (!replyAuthorUid) {
             console.warn("답변 작성자 UID를 찾을 수 없습니다.");

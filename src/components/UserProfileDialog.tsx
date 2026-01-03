@@ -1,6 +1,6 @@
 // src/components/UserProfileDialog.tsx
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "./ui/button";
 import { OptimizedAvatar } from "@/components/OptimizedAvatar";
 import { Badge } from "./ui/badge";
@@ -20,6 +20,7 @@ import {
   Users,
   MoreVertical,  // 🆕 더보기 아이콘
   AlertTriangle, // 🆕 차단 아이콘
+  Scroll,        // 황금빛 서재 테마용 두루마리 아이콘
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -34,6 +35,7 @@ import { DELETED_USER_NAME } from "@/components/utils/deletedUserHelpers";
 import { getFunctions, httpsCallable } from "firebase/functions"; // 🆕 함수 호출용
 import { AlertDialogSimple } from "./ui/alert-dialog-simple";
 import { getTitleLabelById } from "@/data/titleData";
+import { LaurelWreath } from "./icons/LaurelWreath";
 
 // ─────────────────────────────────────────────────────────────
 // 헬퍼 함수들
@@ -182,6 +184,7 @@ export function UserProfileDialog({
     setSection("replies");
   }, [setSection]);
 
+
   // 🧭 신뢰도 (0~100으로 보정)
   const trust = useMemo(
     () => Math.max(0, Math.min(100, trustScore)),
@@ -190,6 +193,30 @@ export function UserProfileDialog({
   // 색상은 클래스 이름으로 가져오기
   const trustColorClass = getTrustColorClass(trust);
   const trustDescription = getTrustDescription(trust);
+
+  // 신뢰도에 따른 금박 테두리 색상 계산 (10점 단위)
+  // 신뢰도가 높을수록 더 순수한 금색으로 변함
+  const trustLevel = Math.floor(trust / 10);
+  const trustBrightness = trustLevel / 10;
+  const trustOpacityBase = 0.4 + trustBrightness * 0.6;
+  const trustOpacityHigh = 0.7 + trustBrightness * 0.3;
+  // 낮을 때: 어두운 금색/갈색 (180, 150, 40) → 높을 때: 순수한 밝은 금색 (255, 215, 0)
+  // 신뢰도가 높을수록 더 순수한 금색(노란색)으로 변함
+  const trustRBase = Math.max(0, Math.min(255, Math.floor(180 + trustBrightness * 75))); // 180~255
+  const trustGBase = Math.max(0, Math.min(255, Math.floor(150 + trustBrightness * 65))); // 150~215 (금색)
+  const trustBBase = Math.max(0, Math.min(255, Math.floor(40 * (1 - trustBrightness)))); // 40~0 (금색은 파란색 없음)
+  const trustRHigh = Math.max(0, Math.min(255, Math.floor(220 + trustBrightness * 35))); // 220~255
+  const trustGHigh = Math.max(0, Math.min(255, Math.floor(200 + trustBrightness * 15))); // 200~215 (금색)
+  const trustBHigh = 0; // 항상 0 (순수 금색)
+
+  // 테마 확인
+  const isGreekTempleTheme = useMemo(() => {
+    return currentTheme === "greek-temple";
+  }, [currentTheme]);
+
+  const isGoldenLibraryTheme = useMemo(() => {
+    return currentTheme === "golden-library";
+  }, [currentTheme]);
 
   // 🔹 현재 칭호 이름 계산
   const currentTitleLabel = useMemo(() => {
@@ -226,27 +253,9 @@ export function UserProfileDialog({
     }
   };
 
-  // 디버깅: currentTheme 값 확인
-  useEffect(() => {
-    console.log("[UserProfileDialog] currentTheme:", {
-      currentTheme,
-      isMyself,
-      themeStyle: getThemeStyle(currentTheme),
-    });
-  }, [currentTheme, isMyself]);
 
   const themeStyle = getThemeStyle(currentTheme);
 
-  // 디버깅: themeStyle이 null인지 확인
-  useEffect(() => {
-    if (!isMyself) {
-      console.log("[UserProfileDialog] 테마 스타일 적용:", {
-        currentTheme,
-        themeStyle,
-        hasStyle: !!themeStyle,
-      });
-    }
-  }, [themeStyle, currentTheme, isMyself]);
 
   // 🔹 유저 데이터 집계 (인기글, 인기답글 등)
   const userData = useMemo(() => {
@@ -457,6 +466,7 @@ export function UserProfileDialog({
           users={followerUsers}
           onBack={handleBackToProfile}
           onUserClick={onFollowUserClick}
+          currentTheme={currentTheme}
         />
       </div>
     );
@@ -470,6 +480,7 @@ export function UserProfileDialog({
           users={followingUsers}
           onBack={handleBackToProfile}
           onUserClick={onFollowUserClick}
+          currentTheme={currentTheme}
         />
       </div>
     );
@@ -536,23 +547,16 @@ export function UserProfileDialog({
         <div className="w-full max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto p-4 space-y-4">
           {/* 프로필 헤더 카드 */}
           <div
-            className={`bg-card text-card-foreground flex flex-col gap-6 rounded-xl transition-all ${
-              currentTheme === "golden-library"
-                ? "theme-border-greek-key" // 기하학적 문양 테두리
-                : themeStyle
-                ? "" // 테마가 있으면 기본 border 클래스 제거
-                : "border border-border/70 shadow-sm"
-            }`}
-            {...(themeStyle && currentTheme !== "golden-library" ? {
+            className={`bg-card text-card-foreground flex flex-col gap-6 rounded-xl transition-all ${themeStyle
+              ? "" // 테마가 있으면 기본 border 클래스 제거
+              : "border border-border/70 shadow-sm"
+              }`}
+            {...(themeStyle ? {
               style: {
                 borderColor: themeStyle.borderColor,
                 borderWidth: themeStyle.borderWidth,
                 borderStyle: "solid",
                 boxShadow: themeStyle.boxShadow,
-              } as React.CSSProperties
-            } : currentTheme === "golden-library" ? {
-              style: {
-                boxShadow: "0 0 16px rgba(212, 175, 55, 0.5), inset 0 0 12px rgba(212, 175, 55, 0.15)",
               } as React.CSSProperties
             } : {})}
           >
@@ -560,14 +564,8 @@ export function UserProfileDialog({
               {/* 왼쪽: 아바타 + 닉네임/소개 */}
               <div className="flex items-center gap-4 flex-1">
                 <div
-                  className={`rounded-full overflow-hidden ${
-                    currentTheme === "golden-library" ? "theme-border-greek-key" : ""
-                  }`}
-                  {...(currentTheme === "golden-library" ? {
-                    style: {
-                      borderWidth: "4px",
-                    } as React.CSSProperties
-                  } : themeStyle ? {
+                  className="rounded-full overflow-hidden"
+                  {...(themeStyle ? {
                     style: {
                       borderColor: themeStyle.borderColor,
                       borderWidth: "4px",
@@ -591,9 +589,23 @@ export function UserProfileDialog({
                 </div>
                 <div className="flex flex-col gap-1 flex-1">
                   <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                    <h3 className="font-semibold text-base truncate">
-                      {userData.nickname}
-                    </h3>
+                    <div className="flex items-center gap-1.5">
+                      {/* 월계관 (그리스 신전 테마 + 신뢰도 70 이상) */}
+                      {isGreekTempleTheme && trust >= 70 && (
+                        <div className="shrink-0">
+                          <LaurelWreath size={14} isPremium={isGreekTempleTheme} />
+                        </div>
+                      )}
+                      {/* 황금 두루마리 (황금빛 서재 테마 + 신뢰도 70 이상) */}
+                      {isGoldenLibraryTheme && trust >= 70 && (
+                        <div className="shrink-0">
+                          <Scroll className="w-3.5 h-3.5 text-[#d4af37]" strokeWidth={2.5} />
+                        </div>
+                      )}
+                      <h3 className="font-semibold text-base truncate">
+                        {userData.nickname}
+                      </h3>
+                    </div>
                     {currentTitleLabel && (
                       <Badge variant="secondary" className="text-xs shrink-0">
                         {currentTitleLabel}
@@ -634,7 +646,19 @@ export function UserProfileDialog({
           </div>
 
           {/* 신뢰도 정보 카드 */}
-          <Card className="border-border/70 shadow-sm rounded-xl">
+          <Card
+            className="trust-score-card border-border/70 shadow-sm rounded-xl"
+            style={{
+              '--trust-score': trust,
+              '--trust-level': trustLevel,
+              '--trust-brightness': trustBrightness,
+              '--trust-opacity-base': trustOpacityBase,
+              '--trust-opacity-high': trustOpacityHigh,
+              '--trust-color-base': `rgba(${trustRBase}, ${trustGBase}, ${trustBBase}, ${trustOpacityBase})`,
+              '--trust-color-high': `rgba(${trustRHigh}, ${trustGHigh}, ${trustBHigh}, ${trustOpacityHigh})`,
+              '--trust-color-bright': `rgba(${trustRBase}, ${trustGBase}, ${trustBBase}, ${trustOpacityBase + 0.15})`,
+            } as React.CSSProperties}
+          >
             <CardContent className="p-4 flex flex-col items-center text-center gap-2">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-muted-foreground" />

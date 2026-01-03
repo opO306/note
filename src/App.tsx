@@ -85,6 +85,18 @@ export default function App() {
   });
   const isInitialized = useRef(false);
 
+  // 초기 테마 적용 (앱 시작 시) - 스킨 기능 비활성화
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const savedTheme = localStorage.getItem("app-theme") || "default";
+    const htmlElement = document.documentElement;
+    htmlElement.setAttribute("data-theme", savedTheme);
+    
+    // 스킨 기능 비활성화 - 질감 없음
+    htmlElement.removeAttribute("data-skin");
+  }, []);
+
   // initialScreen 따라 화면 이동 - 로딩이 완료되고 initialScreen이 결정된 후에만 화면 전환
   useEffect(() => {
     // 로딩이 완료되고 initialScreen이 결정되었을 때만 화면 설정
@@ -119,6 +131,9 @@ export default function App() {
 
               const htmlElement = document.documentElement;
               htmlElement.setAttribute("data-theme", userTheme);
+              
+              // 스킨 기능 비활성화 - 질감 없음
+              htmlElement.removeAttribute("data-skin");
 
               if (userTheme !== "default") {
                 htmlElement.classList.remove("dark");
@@ -148,6 +163,10 @@ export default function App() {
         localStorage.setItem("app-theme", "default");
         const htmlElement = document.documentElement;
         htmlElement.setAttribute("data-theme", "default");
+        
+        // 기본 테마는 질감 없음
+        htmlElement.removeAttribute("data-skin");
+        
         const savedDark = localStorage.getItem("darkMode");
         const isDark = savedDark !== null ? savedDark === "true" : true;
         htmlElement.classList.toggle("dark", isDark);

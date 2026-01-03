@@ -16,6 +16,9 @@ export default defineConfig({
 
     // 🔹 minification 활성화 (용량 최적화)
     minify: 'esbuild',
+    
+    // 🔹 소스맵 비활성화 (용량 절감)
+    sourcemap: false,
 
     // 경고 무시 설정
     chunkSizeWarningLimit: 1000,

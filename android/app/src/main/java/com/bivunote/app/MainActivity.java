@@ -10,6 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.preference.PreferenceManager;
+import androidx.activity.EdgeToEdge;
 
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.Bridge;
@@ -19,6 +20,8 @@ import android.webkit.WebView;
 import android.view.Window;
 import android.view.WindowManager;
 import android.graphics.Color;
+import android.view.View;
+import android.view.WindowInsetsController;
 
 // Firebase 인증 플러그인 수동 등록을 위한 import
 import io.capawesome.capacitorjs.plugins.firebase.authentication.FirebaseAuthenticationPlugin;
@@ -35,14 +38,35 @@ public class MainActivity extends BridgeActivity {
         // Bridge가 초기화되기 전에 플러그인을 등록합니다.
         registerPlugin(FirebaseAuthenticationPlugin.class);
         registerPlugin(InAppPurchasesPlugin.class);
+        
+        // Android 15+ Edge-to-Edge 지원 활성화
+        EdgeToEdge.enable(this);
+        
         super.onCreate(savedInstanceState);
 
         // 네비게이션 바 색상 설정 (Android 5.0+)
+        // Android 15+에서는 WindowInsets API를 사용하여 더 넓은 화면 지원
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             Window window = getWindow();
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-            // 기본적으로 어두운 배경으로 설정 (테마에 따라 JavaScript에서 변경)
-            window.setNavigationBarColor(Color.parseColor("#1a1a1a"));
+            
+            // Android 15 (API 35) 이상에서는 setNavigationBarColor가 지원 중단됨
+            // WindowInsets API를 사용하여 네비게이션 바 색상 설정
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // Android 11+ (API 30+): WindowInsetsController 사용
+                View decorView = window.getDecorView();
+                WindowInsetsController insetsController = decorView.getWindowInsetsController();
+                if (insetsController != null) {
+                    // 네비게이션 바를 어두운 색상으로 설정
+                    insetsController.setSystemBarsAppearance(
+                        0, // light navigation bar 비활성화
+                        WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+                    );
+                }
+            } else {
+                // Android 10 이하: 기존 방식 유지
+                window.setNavigationBarColor(Color.parseColor("#1a1a1a"));
+            }
         }
 
         // 첫 실행 시 권한 요청

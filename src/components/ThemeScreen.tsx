@@ -40,7 +40,7 @@ const THEMES: Theme[] = [
     id: "e-ink",
     name: "전자 종이",
     description: "눈이 편안한 저대비 테마로 깊이 있는 사색에 몰입하세요.",
-    price: "₩4,900", // 실제 가격은 Google Play / App Store에서 설정
+    price: "₩2,000",
     preview: "📜",
     productId: THEME_PRODUCT_IDS["e-ink"],
   },
@@ -48,7 +48,7 @@ const THEMES: Theme[] = [
     id: "midnight",
     name: "심야 도서관",
     description: "깊은 암청색과 황금 포인트로 고풍스러운 학술 분위기를 연출합니다.",
-    price: "₩4,900",
+    price: "₩2,000",
     preview: "🏛",
     productId: THEME_PRODUCT_IDS["midnight"],
   },
@@ -56,9 +56,25 @@ const THEMES: Theme[] = [
     id: "golden-library",
     name: "황금빛 서재",
     description: "고급스러운 금색과 기하학적 문양으로 프리미엄 학술 분위기를 완성합니다.",
-    price: "₩10,000",
+    price: "₩5,000",
     preview: "✨",
     productId: THEME_PRODUCT_IDS["golden-library"],
+  },
+  {
+    id: "greek-temple",
+    name: "그리스 신전",
+    description: "고전적인 대리석 질감과 황금 장식으로 고대 그리스의 웅장함을 담았습니다.",
+    price: "₩10,000",
+    preview: "🏛️",
+    productId: THEME_PRODUCT_IDS["greek-temple"],
+  },
+  {
+    id: "sketchbook",
+    name: "손글씨 서재",
+    description: "필기체 폰트로 손으로 직접 쓴 듯한 따뜻하고 친근한 학문의 공간입니다.",
+    price: "₩3,000",
+    preview: "✍️",
+    productId: THEME_PRODUCT_IDS["sketchbook"],
   },
 ];
 
@@ -67,7 +83,7 @@ export function ThemeScreen({
   isDarkMode,
   onToggleDarkMode,
   lumenBalance,
-  onThemePurchase,
+  onThemePurchase: _onThemePurchase,
 }: ThemeScreenProps) {
   const [currentTheme, setCurrentTheme] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -113,6 +129,10 @@ export function ThemeScreen({
     setCurrentTheme(savedTheme);
     const htmlElement = document.documentElement;
     htmlElement.setAttribute("data-theme", savedTheme);
+
+    // 스킨 기능 비활성화 - 질감 없음
+    htmlElement.removeAttribute("data-skin");
+
     // 테마가 적용되면 다크 모드 클래스 제거 (테마가 자체 색상을 가지고 있으므로)
     if (savedTheme !== "default") {
       htmlElement.classList.remove("dark");
@@ -127,6 +147,10 @@ export function ThemeScreen({
         localStorage.setItem("app-theme", "default");
         const htmlElement = document.documentElement;
         htmlElement.setAttribute("data-theme", "default");
+
+        // 기본 테마는 질감 없음
+        htmlElement.removeAttribute("data-skin");
+
         // 기본 테마는 다크 모드 설정 복원
         const savedDarkMode = localStorage.getItem("darkMode");
         const isDark = savedDarkMode !== null ? savedDarkMode === "true" : true;
@@ -160,11 +184,18 @@ export function ThemeScreen({
         return;
       }
 
-      // 유료 테마는 구매 여부 확인
-      if (!purchasedThemes.includes(themeId)) {
-        const theme = THEMES.find((t) => t.id === themeId);
-        if (!theme) return;
+      // 유료 테마는 구매 여부 확인 (무료인 경우 바로 적용)
+      const theme = THEMES.find((t) => t.id === themeId);
+      if (!theme) return;
 
+      // 무료 테마는 바로 적용
+      if (theme.price === "무료") {
+        // 무료 테마는 구매 목록에 자동 추가
+        if (!purchasedThemes.includes(themeId)) {
+          setPurchasedThemes((prev) => [...prev, themeId]);
+        }
+      } else if (!purchasedThemes.includes(themeId)) {
+        // 유료 테마는 구매 여부 확인
         // 인앱 구매 진행
         if (isIAPAvailable && theme.productId) {
           setIsPurchasing(true);
@@ -231,6 +262,9 @@ export function ThemeScreen({
       const htmlElement = document.documentElement;
       htmlElement.setAttribute("data-theme", themeId);
 
+      // 스킨 기능 비활성화 - 질감 없음
+      htmlElement.removeAttribute("data-skin");
+
       // 테마가 적용되면 다크 모드 클래스 제거 (테마가 자체 색상을 가지고 있으므로)
       if (themeId !== "default") {
         htmlElement.classList.remove("dark");
@@ -251,16 +285,19 @@ export function ThemeScreen({
       // App.tsx에 테마 변경 알림 (같은 탭에서 변경된 경우)
       window.dispatchEvent(new CustomEvent("theme-changed"));
 
-      const theme = THEMES.find((t) => t.id === themeId);
       if (!isPurchasing) {
         toast.success(`${theme?.name || themeId} 테마가 적용되었습니다.`);
       }
     },
-    [purchasedThemes, isIAPAvailable, isPurchasing, onThemePurchase]
+    [purchasedThemes, isIAPAvailable, isPurchasing]
   );
 
   const isThemePurchased = (themeId: string) => {
-    return themeId === "default" || purchasedThemes.includes(themeId);
+    if (themeId === "default") return true;
+    const theme = THEMES.find((t) => t.id === themeId);
+    // 무료 테마는 항상 구매된 것으로 간주
+    if (theme?.price === "무료") return true;
+    return purchasedThemes.includes(themeId);
   };
 
   const isThemeAffordable = (themeId: string) => {

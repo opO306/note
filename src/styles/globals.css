@@ -275,21 +275,17 @@ html[data-theme='midnight'].dark {
 /* 전자 종이 테마: 종이 질감 효과 */
 :root[data-theme='e-ink'] body,
 html[data-theme='e-ink'] body {
-  background-image: 
-    repeating-linear-gradient(
-      0deg,
+  background-image:
+    repeating-linear-gradient(0deg,
       transparent,
       transparent 2px,
       rgba(61, 58, 50, 0.03) 2px,
-      rgba(61, 58, 50, 0.03) 4px
-    ),
-    repeating-linear-gradient(
-      90deg,
+      rgba(61, 58, 50, 0.03) 4px),
+    repeating-linear-gradient(90deg,
       transparent,
       transparent 2px,
       rgba(61, 58, 50, 0.02) 2px,
-      rgba(61, 58, 50, 0.02) 4px
-    );
+      rgba(61, 58, 50, 0.02) 4px);
   background-size: 100% 100%, 100% 100%;
 }
 
@@ -325,6 +321,9 @@ html[data-theme='e-ink'] body {
     overscroll-behavior-y: none;
     width: 100%;
     min-height: 100vh;
+    /* 구형 브라우저용 fallback */
+    min-height: 100dvh;
+    /* 모바일 주소창 제외한 실제 보이는 높이 */
   }
 
   /* Button optimizations */
@@ -1610,6 +1609,104 @@ html[data-theme='e-ink'] body {
   transform-origin: 0 48px;
   animation-duration: 15s;
   animation-direction: reverse;
+}
+
+/* 🏛 황금빛 서재 테마: 음각(Engraving) 효과 - 금판에 새겨진 듯한 고급스러운 느낌 */
+/* 텍스트 음각 효과 */
+.dark .engraved-text {
+  text-shadow:
+    0 1px 0 rgba(212, 175, 55, 0.3),
+    0 -1px 0 rgba(13, 11, 10, 0.8),
+    0 2px 1px rgba(13, 11, 10, 0.6),
+    0 0 2px rgba(13, 11, 10, 0.4);
+  color: var(--primary);
+  font-weight: 500;
+}
+
+/* 강한 음각 효과 */
+.dark .engraved-text-strong {
+  text-shadow:
+    0 2px 0 rgba(212, 175, 55, 0.4),
+    0 -2px 0 rgba(13, 11, 10, 0.9),
+    0 3px 2px rgba(13, 11, 10, 0.7),
+    0 1px 1px rgba(13, 11, 10, 0.5),
+    0 0 3px rgba(13, 11, 10, 0.5);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* 부드러운 음각 효과 */
+.dark .engraved-text-soft {
+  text-shadow:
+    0 1px 0 rgba(249, 231, 159, 0.2),
+    0 -1px 0 rgba(13, 11, 10, 0.6),
+    0 1px 1px rgba(13, 11, 10, 0.4);
+  color: var(--foreground);
+}
+
+/* 박스/카드 음각 효과 */
+.dark .engraved-box {
+  box-shadow:
+    inset 0 2px 4px rgba(212, 175, 55, 0.15),
+    inset 0 -2px 4px rgba(13, 11, 10, 0.6),
+    inset 0 1px 2px rgba(13, 11, 10, 0.4),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+  background: var(--card);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+/* 강한 박스 음각 효과 */
+.dark .engraved-box-strong {
+  box-shadow:
+    inset 0 3px 6px rgba(212, 175, 55, 0.2),
+    inset 0 -3px 6px rgba(13, 11, 10, 0.8),
+    inset 0 2px 3px rgba(13, 11, 10, 0.5),
+    inset 0 1px 1px rgba(212, 175, 55, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.4);
+  background: var(--card);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+/* 아이콘 음각 효과 */
+.dark .engraved-icon {
+  filter:
+    drop-shadow(0 1px 0 rgba(212, 175, 55, 0.3)) drop-shadow(0 -1px 0 rgba(13, 11, 10, 0.7)) drop-shadow(0 2px 1px rgba(13, 11, 10, 0.5));
+  color: var(--primary);
+}
+
+/* 버튼 음각 효과 */
+.dark .engraved-button {
+  box-shadow:
+    inset 0 2px 4px rgba(212, 175, 55, 0.2),
+    inset 0 -2px 4px rgba(13, 11, 10, 0.7),
+    inset 0 1px 2px rgba(13, 11, 10, 0.5),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(180deg,
+      rgba(212, 175, 55, 0.1) 0%,
+      rgba(13, 11, 10, 0.3) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: var(--primary);
+  transition: all var(--transition-fast);
+}
+
+.dark .engraved-button:active {
+  box-shadow:
+    inset 0 1px 2px rgba(13, 11, 10, 0.8),
+    inset 0 -1px 2px rgba(212, 175, 55, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.2);
+  transform: translateY(1px);
+}
+
+/* 배지/라벨 음각 효과 */
+.dark .engraved-badge {
+  box-shadow:
+    inset 0 1px 2px rgba(212, 175, 55, 0.15),
+    inset 0 -1px 2px rgba(13, 11, 10, 0.6),
+    0 1px 2px rgba(0, 0, 0, 0.2);
+  background: var(--card);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  color: var(--primary);
+  font-weight: 500;
 }
 
 /* 🔥 스위치 강제 크기 조절 - 완벽한 비율 */

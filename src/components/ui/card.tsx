@@ -10,6 +10,7 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
         "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border",
         className,
       )}
+      style={{ transform: 'translateZ(0)' } as React.CSSProperties}
       {...props}
     />
   );

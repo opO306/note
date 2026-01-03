@@ -15,6 +15,7 @@ import { useNow } from "@/components/hooks/useNow";
 import { type UserProfileLite } from "@/components/MainScreen/hooks/useUserProfiles";
 import { formatDateTime, usePostDetailViewModel, type ReplyWithGuide } from "../hooks/usePostDetailViewModel";
 import { LanternIcon, LanternFilledIcon } from "@/components/icons/Lantern";
+import { LaurelWreath } from "@/components/icons/LaurelWreath";
 import {
   MessageCircle,
   MoreHorizontal,
@@ -169,6 +170,19 @@ export function PostDetailView({
     return _postAuthorProfileImage;
   }, [isOwnPost, _userProfileImage, _postAuthorProfileImage]);
 
+  // 그리스 신전 테마 확인
+  const isGreekTempleTheme = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const currentTheme = document.documentElement.getAttribute("data-theme") || "default";
+    return currentTheme === "greek-temple";
+  }, []);
+
+  // 작성자 프로필에서 신뢰도 가져오기
+  const postAuthorProfile = useMemo(() => {
+    const authorUid = post.authorUid || (post as any).userId;
+    return authorUid ? userProfiles[authorUid] : undefined;
+  }, [post, userProfiles]);
+
   // 답글 입력 엔터 처리 (조건부 호출 방지를 위해 early return 전에 정의)
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -201,7 +215,7 @@ export function PostDetailView({
   return (
     <div className="h-full flex flex-col">
       {/* 헤더 */}
-      <div className="bg-card/95 border-b border-border px-4 pb-4 flex-shrink-0 safe-top" style={{ paddingTop: 'calc(var(--safe-area-inset-top) + 1rem)' } as React.CSSProperties}>
+      <div className="bg-card/95 border-b border-border px-4 pb-4 flex-shrink-0 safe-top-with-padding">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <Button variant="ghost" size="icon" onClick={onClose}>
@@ -256,6 +270,12 @@ export function PostDetailView({
                     {/* 이름 + 칭호 한 줄, 그 아래에 날짜 */}
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">
+                        {/* 월계관 왕관 (그리스 신전 테마 + 신뢰도 70 이상) */}
+                        {isGreekTempleTheme && postAuthorProfile?.trustScore !== undefined && postAuthorProfile.trustScore >= 70 && (
+                          <div className={`shrink-0 ${isGreekTempleTheme ? 'laurel-wreath-premium' : 'laurel-wreath'}`}>
+                            <LaurelWreath size={18} isPremium={isGreekTempleTheme} />
+                          </div>
+                        )}
                         <p
                           className={
                             "font-semibold text-base " +
@@ -689,9 +709,27 @@ const ReplyCard = React.memo(function ReplyCard({
     ? formatDateTime(replyCreatedAtDate)
     : "";
 
+  // 그리스 신전 테마 확인
+  const isGreekTempleTheme = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const currentTheme = document.documentElement.getAttribute("data-theme") || "default";
+    return currentTheme === "greek-temple";
+  }, []);
+
+  // 황금빛 서재 테마 확인
+  const isGoldenLibraryTheme = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const currentTheme = document.documentElement.getAttribute("data-theme") || "default";
+    return currentTheme === "golden-library";
+  }, []);
+
   return (
     <Card
-      className={`border-border/60 shadow-sm bg-card/40 backdrop-blur-sm list-optimized ${isGuide ? "ring-2 ring-amber-500/50 bg-amber-500/5" : ""
+      className={`border-border/60 shadow-sm bg-card/40 backdrop-blur-sm list-optimized ${isGuide
+        ? isGoldenLibraryTheme
+          ? "ring-2 ring-[#d4af37]/70 bg-[#d4af37]/5 border-[#d4af37]/50"
+          : "ring-2 ring-amber-500/50 bg-amber-500/5"
+        : ""
         }`}
     >
       <CardContent className="p-4">
@@ -723,6 +761,12 @@ const ReplyCard = React.memo(function ReplyCard({
               <div>
                 {/* 이름 + 칭호 + 길잡이 뱃지 한 줄 */}
                 <div className="flex items-center space-x-2">
+                  {/* 월계관 왕관 (그리스 신전 테마 + 신뢰도 70 이상) */}
+                  {isGreekTempleTheme && replyAuthorProfile?.trustScore !== undefined && replyAuthorProfile.trustScore >= 70 && (
+                    <div className={`shrink-0 ${isGreekTempleTheme ? 'laurel-wreath-premium' : 'laurel-wreath'}`}>
+                      <LaurelWreath size={14} isPremium={isGreekTempleTheme} />
+                    </div>
+                  )}
                   <p
                     className={
                       "font-medium text-sm " +

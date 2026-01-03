@@ -152,7 +152,7 @@ export default function NoteDetailScreen({ noteId, onBack, onGoWrite, onOpenSour
     return (
         <div className="h-full flex flex-col">
             {/* 헤더 */}
-            <div className="bg-card/95 border-b border-border px-4 pb-4 flex-shrink-0 safe-top" style={{ paddingTop: 'calc(var(--safe-area-inset-top) + 1rem)' } as React.CSSProperties}>
+            <div className="bg-card/95 border-b border-border px-4 pb-4 flex-shrink-0 safe-top-with-padding">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                         <Button variant="ghost" size="icon" onClick={onBack}>

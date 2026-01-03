@@ -750,16 +750,6 @@ function MainScreenInner({
   const profileOwnerProfile =
     profileOwnerUid ? profileOwnerProfiles[profileOwnerUid] ?? null : null;
 
-  // 디버깅: profileOwnerProfile 확인
-  useEffect(() => {
-    if (profileOwnerUid && profileOwnerProfile) {
-      console.log("[MainScreen] profileOwnerProfile:", {
-        uid: profileOwnerUid,
-        profile: profileOwnerProfile,
-        currentTheme: profileOwnerProfile.currentTheme,
-      });
-    }
-  }, [profileOwnerUid, profileOwnerProfile]);
 
   const otherFollowStats = useOtherUserFollowStats({
     viewedNickname: activeUserProfileNickname,
@@ -857,10 +847,6 @@ function MainScreenInner({
     goAchievements();
   }, [goAchievements]);
 
-  const navigateToTheme = useCallback(() => {
-    setSelectedPost(null);
-    setRoute({ name: "theme" });
-  }, [setRoute]);
 
   const { isOnline, wasOffline } = useOnlineStatus();
 
@@ -1711,6 +1697,7 @@ function MainScreenInner({
                 onSubCategoryChange={setActiveSubCategory}
                 onSortChange={setSortBy}
                 isPostLanterned={lanternActions.isPostLanterned}
+                userTrustScore={clampedTrust}
                 isBookmarked={bookmarkActions.isBookmarked}
                 onPostClick={(post) => openPostDetail(post, "home")}
                 onLanternToggle={lanternActions.handleLanternToggle}
@@ -1769,7 +1756,6 @@ function MainScreenInner({
                   setRoute({ name: "titleShop" });
                 }}
                 onAchievementsClick={navigateToAchievements}
-                onThemeClick={navigateToTheme}
                 onTitlesCollectionClick={() => {
                   setRoute({ name: "titlesCollection" });
                 }}
@@ -1831,6 +1817,7 @@ function MainScreenInner({
                 weeklyGuideRanking={userStats.weeklyGuideRanking}
                 totalGuideRanking={userStats.totalGuideRanking}
                 weeklyLanternRanking={userStats.weeklyLanternRanking}
+                currentTheme={currentTheme}
               />
               <BottomNavigation
                 onHomeClick={navigateToHome}
@@ -2060,12 +2047,6 @@ function MainScreenInner({
                         return typeof window !== "undefined" ? localStorage.getItem("app-theme") || "default" : "default";
                       }
                       const otherUserTheme = profileOwnerProfile?.currentTheme;
-                      console.log("[MainScreen] 다른 유저 프로필 테마:", {
-                        profileOwnerUid,
-                        profileOwnerProfile,
-                        currentTheme: otherUserTheme,
-                        isMyself,
-                      });
                       return (otherUserTheme && otherUserTheme !== "default") ? otherUserTheme : null;
                     })()}
                     followerCount={followerCountForProfile}
@@ -2167,6 +2148,7 @@ function MainScreenInner({
                   setUserProfileSource({ source: "followList", mode });
                   setRoute({ name: "userProfile", nickname });
                 }}
+                currentTheme={currentTheme}
               />
               <BottomNavigation
                 onHomeClick={navigateToHome}

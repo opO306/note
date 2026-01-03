@@ -13,6 +13,9 @@ import { LanternIcon, LanternFilledIcon } from "@/components/icons/Lantern";
 import { MessageCircle, Bookmark, Plus, RotateCw } from "lucide-react";
 import { getUserTitle, getTitleLabelById } from "@/data/titleData";
 import { filterGoogleProfileImage } from "@/utils/profileImageUtils";
+import { GreekColumn, getColumnStyleByTrustScore } from "@/components/icons/GreekColumn";
+import { LaurelWreath } from "@/components/icons/LaurelWreath";
+// import { getBookShelfLevelByTrustScore } from "@/components/icons/BookShelf"; // TODO: 향후 황금빛 서재 테마 구현 시 사용 예정
 import {
   getDisplayName,
   isDeletedAuthor,
@@ -59,6 +62,8 @@ interface PostListViewProps {
   onBookmarkToggle: (postId: string | number) => void;
   onStartWriting: () => void;
   currentTitle: string;
+  // 자신의 신뢰도 (자신의 게시물에 기둥 표시용)
+  userTrustScore?: number;
 }
 
 function PostListViewComponent({
@@ -82,6 +87,7 @@ function PostListViewComponent({
   onRefresh,
   isRefreshing = false,
   isLoading = false, // ✅ 초기 로딩 상태
+  userTrustScore,
 }: PostListViewProps) {
 
   // 🆕 [추가] 차단된 유저의 게시글 필터링
@@ -164,6 +170,7 @@ function PostListViewComponent({
             onLanternToggle={onLanternToggle}
             onBookmarkToggle={onBookmarkToggle}
             scrollRef={scrollRef}
+            userTrustScore={userTrustScore}
           />
         )}
       </div>
@@ -287,6 +294,7 @@ interface PostCardsListProps {
   onLanternToggle: (postId: string | number) => void;
   onBookmarkToggle: (postId: string | number) => void;
   scrollRef?: React.RefObject<HTMLElement | null>;
+  userTrustScore?: number;
 }
 
 export const PostCardsList = React.memo(function PostCardsList({
@@ -303,6 +311,7 @@ export const PostCardsList = React.memo(function PostCardsList({
   onLanternToggle,
   onBookmarkToggle,
   scrollRef,
+  userTrustScore,
 }: PostCardsListProps) {
   const cardItems = useMemo(
     () =>
@@ -352,6 +361,7 @@ export const PostCardsList = React.memo(function PostCardsList({
               onLanternToggle={onLanternToggle}
               onBookmarkToggle={onBookmarkToggle}
               index={index}
+              userTrustScore={userTrustScore}
             />
           </div>
         );
@@ -374,6 +384,7 @@ export interface PostCardProps {
   onLanternToggle: (postId: string | number) => void;
   onBookmarkToggle: (postId: string | number) => void;
   index?: number;
+  userTrustScore?: number;
 }
 
 export const PostCard = React.memo(
@@ -391,6 +402,7 @@ export const PostCard = React.memo(
     onLanternToggle,
     onBookmarkToggle,
     index = 999, // 기본값: 낮은 우선순위
+    userTrustScore,
   }: PostCardProps & { index?: number }) => {
     const isOwnPost = post.author === userNickname;
 
@@ -469,25 +481,78 @@ export const PostCard = React.memo(
 
     // 현재 테마 확인 (useMemo로 최적화)
     const cardThemeClass = useMemo(() => {
-      const currentTheme = typeof window !== "undefined" 
+      const currentTheme = typeof window !== "undefined"
         ? document.documentElement.getAttribute("data-theme") || "default"
         : "default";
-      
+
       const themeClasses = {
         "midnight": "border-l-4 border-l-[#d4af37] shadow-md bg-card/90 hover:shadow-lg hover:border-l-[#e6c85a]",
         "e-ink": "border-l-2 border-l-[#5a564d] shadow-sm bg-card/98 border-t border-t-[#d4cfc2]/50",
-        "golden-library": "border-l-4 border-l-[#d4af37] shadow-md bg-card/90 hover:shadow-lg hover:border-l-[#e6c85a] theme-post-card-math-bg",
+        "golden-library": "bg-card/90 hover:shadow-lg",
         "default": "border-border/60 shadow-sm bg-card/80"
       };
-      
+
       return themeClasses[currentTheme as keyof typeof themeClasses] || themeClasses.default;
     }, []);
 
+    // 그리스 신전 테마 확인
+    const isGreekTempleTheme = useMemo(() => {
+      if (typeof window === "undefined") return false;
+      const currentTheme = document.documentElement.getAttribute("data-theme") || "default";
+      return currentTheme === "greek-temple";
+    }, []);
+
+    // 황금빛 서재 테마 확인
+    const isGoldenLibraryTheme = useMemo(() => {
+      if (typeof window === "undefined") return false;
+      const currentTheme = document.documentElement.getAttribute("data-theme") || "default";
+      return currentTheme === "golden-library";
+    }, []);
+
+    // 신뢰도 기반 기둥 스타일 결정
+    // 자신의 게시물이면 자신의 신뢰도 사용, 아니면 작성자의 신뢰도 사용
+    const authorTrustScore = isOwnPost ? userTrustScore : (authorProfile?.trustScore);
+    const columnStyle = useMemo(() => {
+      if (!isGreekTempleTheme) return null;
+      return getColumnStyleByTrustScore(authorTrustScore);
+    }, [isGreekTempleTheme, authorTrustScore]);
+
+    // 신뢰도 기반 책장 레벨 결정 (황금빛 서재 테마용)
+    // TODO: 향후 황금빛 서재 테마 구현 시 사용 예정
+    // const bookShelfLevel = useMemo(() => {
+    //   if (!isGoldenLibraryTheme) return null;
+    //   return getBookShelfLevelByTrustScore(authorTrustScore);
+    // }, [isGoldenLibraryTheme, authorTrustScore]);
+
+    // 강조가 필요한 게시글인지 판단 (인기글, 길잡이 글, 내가 쓴 글 등)
+    const isHighlighted = useMemo(() => {
+      const lanternCount = post.lanterns ?? 0;
+      const viewCount = post.views ?? 0;
+      const isGuide = post.type === "guide";
+      const isMyPost = post.author === userNickname;
+
+      // 등불 10개 이상, 조회수 100 이상, 길잡이 글, 내가 쓴 글 중 하나라도 해당되면 강조
+      return lanternCount >= 10 || viewCount >= 100 || isGuide || isMyPost;
+    }, [post.lanterns, post.views, post.type, post.author, userNickname]);
+
     return (
       <Card
-        className={`${cardThemeClass} backdrop-blur-sm transition-all cursor-pointer list-optimized`}
+        className={`${cardThemeClass} backdrop-blur-sm transition-all cursor-pointer list-optimized relative ${isOwnPost && isGoldenLibraryTheme ? 'my-post-golden-border' : ''}`}
         onClick={handleCardClick}
+        data-highlighted={isHighlighted ? "true" : "false"}
+        data-lanterns={post.lanterns ?? 0}
+        data-views={post.views ?? 0}
+        data-type={post.type || ""}
+        data-is-owner={post.author === userNickname ? "true" : "false"}
       >
+        {/* 그리스 신전 테마: 신뢰도 기반 기둥 장식 (왼쪽) */}
+        {isGreekTempleTheme && columnStyle && (
+          <div className="absolute left-0 top-0 bottom-0 w-1 flex items-center justify-center opacity-60">
+            <div className="h-full flex items-center justify-center py-2">
+              <GreekColumn style={columnStyle} size={16} className="text-primary/70" />
+            </div>
+          </div>
+        )}
         <CardContent className="p-4 relative z-10">
           <div className="space-y-3">
             {/* 작성자 + 시간 */}
@@ -511,14 +576,22 @@ export const PostCard = React.memo(
                   {/* 윗줄: 닉네임 + 칭호 */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <p
-                        className={
-                          "text-sm font-medium " +
-                          (isAuthorDeleted ? "text-muted-foreground" : "")
-                        }
-                      >
-                        {displayAuthorName}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        {/* 월계관 왕관 (그리스 신전 테마 + 신뢰도 70 이상) */}
+                        {isGreekTempleTheme && authorTrustScore !== undefined && authorTrustScore >= 70 && (
+                          <div className={`shrink-0 ${isGreekTempleTheme ? 'laurel-wreath-premium' : 'laurel-wreath'}`}>
+                            <LaurelWreath size={14} isPremium={isGreekTempleTheme} />
+                          </div>
+                        )}
+                        <p
+                          className={
+                            "text-sm font-medium " +
+                            (isAuthorDeleted ? "text-muted-foreground" : "")
+                          }
+                        >
+                          {displayAuthorName}
+                        </p>
+                      </div>
                       {authorTitle && (
                         <Badge
                           variant="secondary"

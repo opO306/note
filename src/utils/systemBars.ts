@@ -103,7 +103,7 @@ function setAndroidNavigationBarColor(color: string) {
   if ((window as any).navigationBar) {
     try {
       (window as any).navigationBar.setBackgroundColor(color);
-    } catch (_e) {
+    } catch {
       // 네이티브 API가 없는 경우 무시
     }
   }

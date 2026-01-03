@@ -6,26 +6,6 @@ import { toast } from "@/toastHelper";
 import { safeLocalStorage } from "@/components/utils/storageUtils";
 import { getUserDataFromFirestore, invalidateUserDataCache } from "@/utils/userDataLoader";
 
-// #region agent log helper
-const debugLog = (location: string, message: string, data: any, hypothesisId: string) => {
-  const logEntry = {
-    location,
-    message,
-    data,
-    timestamp: Date.now(),
-    sessionId: 'debug-session',
-    runId: 'run1',
-    hypothesisId
-  };
-  console.log(`[DEBUG ${hypothesisId}] ${location}: ${message}`, data);
-  try {
-    const logs = JSON.parse(localStorage.getItem('debug_logs') || '[]');
-    logs.push(logEntry);
-    if (logs.length > 100) logs.shift(); // 최대 100개만 유지
-    localStorage.setItem('debug_logs', JSON.stringify(logs));
-  } catch (_e) {}
-};
-// #endregion
 
 const getUserScopedStorageKey = (baseKey: string): string => {
   const uid = auth.currentUser?.uid;
@@ -50,16 +30,10 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
     // 즉시 확인
     if (auth.currentUser) {
       setAuthReady(true);
-      // #region agent log
-      debugLog('useTitleActions.ts:auth', '인증 상태 즉시 확인', { uid: auth.currentUser.uid }, 'A');
-      // #endregion
     }
     
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, () => {
       setAuthReady(true);
-      // #region agent log
-      debugLog('useTitleActions.ts:auth', '인증 상태 변경', { uid: user?.uid || 'null', hasUser: !!user }, 'A');
-      // #endregion
     });
     return () => unsubscribe();
   }, []);
@@ -69,54 +43,17 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
     if (!authReady) return; // 🔹 인증이 준비될 때까지 대기
     
     const uid = auth.currentUser?.uid;
-    // #region agent log
-    debugLog('useTitleActions.ts:27', '로컬 스토리지 읽기 시작', { uid: uid || 'null' }, 'A');
-    // #endregion
     if (!uid) return; // 🔹 uid가 없으면 로컬 스토리지에서 읽지 않음
     
     const ownedTitlesKey = getUserScopedStorageKey("ownedTitles");
     const currentTitleKey = getUserScopedStorageKey("currentTitle");
-    // #region agent log
-    debugLog('useTitleActions.ts:32', '로컬 스토리지 키 생성', { ownedTitlesKey, currentTitleKey, uid }, 'E');
-    // #endregion
     const savedOwnedTitles = safeLocalStorage.getJSON(ownedTitlesKey, []);
     if (Array.isArray(savedOwnedTitles)) {
       setOwnedTitles(savedOwnedTitles);
     }
     const savedCurrentTitle = safeLocalStorage.getItem(currentTitleKey);
-    // #region agent log
-    // 🔹 로컬 스토리지의 모든 키 확인 (디버깅용)
-    const allKeys: string[] = [];
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.includes('currentTitle') || key.includes('ownedTitles'))) {
-          allKeys.push(key);
-        }
-      }
-    } catch (_e) {}
-    debugLog('useTitleActions.ts:38', '로컬 스토리지에서 읽은 값', { 
-      savedCurrentTitle: savedCurrentTitle || 'null', 
-      savedCurrentTitleType: typeof savedCurrentTitle,
-      savedCurrentTitleLength: savedCurrentTitle?.length || 0,
-      currentTitleKey,
-      allRelevantKeys: allKeys
-    }, 'A');
-    // #endregion
     if (savedCurrentTitle && savedCurrentTitle.trim() !== "") {
       setCurrentTitle(savedCurrentTitle);
-      // #region agent log
-      debugLog('useTitleActions.ts:41', '로컬 스토리지 값으로 currentTitle 설정', { savedCurrentTitle }, 'A');
-      // #endregion
-    } else {
-      // #region agent log
-      debugLog('useTitleActions.ts:else', '로컬 스토리지 값이 없거나 빈 값', { 
-        savedCurrentTitle, 
-        isNull: savedCurrentTitle === null,
-        isEmpty: savedCurrentTitle === '',
-        trimmed: savedCurrentTitle?.trim() === ''
-      }, 'A');
-      // #endregion
     }
   }, [authReady]);
 
@@ -131,15 +68,6 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
       try {
         // ✅ 통합 로더를 사용하여 한 번의 요청으로 모든 데이터 가져오기
         const userData = await getUserDataFromFirestore(uid);
-        // #region agent log
-        debugLog('useTitleActions.ts:50', 'Firestore에서 가져온 값', { 
-          firestoreCurrentTitle: userData.currentTitle, 
-          firestoreCurrentTitleType: typeof userData.currentTitle,
-          firestoreCurrentTitleIsNull: userData.currentTitle === null,
-          firestoreOwnedTitles: userData.ownedTitles,
-          uid 
-        }, 'B');
-        // #endregion
 
         // 서버에서 가져온 데이터로 상태 업데이트
         if (userData.ownedTitles.length > 0) {
@@ -156,14 +84,6 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
         // 🔹 현재 상태에서 currentTitle 값도 확인 (이미 로컬 스토리지에서 로드했을 수 있음)
         const currentStateTitle = currentTitle; // 이미 설정된 값
         const savedCurrentTitle = safeLocalStorage.getItem(currentTitleKey) || "";
-        // #region agent log
-        debugLog('useTitleActions.ts:64', 'Firestore 처리 전 상태', { 
-          firestoreValue: userData.currentTitle, 
-          savedValue: savedCurrentTitle, 
-          currentStateValue: currentStateTitle,
-          currentTitleKey 
-        }, 'B');
-        // #endregion
         
         // 🔹 우선순위: Firestore > 현재 상태 > 로컬 스토리지
         const finalTitle = userData.currentTitle !== null 
@@ -175,12 +95,6 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
         if (finalTitle) {
           setCurrentTitle(finalTitle);
           safeLocalStorage.setItem(currentTitleKey, finalTitle);
-          // #region agent log
-          debugLog('useTitleActions.ts:final', '최종 값 설정', { 
-            finalValue: finalTitle, 
-            source: userData.currentTitle !== null ? 'firestore' : (currentStateTitle ? 'state' : 'localStorage')
-          }, 'B');
-          // #endregion
           
           // Firestore에 값이 없고 로컬/상태에 값이 있으면 Firestore에 동기화
           if (userData.currentTitle === null && finalTitle !== userData.currentTitle) {
@@ -190,9 +104,6 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
                 currentTitle: finalTitle,
               });
               invalidateUserDataCache(uid);
-              // #region agent log
-              debugLog('useTitleActions.ts:sync', '로컬 값 Firestore 동기화 완료', { finalTitle }, 'B');
-              // #endregion
             } catch (syncError) {
               console.error("로컬 칭호 Firestore 동기화 실패:", syncError);
               // 동기화 실패해도 로컬 값은 유지
@@ -202,18 +113,12 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
           // 둘 다 없으면 빈 문자열
           setCurrentTitle("");
           safeLocalStorage.setItem(currentTitleKey, "");
-          // #region agent log
-          debugLog('useTitleActions.ts:85', '빈 값으로 설정', { reason: '모든 소스에 값 없음' }, 'B');
-          // #endregion
         }
       } catch (error) {
         console.error("칭호 정보 불러오기 실패:", error);
       } finally {
         setTitlesSyncReady(true);
         setIsInitialLoad(false); // 🔹 초기 로드 완료
-        // #region agent log
-        debugLog('useTitleActions.ts:92', '초기 로드 완료', { titlesSyncReady: true, isInitialLoad: false }, 'D');
-        // #endregion
       }
     };
 
@@ -227,15 +132,9 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
     if (!uid) return;
 
     const syncToFirestore = async () => {
-      // #region agent log
-      debugLog('useTitleActions.ts:105', 'syncToFirestore 실행', { currentTitle, isInitialLoad, titlesSyncReady }, 'C');
-      // #endregion
       try {
         const userRef = doc(db, "users", uid);
         const valueToSave = currentTitle || null;
-        // #region agent log
-        debugLog('useTitleActions.ts:110', 'Firestore에 저장할 값', { valueToSave, originalCurrentTitle: currentTitle }, 'C');
-        // #endregion
         await updateDoc(userRef, {
           ownedTitles,
           currentTitle: valueToSave,
@@ -304,17 +203,6 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
       setCurrentTitle(titleId);
       const currentTitleKey = getUserScopedStorageKey("currentTitle");
       safeLocalStorage.setItem(currentTitleKey, titleId);
-      // #region agent log
-      // 🔹 저장 후 즉시 확인
-      const verifySaved = safeLocalStorage.getItem(currentTitleKey);
-      debugLog('useTitleActions.ts:175', '칭호 장착 - 로컬 스토리지 저장', { 
-        titleId, 
-        currentTitleKey,
-        previous,
-        verifySaved,
-        verifySavedMatch: verifySaved === titleId
-      }, 'A');
-      // #endregion
 
       try {
         const userRef = doc(db, "users", uid);
@@ -378,7 +266,6 @@ export function useTitleActions({ lumenBalance, spendLumens }: UseTitleActionsPa
 
       // 이미 보유한 칭호인지 확인
       if (ownedTitles.includes(titleId)) {
-        console.log(`이미 보유한 칭호입니다: ${titleName}`);
         return;
       }
 

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { auth, db, app } from "../../firebase";
+import { auth, db } from "../../firebase";
 import {
     collection,
     addDoc,
@@ -9,7 +9,6 @@ import {
     increment,
     deleteDoc,
 } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
 import { toast } from "@/toastHelper";
 
 interface UsePostActionsParams {
@@ -51,7 +50,6 @@ export function usePostActions({
             subCategory: string;
             type: "question" | "guide";
             tags: string[];
-            useSagesBell?: boolean;
         }) => {
             if (!userNickname) {
                 toast.error("닉네임 정보를 찾을 수 없습니다. 다시 로그인해주세요.");
@@ -78,7 +76,6 @@ export function usePostActions({
                     replyCount: 0,
                     comments: 0, // UI 표시용 comments 필드 초기화
                     views: 0,
-                    useSagesBell: postData.useSagesBell || false, // 현자의 종 사용 여부
                 });
 
                 // 2. docRef.id 를 그대로 써서 화면용 newPost 만들기
@@ -154,24 +151,7 @@ export function usePostActions({
                     }
                 }
 
-                // 6. 현자의 종 호출 (질문글이고 useSagesBell이 true일 때만)
-                if (postData.type === "question" && postData.useSagesBell) {
-                    try {
-                        const functions = getFunctions(app, "asia-northeast3");
-                        const callSagesBellFn = httpsCallable(functions, "callSagesBell");
-                        await callSagesBellFn({
-                            postId: docRef.id,
-                            categoryId: postData.category,
-                            questionTitle: postData.title,
-                        });
-                        toast.success("현자의 종이 울렸습니다. 고수들의 답변을 기다려주세요!");
-                    } catch (error) {
-                        console.error("현자의 종 호출 실패:", error);
-                        // 실패해도 글 작성은 성공했으므로 에러 토스트는 표시하지 않음
-                    }
-                }
-
-                // 7. 작성한 카테고리로 이동 + 토스트
+                // 6. 작성한 카테고리로 이동 + 토스트
                 setActiveCategory(postData.category);
                 setActiveSubCategory(postData.subCategory);
                 toast.success("글이 작성되었습니다!");

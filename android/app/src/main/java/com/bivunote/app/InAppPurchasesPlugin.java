@@ -106,15 +106,15 @@ public class InAppPurchasesPlugin extends Plugin implements PurchasesUpdatedList
             return;
         }
 
-        // TypeScript에서 getProducts({ productIds: [...] })로 호출하면
-        // data는 { productIds: [...] } 형태입니다
-        JSONArray productIdsArray = data.getJSONArray("productIds");
-        if (productIdsArray == null) {
-            call.reject("productIds is required");
-            return;
-        }
-
         try {
+            // TypeScript에서 getProducts({ productIds: [...] })로 호출하면
+            // data는 { productIds: [...] } 형태입니다
+            JSONArray productIdsArray = data.getJSONArray("productIds");
+            if (productIdsArray == null) {
+                call.reject("productIds is required");
+                return;
+            }
+
             List<String> productIds = new ArrayList<>();
             for (int i = 0; i < productIdsArray.length(); i++) {
                 productIds.add(productIdsArray.getString(i));
@@ -220,12 +220,15 @@ public class InAppPurchasesPlugin extends Plugin implements PurchasesUpdatedList
                         productDetails.getOneTimePurchaseOfferDetails();
                     
                     if (offerDetails != null) {
+                        List<BillingFlowParams.ProductDetailsParams> productDetailsParamsList = new ArrayList<>();
+                        productDetailsParamsList.add(
+                            BillingFlowParams.ProductDetailsParams.newBuilder()
+                                .setProductDetails(productDetails)
+                                .build()
+                        );
+                        
                         BillingFlowParams flowParams = BillingFlowParams.newBuilder()
-                                .setProductDetailsParamsList(
-                                    BillingFlowParams.ProductDetailsParams.newBuilder()
-                                        .setProductDetails(productDetails)
-                                        .build()
-                                )
+                                .setProductDetailsParamsList(productDetailsParamsList)
                                 .build();
 
                         BillingResult result = billingClient.launchBillingFlow(getActivity(), flowParams);

@@ -11,7 +11,8 @@ export type TransitionType =
   | "slideLeft"
   | "slideRight"
   | "scaleRotate"
-  | "flip";
+  | "flip"
+  | "pageFlip";
 
 interface PageTransitionProps {
   children: ReactNode;
@@ -37,22 +38,36 @@ export function PageTransition({
 }: PageTransitionProps) {
   const variants = getTransitionVariants(type);
 
+  // 책 넘기기 애니메이션의 경우 perspective 추가
+  const needsPerspective = type === "pageFlip";
+  
   return (
     <AnimatePresence mode="wait">
-      <motion.div
-        key={pageKey}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        variants={variants}
-        transition={{
-          duration,
-          ease: [0.4, 0, 0.2, 1], // easeInOut
-        }}
-        className={cn("w-full h-full", className)}
+      <div
+        className={cn("w-full h-full", needsPerspective && "perspective-1000")}
+        style={needsPerspective ? { perspective: "1000px" } : undefined}
       >
-        {children}
-      </motion.div>
+        <motion.div
+          key={pageKey}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          variants={variants}
+          transition={{
+            duration: type === "pageFlip" ? 0.5 : duration,
+            ease: type === "pageFlip" ? [0.4, 0, 0.2, 1] : [0.4, 0, 0.2, 1],
+          }}
+          className={cn("w-full h-full", className)}
+          style={needsPerspective ? { 
+            transformStyle: "preserve-3d",
+            transformOrigin: "left center",
+            backfaceVisibility: "hidden",
+            WebkitBackfaceVisibility: "hidden",
+          } : undefined}
+        >
+          {children}
+        </motion.div>
+      </div>
     </AnimatePresence>
   );
 }
@@ -123,6 +138,28 @@ function getTransitionVariants(type: TransitionType) {
         initial: { rotateY: 90, opacity: 0 },
         animate: { rotateY: 0, opacity: 1 },
         exit: { rotateY: -90, opacity: 0 },
+      };
+
+    case "pageFlip":
+      return {
+        initial: { 
+          rotateY: -90, 
+          opacity: 0,
+          scale: 0.98,
+          boxShadow: "0 0 0 rgba(0, 0, 0, 0)",
+        },
+        animate: { 
+          rotateY: 0, 
+          opacity: 1,
+          scale: 1,
+          boxShadow: "0 0 0 rgba(0, 0, 0, 0)",
+        },
+        exit: { 
+          rotateY: 90, 
+          opacity: 0,
+          scale: 0.98,
+          boxShadow: "-20px 0 40px rgba(0, 0, 0, 0.3)",
+        },
       };
 
     default:

@@ -229,9 +229,11 @@ export function useReplyActions({
     }
 
     // ✅ 3. 댓글 알림 생성 (답글 작성 성공과 독립적으로 처리)
+    // 자신의 게시글에 자신이 댓글을 달 때는 알림을 생성하지 않음
     try {
       const postAuthorUid = (selectedPost as any).authorUid ?? null;
-      if (postAuthorUid && postAuthorUid !== currentUid) {
+      // 게시글 작성자와 댓글 작성자가 다른 경우에만 알림 생성
+      if (postAuthorUid && postAuthorUid !== currentUid && postAuthorUid.trim() !== "") {
         await createNotificationForEvent({
           toUserUid: postAuthorUid,
           fromUserUid: currentUid,

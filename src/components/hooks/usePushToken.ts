@@ -50,7 +50,6 @@ export function usePushToken() {
                 fcmToken: token,
                 updatedAt: new Date() // 서버 타임스탬프 대신 클라이언트 시간 사용 (간단히)
             }, { merge: true });
-            console.log("FCM Token updated to Firestore");
         } catch (e) {
             console.error("Failed to update token to Firestore", e);
         }
@@ -62,7 +61,6 @@ export function usePushToken() {
 
         try {
             await PushNotifications.addListener('registration', async (token: Token) => {
-                console.log('Push registration success, token: ' + token.value);
                 setFcmToken(token.value);
 
                 // Firestore에 토큰 저장
@@ -77,7 +75,6 @@ export function usePushToken() {
             });
 
             await PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
-                console.log('Push received: ' + JSON.stringify(notification));
                 // 앱이 켜져 있을 때 알림이 오면 토스트 표시
                 const title = notification.title || "알림";
                 const body = notification.body || "";
@@ -85,7 +82,6 @@ export function usePushToken() {
             });
 
             await PushNotifications.addListener('pushNotificationActionPerformed', (notification: ActionPerformed) => {
-                console.log('Push action performed: ' + JSON.stringify(notification));
                 const data = notification.notification.data;
                 if (data?.link) {
                     // 딥링크 이동 처리 (React Router 등으로 이동)

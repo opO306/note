@@ -8,9 +8,9 @@ export type AchievementCategory =
     | 'lantern'    // 등불 (좋아요)
     | 'streak'     // 출석
     | 'captain'    // 선장 (팔로워)
-    | 'economy'    // 경제 전문가
-    | 'it'         // IT 전문가
-    | 'language';  // 외국어 전문가
+    | 'economy'    // 경제 길잡이
+    | 'it'         // 기술 이야기꾼
+    | 'language';  // 언어 항해사
 
 /**
  * 업적 인터페이스
@@ -24,7 +24,7 @@ export interface Achievement {
     condition: {
         type: string;
         target: number;
-        minLanterns?: number;      // 평균 등불 개수 (분야별 전문가용)
+        minLanterns?: number;      // 평균 등불 개수 (분야별 길잡이용)
         minAverageLanterns?: number; // 평균 등불 개수 (품질 확인용)
     };
     reward: {
@@ -337,7 +337,7 @@ export const normalAchievements: Achievement[] = [
         condition: { type: 'follower_count', target: 100 },
         reward: { lumens: 0, specialTitle: '선장' }
     },
-    // ========== 분야별 전문가 칭호 ==========
+    // ========== 분야별 길잡이 칭호 ==========
     // 경제 분야
     {
         id: 'economy_analyst',
@@ -351,12 +351,12 @@ export const normalAchievements: Achievement[] = [
 
     {
         id: 'economy_expert',
-        name: '경제 전문가',
+        name: '경제 길잡이',
         description: '경제 카테고리에서 등불 10개 이상 받은 답변을 150개 작성했습니다',
         category: 'economy',
         hidden: false,
         condition: { type: 'category_quality_reply', target: 150, minAverageLanterns: 10 },
-        reward: { lumens: 5, specialTitle: '경제 전문가' }
+        reward: { lumens: 5, specialTitle: '경제 길잡이' }
     },
 
     // IT 분야
@@ -372,12 +372,12 @@ export const normalAchievements: Achievement[] = [
 
     {
         id: 'it_expert',
-        name: '기술 전문가',
+        name: '기술 이야기꾼',
         description: 'IT 카테고리에서 등불 10개 이상 받은 답변을 150개 작성했습니다',
         category: 'it',
         hidden: false,
         condition: { type: 'category_quality_reply', target: 150, minAverageLanterns: 10 },
-        reward: { lumens: 5, specialTitle: '기술 전문가' }
+        reward: { lumens: 5, specialTitle: '기술 이야기꾼' }
     },
 
 
@@ -394,12 +394,12 @@ export const normalAchievements: Achievement[] = [
 
     {
         id: 'language_expert',
-        name: '언어 전문가',
+        name: '언어 항해사',
         description: '외국어 카테고리에서 등불 10개 이상 받은 답변을 150개 작성했습니다',
         category: 'language',
         hidden: false,
         condition: { type: 'category_quality_reply', target: 150, minAverageLanterns: 10 },
-        reward: { lumens: 5, specialTitle: '언어 전문가' }
+        reward: { lumens: 5, specialTitle: '언어 항해사' }
     },
 
 
@@ -515,12 +515,12 @@ export const normalAchievements: Achievement[] = [
 export const hiddenAchievements: Achievement[] = [
     {
         id: 'multi_specialist',
-        name: '멀티 전문가',
-        description: '3개 분야에서 전문가 칭호를 획득했습니다',
+        name: '다중 분야 항해사',
+        description: '3개 분야에서 길잡이 칭호를 획득했습니다',
         category: 'reply',
         hidden: true,
         condition: { type: 'multi_field_expert', target: 3 },
-        reward: { lumens: 10, specialTitle: '멀티 전문가' }
+        reward: { lumens: 10, specialTitle: '다중 분야 항해사' }
     },
     {
         id: 'discussion_expert',

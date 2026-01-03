@@ -288,6 +288,55 @@ export const toggleReplyLantern = onCall({ region: "asia-northeast3" }, async (r
 });
 
 /**
+ * 4-2. 루멘 보상 지급 (업적 달성 등)
+ */
+export const awardLumens = onCall({ region: "asia-northeast3" }, async (request) => {
+    const { auth, data } = request;
+    if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+    await checkRateLimit(auth.uid, "awardLumens");
+    
+    const amount = data?.amount as number;
+    const reason = data?.reason as string;
+    const achievementId = data?.achievementId as string | undefined;
+    
+    if (!amount || amount <= 0) {
+        throw new HttpsError("invalid-argument", "유효한 보상 금액이 필요합니다.");
+    }
+    if (!reason || typeof reason !== "string") {
+        throw new HttpsError("invalid-argument", "보상 사유가 필요합니다.");
+    }
+
+    await db.runTransaction(async (tx) => {
+        const userRef = db.collection("users").doc(auth.uid);
+        const userSnap = await tx.get(userRef);
+        
+        if (!userSnap.exists) {
+            throw new HttpsError("not-found", "사용자 정보를 찾을 수 없습니다.");
+        }
+
+        const currentBalance = userSnap.data()?.lumenBalance || 0;
+        const currentTotal = userSnap.data()?.lumenTotalEarned || 0;
+
+        const transactionRecord = {
+            id: `award_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            amount,
+            reason,
+            timestamp: Date.now(),
+            achievementId: achievementId || null,
+            type: "award",
+        };
+
+        tx.update(userRef, {
+            lumenBalance: admin.firestore.FieldValue.increment(amount),
+            lumenTotalEarned: admin.firestore.FieldValue.increment(amount),
+            lumenTransactions: admin.firestore.FieldValue.arrayUnion(transactionRecord),
+        });
+    });
+    
+    return { success: true };
+});
+
+/**
  * 5. 칭호 구매
  */
 export const purchaseTitle = onCall({ region: "asia-northeast3" }, async (request) => {

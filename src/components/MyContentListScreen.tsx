@@ -4,6 +4,11 @@ import { AppHeader } from "./layout/AppHeader";
 import { useUserProfiles, type UserProfileLite } from "@/components/MainScreen/hooks/useUserProfiles";
 import { PostCard } from "@/components/MainScreen/components/PostListView";
 import type { Post } from "@/components/MainScreen/types";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { OptimizedAvatar } from "@/components/OptimizedAvatar";
+import { LanternFilledIcon } from "@/components/icons/Lantern";
+import { getTitleLabelById } from "@/data/titleData";
 
 interface PostItem {
     id: string;
@@ -44,6 +49,15 @@ interface MyContentListScreenProps {
     onBack: () => void;
     onPostClick?: (postId: string) => void;
     onReplyClick?: (postId: string, replyId: number) => void;
+    userNickname?: string;
+    userProfileImage?: string;
+    currentTitle?: string;
+    isPostLanterned?: (postId: string) => boolean;
+    isBookmarked?: (postId: string) => boolean;
+    formatTimeAgo?: (date: Date) => string;
+    formatCreatedAt?: (date: Date) => string;
+    onLanternToggle?: (postId: string) => void;
+    onBookmarkToggle?: (postId: string) => void;
 }
 
 export function MyContentListScreen({
@@ -181,17 +195,17 @@ export function MyContentListScreen({
                                     <div key={post.id} className="px-0 py-1.5">
                                         <PostCard
                                             post={post}
-                                            userNickname={userNickname}
-                                            userProfileImage={userProfileImage}
+                                            userNickname={userNickname || ""}
+                                            userProfileImage={userProfileImage || ""}
                                             isLanterned={isPostLanterned(post.id)}
                                             isBookmarked={isBookmarked(post.id)}
                                             timeAgo={timeAgoText}
                                             createdAtText={createdAtText}
-                                            currentTitle={currentTitle}
+                                            currentTitle={currentTitle || ""}
                                             authorProfile={authorProfile}
                                             onPostClick={handlePostCardClickWrapper}
-                                            onLanternToggle={onLanternToggle}
-                                            onBookmarkToggle={onBookmarkToggle}
+                                            onLanternToggle={(postId) => onLanternToggle?.(String(postId))}
+                                            onBookmarkToggle={(postId) => onBookmarkToggle?.(String(postId))}
                                             index={index}
                                         />
                                     </div>
