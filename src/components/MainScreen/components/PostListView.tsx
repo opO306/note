@@ -36,6 +36,7 @@ interface PostListViewProps {
   posts: Post[];
   userNickname: string;
   userProfileImage: string;
+  userUid: string; // userUid 추가
   activeCategory: string;
   activeSubCategory: string;
   sortBy: SortOption["value"];
@@ -64,12 +65,14 @@ interface PostListViewProps {
   currentTitle: string;
   // 자신의 신뢰도 (자신의 게시물에 기둥 표시용)
   userTrustScore?: number;
+  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 function PostListViewComponent({
   posts,
   userNickname,
   userProfileImage,
+  userUid, // userUid 추가
   activeCategory,
   activeSubCategory,
   sortBy,
@@ -88,6 +91,7 @@ function PostListViewComponent({
   isRefreshing = false,
   isLoading = false, // ✅ 초기 로딩 상태
   userTrustScore,
+  isGuest, // 게스트 모드 여부 추가
 }: PostListViewProps) {
 
   // 🆕 [추가] 차단된 유저의 게시글 필터링
@@ -104,6 +108,21 @@ function PostListViewComponent({
     });
   }, [posts, blockedUserIds]);
 
+  // moderationStatus에 따른 추가 필터링
+  const moderatedPosts = useMemo(() => {
+    return filteredPostsByBlock.filter((post) => {
+      const isOwnPost = post.authorUid === userUid; // 현재 사용자가 작성자인지 확인
+      const hasAiReply = post.replies?.some((r) => r.isAi === true) === true; // AI 답변이 있는지 확인
+
+      // 자신의 게시물 또는 AI 답변이 있는 게시물은 moderationStatus가 'approved'가 아니더라도 볼 수 있게 함
+      if (isOwnPost || hasAiReply) {
+        return true; // 자신의 게시물 또는 AI 답변이 있는 게시물은 항상 표시
+      }
+      // 다른 사람의 게시물은 moderationStatus가 'approved'인 경우에만 볼 수 있게 함
+      return post.moderationStatus === "approved";
+    });
+  }, [filteredPostsByBlock, userUid]); // userUid 의존성 추가
+
   const {
     scrollRef,
     currentSubCategories,
@@ -114,7 +133,7 @@ function PostListViewComponent({
     formatCreatedAt,
     userProfiles,
   } = usePostListViewModel({
-    posts: filteredPostsByBlock, // 🆕 필터링된 posts 전달
+    posts: moderatedPosts, // 🆕 필터링된 posts 전달
     activeCategory,
     activeSubCategory,
     sortBy,
@@ -153,13 +172,14 @@ function PostListViewComponent({
           </div>
         ) : visiblePosts.length === 0 ? (
           <div className="h-full overflow-y-auto scrollbar-hide p-4">
-            <EmptyState onStartWriting={onStartWriting} />
+            <EmptyState onStartWriting={onStartWriting} isGuest={isGuest} />
           </div>
         ) : (
           <PostCardsList
             posts={visiblePosts}
             userNickname={userNickname}
             userProfileImage={userProfileImage}
+            userUid={userUid} // userUid 전달
             isPostLanterned={isPostLanterned}
             isBookmarked={isBookmarked}
             currentTitle={currentTitle}
@@ -171,6 +191,7 @@ function PostListViewComponent({
             onBookmarkToggle={onBookmarkToggle}
             scrollRef={scrollRef}
             userTrustScore={userTrustScore}
+            isGuest={isGuest} // 게스트 모드 여부 추가
           />
         )}
       </div>
@@ -259,7 +280,7 @@ function SubCategoryBar({
     </div>
   );
 }
-function EmptyState({ onStartWriting }: { onStartWriting: () => void }) {
+function EmptyState({ onStartWriting, isGuest }: { onStartWriting: () => void; isGuest: boolean }) {
   return (
     <EmptyStatePanel
       icon={<LanternIcon className="w-20 h-20 text-amber-900 dark:text-amber-200" />}
@@ -267,8 +288,9 @@ function EmptyState({ onStartWriting }: { onStartWriting: () => void }) {
       description="첫 번째 글을 작성해서 비유노트 커뮤니티를 시작해보세요!"
       action={
         <Button
-          onClick={onStartWriting}
+          onClick={isGuest ? () => console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.") : onStartWriting}
           className="bg-primary text-primary-foreground px-6 py-2 rounded-xl"
+          disabled={isGuest} // 게스트 모드 시 비활성화
         >
           <Plus className="w-4 h-4 mr-2" />
           첫 글 작성하기
@@ -284,6 +306,7 @@ interface PostCardsListProps {
   posts: Post[];
   userNickname: string;
   userProfileImage: string;
+  userUid: string; // userUid 추가
   isPostLanterned: (postId: string | number) => boolean;
   isBookmarked: (postId: string | number) => boolean;
   currentTitle: string;
@@ -295,12 +318,14 @@ interface PostCardsListProps {
   onBookmarkToggle: (postId: string | number) => void;
   scrollRef?: React.RefObject<HTMLElement | null>;
   userTrustScore?: number;
+  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 export const PostCardsList = React.memo(function PostCardsList({
   posts,
   userNickname,
   userProfileImage,
+  userUid, // userUid 추가
   isPostLanterned,
   isBookmarked,
   currentTitle,
@@ -312,6 +337,7 @@ export const PostCardsList = React.memo(function PostCardsList({
   onBookmarkToggle,
   scrollRef,
   userTrustScore,
+  isGuest, // 게스트 모드 여부 추가
 }: PostCardsListProps) {
   const cardItems = useMemo(
     () =>
@@ -351,6 +377,7 @@ export const PostCardsList = React.memo(function PostCardsList({
               post={post}
               userNickname={userNickname}
               userProfileImage={userProfileImage}
+              userUid={userUid} // userUid 전달
               isLanterned={isLanterned}
               isBookmarked={isBookmarked}
               timeAgo={timeAgo}
@@ -362,6 +389,7 @@ export const PostCardsList = React.memo(function PostCardsList({
               onBookmarkToggle={onBookmarkToggle}
               index={index}
               userTrustScore={userTrustScore}
+              isGuest={isGuest} // 게스트 모드 여부 추가
             />
           </div>
         );
@@ -374,6 +402,7 @@ export interface PostCardProps {
   post: Post;
   userNickname: string;
   userProfileImage: string;
+  userUid: string; // userUid 추가
   isLanterned: boolean;
   isBookmarked: boolean;
   timeAgo: string;
@@ -385,6 +414,7 @@ export interface PostCardProps {
   onBookmarkToggle: (postId: string | number) => void;
   index?: number;
   userTrustScore?: number;
+  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 export const PostCard = React.memo(
@@ -392,6 +422,7 @@ export const PostCard = React.memo(
     post,
     userNickname,
     userProfileImage,
+    userUid, // userUid 추가
     isLanterned,
     isBookmarked,
     timeAgo,
@@ -401,10 +432,15 @@ export const PostCard = React.memo(
     onPostClick,
     onLanternToggle,
     onBookmarkToggle,
-    index = 999, // 기본값: 낮은 우선순위
+    index = 999,
     userTrustScore,
+    isGuest, // 게스트 모드 여부 추가
   }: PostCardProps & { index?: number }) => {
-    const isOwnPost = post.author === userNickname;
+    const isOwnPost = post.authorUid === userUid; // userUid로 비교
+    // AI 답변이 있는 게시글은 moderationStatus와 상관없이 모더레이션 상태가 아니라고 간주
+    const isAiPost = post.replies?.some((r) => r.isAi === true) === true;
+    const isModerated = !isAiPost && post.moderationStatus && post.moderationStatus !== "approved";
+    const isRejected = !isAiPost && post.moderationStatus === "rejected";
 
     const liveAuthorTitleId = authorProfile?.currentTitleId ?? null;
     const liveAuthorTitle = getTitleLabelById(liveAuthorTitleId);
@@ -438,11 +474,22 @@ export const PostCard = React.memo(
       : post.authorTitleName || liveAuthorTitle || authorTitleFallback;
 
     const handleCardClick = useCallback(() => {
+      if (isModerated) { // moderation 중이거나 거부된 게시글 클릭 불가
+        console.log("조정 중이거나 거부된 게시글입니다.");
+        return;
+      }
       onPostClick(post);
-    }, [onPostClick, post]);
+    }, [onPostClick, post, isModerated]);
 
     const handleLanternClick = useCallback(
       (e: React.MouseEvent<HTMLButtonElement>) => {
+        if (isGuest || isModerated) { // 게스트 모드 시 제한 또는 moderation 중/거부 시 제한
+          console.log("로그인 후 등불을 사용할 수 있거나 조정 중인 게시글입니다.");
+          e.preventDefault();
+          e.stopPropagation();
+          e.nativeEvent.stopImmediatePropagation();
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
         e.nativeEvent.stopImmediatePropagation();
@@ -467,16 +514,22 @@ export const PostCard = React.memo(
 
         onLanternToggle(post.id);
       },
-      [onLanternToggle, post.id]
+      [onLanternToggle, post.id, isGuest, isModerated] // isGuest, isModerated 의존성 추가
     );
 
     const handleBookmarkClick = useCallback(
       (e: React.MouseEvent) => {
+        if (isGuest || isModerated) { // 게스트 모드 시 제한 또는 moderation 중/거부 시 제한
+          console.log("로그인 후 북마크를 사용할 수 있거나 조정 중인 게시글입니다.");
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
         onBookmarkToggle(post.id);
       },
-      [onBookmarkToggle, post.id]
+      [onBookmarkToggle, post.id, isGuest, isModerated] // isGuest, isModerated 의존성 추가
     );
 
     // 현재 테마 확인 (useMemo로 최적화)
@@ -529,21 +582,21 @@ export const PostCard = React.memo(
       const lanternCount = post.lanterns ?? 0;
       const viewCount = post.views ?? 0;
       const isGuide = post.type === "guide";
-      const isMyPost = post.author === userNickname;
+      const isMyPostByNickname = post.author === userNickname; // 닉네임 비교 (UI 표시용)
 
       // 등불 10개 이상, 조회수 100 이상, 길잡이 글, 내가 쓴 글 중 하나라도 해당되면 강조
-      return lanternCount >= 10 || viewCount >= 100 || isGuide || isMyPost;
+      return lanternCount >= 10 || viewCount >= 100 || isGuide || isMyPostByNickname;
     }, [post.lanterns, post.views, post.type, post.author, userNickname]);
 
     return (
       <Card
-        className={`${cardThemeClass} backdrop-blur-sm transition-all cursor-pointer list-optimized relative ${isOwnPost && isGoldenLibraryTheme ? 'my-post-golden-border' : ''}`}
+        className={`${cardThemeClass} backdrop-blur-sm transition-all cursor-pointer list-optimized relative ${isOwnPost && isGoldenLibraryTheme ? 'my-post-golden-border' : ''} ${isModerated ? 'opacity-50 pointer-events-none' : ''}`}
         onClick={handleCardClick}
         data-highlighted={isHighlighted ? "true" : "false"}
         data-lanterns={post.lanterns ?? 0}
         data-views={post.views ?? 0}
         data-type={post.type || ""}
-        data-is-owner={post.author === userNickname ? "true" : "false"}
+        data-is-owner={isOwnPost ? "true" : "false"} // userUid로 비교
       >
         {/* 그리스 신전 테마: 신뢰도 기반 기둥 장식 (왼쪽) */}
         {isGreekTempleTheme && columnStyle && (
@@ -598,6 +651,15 @@ export const PostCard = React.memo(
                           className="text-[10px] px-2 py-0.5 h-auto bg-primary/10 text-primary border-primary/20"
                         >
                           {authorTitle}
+                        </Badge>
+                      )}
+                      {/* moderationStatus 표시 */}
+                      {isModerated && (
+                        <Badge
+                          variant="destructive"
+                          className="text-[10px] px-2 py-0.5 h-auto bg-red-500/10 text-red-500 border-red-500/20"
+                        >
+                          {isRejected ? "게시글 거부됨" : "검토 중"}
                         </Badge>
                       )}
                     </div>
@@ -663,6 +725,7 @@ export const PostCard = React.memo(
                       data-post-id={post.id}
                       className={`h-8 px-2 space-x-1 ${isLanterned ? "text-amber-500" : "text-muted-foreground"
                         }`}
+                      disabled={isGuest || isModerated} // 게스트 모드 시 비활성화 또는 moderation 중/거부 시 비활성화
                     >
                       {isLanterned ? (
                         <LanternFilledIcon className="w-4 h-4" />
@@ -700,6 +763,7 @@ export const PostCard = React.memo(
                   onClick={handleBookmarkClick}
                   className={`h-8 px-2 ${isBookmarked ? "text-primary" : "text-muted-foreground"
                     }`}
+                  disabled={isGuest || isModerated} // 게스트 모드 시 비활성화 또는 moderation 중/거부 시 비활성화
                 >
                   <Bookmark
                     className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""
@@ -736,6 +800,8 @@ export const PostCard = React.memo(
     if (prev.currentTitle !== next.currentTitle) return false;
     if (prev.userProfileImage !== next.userProfileImage) return false;
     if (prev.userNickname !== next.userNickname) return false;
+    if (prev.userUid !== next.userUid) return false; // userUid 비교 추가
+    if (prev.post.moderationStatus !== next.post.moderationStatus) return false; // moderationStatus 비교 추가
     return true;
   }
 );

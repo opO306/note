@@ -9,6 +9,7 @@ describe('칭호 도감 테스트', () => {
       onTitleEquip: jest.fn(),
       onTitleUnequip: jest.fn(),
       onBack: jest.fn(),
+      isGuest: false,
     };
 
     render(<TitlesCollection {...mockProps} />);
@@ -22,6 +23,7 @@ describe('칭호 도감 테스트', () => {
       onTitleEquip: jest.fn(),
       onTitleUnequip: jest.fn(),
       onBack: jest.fn(),
+      isGuest: false,
     };
 
     render(<TitlesCollection {...mockProps} />);

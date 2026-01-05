@@ -156,6 +156,7 @@ export function NavigationStoreProvider({ children }: { children: React.ReactNod
         showFollowList: null,
         showMyContentList: null,
         showUserProfile: null,
+        currentScreen: "home", // currentScreen 추가
       };
 
       switch (r.name) {

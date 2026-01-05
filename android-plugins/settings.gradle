@@ -1,0 +1,12 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url 'https://jitpack.io' }
+        maven { url "https://registry.npmjs.org" }
+    }
+}
+
+rootProject.name = "android-plugins"
+include(":google-one-tap")

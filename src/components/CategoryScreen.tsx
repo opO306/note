@@ -42,6 +42,8 @@ interface CategoryScreenProps {
   onBookmarkToggle?: (postId: string | number) => void;
   formatTimeAgo?: (date?: Date) => string;
   formatCreatedAt?: (date?: Date) => string;
+  isGuest: boolean; // 게스트 모드 여부 추가
+  userUid?: string; // userUid 추가
 }
 
 export function CategoryScreen({
@@ -63,6 +65,8 @@ export function CategoryScreen({
   onBookmarkToggle,
   formatTimeAgo,
   formatCreatedAt,
+  isGuest, // 게스트 모드 여부 추가
+  userUid, // userUid 추가
 }: CategoryScreenProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchMode, setSearchMode] = useState<"category" | "post">("category");
@@ -357,6 +361,8 @@ export function CategoryScreen({
               onPostClick={handlePostClickWithBack}
               onLanternToggle={safeOnLanternToggle}
               onBookmarkToggle={safeOnBookmarkToggle}
+              isGuest={isGuest} // 게스트 모드 여부 추가
+              userUid={userUid || ""} // userUid 추가 (기본값 설정)
             />
           ) : searchTerm ? (
             <div className="h-full flex items-center justify-center p-4">

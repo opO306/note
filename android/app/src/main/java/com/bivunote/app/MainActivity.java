@@ -17,11 +17,8 @@ import com.getcapacitor.Bridge;
 
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.view.Window;
-import android.view.WindowManager;
-import android.graphics.Color;
-import android.view.View;
-import android.view.WindowInsetsController;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 // Firebase 인증 플러그인 수동 등록을 위한 import
 import io.capawesome.capacitorjs.plugins.firebase.authentication.FirebaseAuthenticationPlugin;
@@ -38,43 +35,22 @@ public class MainActivity extends BridgeActivity {
         // Bridge가 초기화되기 전에 플러그인을 등록합니다.
         registerPlugin(FirebaseAuthenticationPlugin.class);
         registerPlugin(InAppPurchasesPlugin.class);
-        
+
+        setTheme(R.style.AppTheme_NoActionBar); // SplashScreen 테마 설정
         // Android 15+ Edge-to-Edge 지원 활성화
         EdgeToEdge.enable(this);
-        
+
         super.onCreate(savedInstanceState);
 
-        // 시스템 바 설정 (Android 5.0+)
-        // Android 15 (API 35) 이상에서는 setStatusBarColor, setNavigationBarColor가 지원 중단됨
-        // WindowInsets API를 사용하여 시스템 바 색상 설정
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            Window window = getWindow();
-            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-            
-            View decorView = window.getDecorView();
-            
-            // Android 11+ (API 30+): WindowInsetsController 사용
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                WindowInsetsController insetsController = decorView.getWindowInsetsController();
-                if (insetsController != null) {
-                    // 네비게이션 바를 어두운 색상으로 설정 (light navigation bar 비활성화)
-                    insetsController.setSystemBarsAppearance(
-                        0, // light navigation bar 비활성화
-                        WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
-                    );
-                    // 상태 바를 어두운 색상으로 설정 (light status bar 비활성화)
-                    insetsController.setSystemBarsAppearance(
-                        0, // light status bar 비활성화
-                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-                    );
-                }
-            } else if (Build.VERSION.SDK_INT < 35) {
-                // Android 10 이하 (API 29 이하): 기존 방식 유지
-                // Android 15 (API 35) 이상에서는 setStatusBarColor, setNavigationBarColor가 지원 중단되므로 사용하지 않음
-                window.setNavigationBarColor(Color.parseColor("#1a1a1a"));
-                window.setStatusBarColor(Color.parseColor("#1a1a1a"));
-            }
-        }
+        // 시스템 바 설정 (Edge-to-Edge + Insets 대응)
+        // Android 15(API 35)에서 지원 중단된 setStatusBarColor/setNavigationBarColor를 사용하지 않음
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
+        WindowInsetsControllerCompat insetsController = new WindowInsetsControllerCompat(getWindow(),
+                getWindow().getDecorView());
+        // light status/navigation bar 비활성화 (어두운 아이콘 대신 밝은 아이콘 유지)
+        insetsController.setAppearanceLightStatusBars(false);
+        insetsController.setAppearanceLightNavigationBars(false);
 
         // 첫 실행 시 권한 요청
         if (isFirstRun()) {

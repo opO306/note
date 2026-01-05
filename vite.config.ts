@@ -1,48 +1,59 @@
 // vite.config.ts
 import { defineConfig } from 'vite';
-// 👇 여기가 핵심! 설치된 패키지 이름(swc)과 똑같이 맞춰야 합니다.
-import react from '@vitejs/plugin-react-swc';
-import path from 'path';
+import react from '@vitejs/plugin-react-swc'; // 또는 @vitejs/plugin-react
+import path from 'node:path';
 
 export default defineConfig({
+  base: './',          // 핵심!
   plugins: [react()],
-  base: './', // 상대 경로 (Capacitor 앱에서 필수)
   resolve: {
-    alias: { '@': path.resolve(__dirname, './src') },
+    alias: {
+      // React와 React-DOM이 항상 프로젝트 루트의 node_modules를 바라보게 강제
+      react: path.resolve(__dirname, 'node_modules/react'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+      "@": path.resolve(__dirname, "./src"),
+    },
+    // 중복 번들 방지 (심볼릭 링크나 모노레포 환경에서도 안전)
+    dedupe: ['react', 'react-dom'],
+  },
+  optimizeDeps: {
+    /* dev 서버 프리-번들 시에도 중복 생성 방지 */
+    include: ['react', 'react-dom'],
   },
   build: {
-    target: 'esnext', // 최신 자바스크립트 문법 지원
+    target: 'esnext',
     outDir: 'build',
-
-    // 🔹 minification 활성화 (용량 최적화)
     minify: 'esbuild',
-    
-    // 🔹 소스맵 비활성화 (용량 절감)
     sourcemap: false,
-
-    // 경고 무시 설정
     chunkSizeWarningLimit: 1000,
-
-    // ✅ 번들 분할 최적화: 주요 라이브러리를 별도 청크로 분리하여 캐시 활용
     rollupOptions: {
       output: {
         entryFileNames: `assets/[name]-[hash].js`,
         chunkFileNames: `assets/[name]-[hash].js`,
         assetFileNames: `assets/[name]-[hash].[ext]`,
         manualChunks: {
+          /* vendor-react 청크는 그대로 둬도 문제 없습니다.
+             이제 ‘한 벌’만 들어갑니다. */
           'vendor-react': ['react', 'react-dom'],
-          'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/functions'],
+          'vendor-firebase': [
+            'firebase/app',
+            'firebase/auth',
+            'firebase/firestore',
+            'firebase/functions',
+          ],
           'vendor-capacitor': ['@capacitor/core', '@capacitor/app'],
         },
       },
     },
   },
-  // 프로덕션 빌드에서만 콘솔 로그 제거 (개발 환경에서는 유지)
   esbuild: {
     drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
   },
   server: {
+    host: 'localhost',
     port: 3000,
+    strictPort: true,
+    hmr: { protocol: 'ws', host: 'localhost', port: 3000 },
     open: true,
   },
 });

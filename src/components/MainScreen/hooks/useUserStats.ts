@@ -26,7 +26,6 @@ export function useUserStats({ posts, userNickname }: UseUserStatsParams) {
   const [userGuideCount, setUserGuideCount] = useState(0);
 
   // 프로필 정보 상태
-  const [profileDescription, setProfileDescription] = useState("");
   const [profileInterests, setProfileInterests] = useState("");
 
   // 1. 초기값은 Firestore에서만 로드 (로컬 스토리지 사용 안 함)
@@ -54,9 +53,6 @@ export function useUserStats({ posts, userNickname }: UseUserStatsParams) {
       }
 
       // 프로필 정보 업데이트 (Firestore에서만 관리, 로컬 스토리지 사용 안 함)
-      if (typeof data.profileDescription === "string") {
-        setProfileDescription(data.profileDescription);
-      }
       if (typeof data.profileInterests === "string") {
         setProfileInterests(data.profileInterests);
       }
@@ -65,21 +61,6 @@ export function useUserStats({ posts, userNickname }: UseUserStatsParams) {
     });
 
     return () => unsubscribe();
-  }, []);
-
-  // 3. 프로필 수정 핸들러 (Firestore에만 저장)
-  const handleProfileDescriptionChange = useCallback(async (value: string) => {
-    setProfileDescription(value); // UI 즉시 반영 (Optimistic UI)
-    // 프로필 정보는 Firestore에만 저장 (로컬 스토리지 사용 안 함)
-
-    const uid = auth.currentUser?.uid;
-    if (uid) {
-      try {
-        await updateDoc(doc(db, "users", uid), { profileDescription: value });
-      } catch (e) {
-        console.error("프로필 설명 저장 실패", e);
-      }
-    }
   }, []);
 
   const handleProfileInterestsChange = useCallback(async (value: string) => {
@@ -218,9 +199,7 @@ export function useUserStats({ posts, userNickname }: UseUserStatsParams) {
     userReplyLanterns,
     userGuideCount,
 
-    profileDescription,
     profileInterests,
-    handleProfileDescriptionChange,
     handleProfileInterestsChange,
 
     weeklyGuideRanking,

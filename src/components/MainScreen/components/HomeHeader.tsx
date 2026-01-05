@@ -48,6 +48,7 @@ interface HomeHeaderProps {
   // 🔹 운영자용: 신고 관리 화면 열기
   isAdmin?: boolean;
   onOpenAdminReports?: () => void;
+  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 
@@ -69,6 +70,7 @@ function HomeHeaderComponent({
   onTitleShopClick,
   isAdmin,
   onOpenAdminReports,
+  isGuest, // 게스트 모드 여부 추가
 }: HomeHeaderProps) {
   return (
     <header className="bg-card/98 glass-effect border-b border-border/60 flex-shrink-0 z-40 safe-top">
@@ -105,19 +107,20 @@ function HomeHeaderComponent({
               variant="ghost"
               size="icon"
               className="touch-target rounded-xl hover:bg-accent/80 transition-all duration-200 text-foreground"
-              onClick={onTitleShopClick}
+              onClick={isGuest ? () => console.log("로그인 후 이용 가능합니다.") : onTitleShopClick}
+              disabled={isGuest} // 게스트 모드 시 비활성화
             >
               <ShoppingBag className="w-5 h-5" />
             </Button>
 
             {/* 🔹 운영자 전용 신고 관리 버튼 */}
-            {isAdmin && onOpenAdminReports && (
+            {isAdmin && !isGuest && onOpenAdminReports && ( // 게스트 모드 시 비활성화
               <Button
                 variant="ghost"
                 size="icon"
                 className="touch-target rounded-xl hover:bg-accent/80 transition-all duration-200 text-foreground"
-                onClick={onOpenAdminReports}
-                aria-label="신고 관리"
+                onClick={isGuest ? () => console.log("로그인 후 이용 가능합니다.") : onOpenAdminReports} // 게스트 모드 시 토스트 메시지
+                disabled={isGuest} // 게스트 모드 시 비활성화
               >
                 {/* 이미 import된 아이콘 중에서 적당한 것 사용 (예: Star) */}
                 <Star className="w-5 h-5" />
@@ -159,12 +162,13 @@ function HomeHeaderComponent({
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium">알림</h3>
                     <div className="flex items-center space-x-2">
-                      {notifications.some((n) => !n.isRead) && (
+                      {notifications.some((n) => !n.isRead) && !isGuest && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={onMarkAllNotificationsRead}
                           className="text-xs h-7 px-2"
+                          disabled={isGuest} // 게스트 모드 시 비활성화
                         >
                           모두 읽음
                         </Button>
@@ -172,7 +176,8 @@ function HomeHeaderComponent({
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={onNotificationSettingsClick}
+                        onClick={isGuest ? () => console.log("로그인 후 이용 가능합니다.") : onNotificationSettingsClick} // 게스트 모드 시 토스트 메시지
+                        disabled={isGuest} // 게스트 모드 시 비활성화
                       >
                         <Settings className="w-4 h-4" />
                       </Button>

@@ -10,6 +10,9 @@ const config: CapacitorConfig = {
       skipNativeAuth: true,
       providers: ['google.com'],
     },
+    GoogleCredentialAuth: {
+      enabled: true,
+    },
     SplashScreen: {
       launchShowDuration: 1000, // 1초로 단축 (성능 최적화)
       launchAutoHide: true,

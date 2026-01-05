@@ -34,6 +34,8 @@ export interface Post {
   authorTitleName?: string | null;
   hidden?: boolean;
   reportCount?: number;
+  moderationStatus?: "pending" | "approved" | "rejected" | "needs_review" | "action_needed" | "error"; // moderationStatus 추가
+  clientIp?: string; // clientIp 추가
 }
 
 /**
@@ -66,6 +68,9 @@ export interface Reply {
   aiSummary?: string;
   /** auto_reply 등 생성 소스 */
   aiSource?: string;
+  moderationStatus?: "pending" | "approved" | "rejected" | "needs_review" | "action_needed" | "error"; // moderationStatus 추가
+  clientIp?: string; // clientIp 추가
+  guestId?: string; // guestId 추가
 }
 
 /**
@@ -122,6 +127,7 @@ export interface ScreenVisibility {
   showFollowList: "followers" | "following" | null;
   showMyContentList: "posts" | "replies" | null;
   showUserProfile: string | null;
+  currentScreen: CurrentScreen;
 }
 
 /**
@@ -222,6 +228,7 @@ export interface MainScreenProps {
   shouldOpenSettingsOnMyPage?: boolean;
   onMainScreenReady?: () => void;
   onSettingsOpenedFromMain?: () => void;
+  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 /**

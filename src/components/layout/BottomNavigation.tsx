@@ -163,12 +163,14 @@ function BottomNavigationComponent({
           {/* 왼쪽 2개 버튼 */}
           <div className="flex items-center justify-around flex-1">
             <Button
+              data-perf-ignore="true"
               variant="ghost"
               size="sm"
-              className={`nav-button nav-button-override flex flex-col items-center gap-1 touch-target px-3 py-2 rounded-xl ${activeTab === "home"
+              className={`nav-button nav-button-override flex flex-col items-center gap-1 touch-target px-3 py-2 rounded-xl ${
+                activeTab === "home"
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                }`}
+              }`}
               onClick={handleHomeClick}
             >
               {isGreekTheme ? (
@@ -189,12 +191,14 @@ function BottomNavigationComponent({
             </Button>
 
             <Button
+              data-perf-ignore="true"
               variant="ghost"
               size="sm"
-              className={`nav-button nav-button-override flex flex-col items-center gap-1 touch-target px-3 py-2 rounded-xl ${activeTab === "ranking"
+              className={`nav-button nav-button-override flex flex-col items-center gap-1 touch-target px-3 py-2 rounded-xl ${
+                activeTab === "ranking"
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                }`}
+              }`}
               onClick={handleRankingClick}
             >
               <Trophy
@@ -214,12 +218,14 @@ function BottomNavigationComponent({
           {/* 오른쪽 2개 버튼 */}
           <div className="flex items-center justify-around flex-1">
             <Button
+              data-perf-ignore="true"
               variant="ghost"
               size="sm"
-              className={`nav-button nav-button-override flex flex-col items-center gap-1 touch-target px-3 py-2 rounded-xl ${activeTab === "bookmarks"
+              className={`nav-button nav-button-override flex flex-col items-center gap-1 touch-target px-3 py-2 rounded-xl ${
+                activeTab === "bookmarks"
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                }`}
+              }`}
               onClick={handleBookmarksClick}
             >
               <Bookmark
@@ -233,12 +239,14 @@ function BottomNavigationComponent({
             </Button>
 
             <Button
+              data-perf-ignore="true"
               variant="ghost"
               size="sm"
-              className={`nav-button nav-button-override flex flex-col items-center gap-1 touch-target px-3 py-2 rounded-xl ${activeTab === "profile"
+              className={`nav-button nav-button-override flex flex-col items-center gap-1 touch-target px-3 py-2 rounded-xl ${
+                activeTab === "profile"
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                }`}
+              }`}
               onClick={handleMyPageClick}
             >
               {isGreekTheme ? (

@@ -1,83 +1,62 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useKeyboard } from "./hooks/useKeyboard";
-import { useScrollIntoView } from "./hooks/useScrollIntoView";
-import { useOnlineStatus } from "./hooks/useOnlineStatus";
-import { KeyboardDismissButton } from "./ui/keyboard-dismiss-button";
-import { ConnectionBadge } from "./ui/offline-indicator";
-import { Button } from "./ui/button";
-import { Card, CardContent } from "./ui/card";
-import { Input } from "./ui/input";
-import { Textarea } from "./ui/textarea";
-import { Badge } from "./ui/badge";
-import { useNavigation } from "./MainScreen/contexts/NavigationContext";
-import { AlertDialogSimple } from "./ui/alert-dialog-simple";
+import { db } from "@/firebase";
+import { collection, getDocs, QueryDocumentSnapshot } from "firebase/firestore";
+import { useKeyboard } from "@/components/hooks/useKeyboard";
+import { useScrollIntoView } from "@/components/hooks/useScrollIntoView";
+import { useOnlineStatus } from "@/components/hooks/useOnlineStatus";
+// import { useNavigation } from "@react-navigation/native"; // Assuming this is the correct path for useNavigation
+import { safeLocalStorage } from "@/components/utils/storageUtils";
+import { toast } from "@/toastHelper";
+import { containsProfanity } from "@/components/utils/profanityFilter";
+import { detectPersonalInfo, getPersonalInfoMessage } from "@/components/utils/personalInfoDetector";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { KeyboardDismissButton } from "@/components/ui/keyboard-dismiss-button";
+import { AlertDialogSimple } from "@/components/ui/alert-dialog-simple";
 import {
   ArrowLeft,
+  Save,
   Send,
-  Hash,
-  FolderOpen,
-  X,
-  Plus,
   MessageCircle,
   Compass,
-  Save,
+  FolderOpen,
+  Hash,
+  Plus,
+  X,
 } from "lucide-react";
-import { toast } from "@/toastHelper";
-import { containsProfanity } from "./utils/profanityFilter";
-import { detectPersonalInfo, getPersonalInfoMessage } from "./utils/personalInfoDetector";
+import { ConnectionBadge } from "@/components/ui/offline-indicator";
 
-// Safe localStorage helper
-const safeLocalStorage = {
-  getItem: (key: string): string | null => {
-    try {
-      return localStorage.getItem(key);
-    } catch (error) {
-      console.error("localStorage getItem error:", error);
-      return null;
-    }
-  },
-  setItem: (key: string, value: string): void => {
-    try {
-      localStorage.setItem(key, value);
-    } catch (error) {
-      console.error("localStorage setItem error:", error);
-    }
-  },
-  removeItem: (key: string): void => {
-    try {
-      localStorage.removeItem(key);
-    } catch (error) {
-      console.error("localStorage removeItem error:", error);
-    }
-  },
-};
-
-// 임시저장 만료 시간: 1시간 (밀리초)
-const DRAFT_EXPIRE_MS = 60 * 60 * 1000;
-// 게시글 작성 쿨타임: 1분 (밀리초)
-const POST_COOLDOWN_MS = 60 * 1000;
-const LAST_POST_SUBMIT_TIME_KEY = "lastPostSubmitTime";
-
-interface WriteScreenProps {
-  onBack: () => void;
-  onSubmit: (post: {
-    title: string;
-    content: string;
-    category: string;
-    subCategory: string;
-    type: "question" | "guide";
-    tags: string[];
-  }) => void;
-  categories: Array<{
-    id: string;
-    name: string;
-    subCategories: Array<{ id: string; name: string }>;
-  }>;
-  lumenBalance?: number;
-  spendLumens?: (amount: number, reason: string) => Promise<boolean>;
+interface SubCategory {
+  id: string;
+  name: string;
 }
 
-export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumenBalance = 0, spendLumens: _spendLumens }: WriteScreenProps) {
+interface Category {
+  id: string;
+  name: string;
+  subCategories: SubCategory[]; // string[] 대신 SubCategory[]로 변경
+}
+
+interface WriteScreenContentProps {
+  onBack: () => void;
+  onSubmit: (post: any) => Promise<void>; // 'any'는 나중에 정확한 타입으로 대체해야 함
+  categories: Category[];
+  lumenBalance?: number;
+  spendLumens?: (amount: number, reason: string, titleId?: string) => Promise<boolean>;
+  isGuest: boolean;
+}
+
+// 상수로 정의 (WriteScreen에서만 사용되는 것으로 가정)
+const GUEST_ID_KEY = "guestId";
+const DRAFT_EXPIRE_MS = 60 * 60 * 1000; // 1시간
+const LAST_POST_SUBMIT_TIME_KEY = "lastPostSubmitTime";
+const POST_COOLDOWN_MS = 30 * 1000; // 30초
+
+export default function WriteScreenContent({ onBack, onSubmit, categories, lumenBalance: _lumenBalance = 0, spendLumens: _spendLumens, isGuest }: WriteScreenContentProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [postType, setPostType] = useState<"question" | "guide">("question");
@@ -92,6 +71,10 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasUnsavedChanges = useRef(false);
+  const [clientIp, setClientIp] = useState<string | undefined>(undefined); // IP 주소 상태 추가
+  const [guestId, setGuestId] = useState<string | undefined>(undefined); // 게스트 ID 상태 추가
+  const [blockedIPs, setBlockedIPs] = useState<Set<string>>(new Set()); // 차단된 IP 목록 상태
+  const [blockedGuestIds, setBlockedGuestIds] = useState<Set<string>>(new Set()); // 차단된 게스트 ID 목록 상태
 
   // Keyboard handling
   const keyboard = useKeyboard();
@@ -101,12 +84,74 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
 
   // Online status
   const { isOnline } = useOnlineStatus();
+  const [writeDraft, setWriteDraft] = useState<any>(null); // 임시 정의, 실제 useNavigation 훅 찾아서 대체 필요
 
-  const selectedCategoryData = categories.find(cat => cat.id === selectedCategory);
+  const selectedCategoryData = categories.find((cat: Category) => cat.id === selectedCategory);
   const subCategories = selectedCategoryData?.subCategories || [];
   const exitDescription = autoSaveEnabled
     ? "작성 중인 내용은 자동으로 임시 저장됩니다. 임시 저장된 내용은 1시간 후 자동으로 삭제됩니다."
     : "작성 중인 내용은 저장되지 않습니다. 나가면 현재 작성 중인 내용이 사라집니다.";
+
+  // IP 주소 획득
+  useEffect(() => {
+    const fetchIpAddress = async () => {
+      try {
+        const response = await fetch("https://api.ipify.org?format=json");
+        const data = await response.json();
+        setClientIp(data.ip);
+      } catch (error) {
+        console.error("IP 주소 획득 실패:", error);
+      }
+    };
+    fetchIpAddress();
+  }, []);
+
+  // 게스트 ID 생성 및 로드
+  useEffect(() => {
+    if (isGuest) {
+      let currentGuestId = safeLocalStorage.getItem(GUEST_ID_KEY);
+      if (!currentGuestId) {
+        currentGuestId = `게스트${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+        safeLocalStorage.setItem(GUEST_ID_KEY, currentGuestId);
+      }
+      setGuestId(currentGuestId);
+    } else {
+      setGuestId(undefined);
+      safeLocalStorage.removeItem(GUEST_ID_KEY);
+    }
+  }, [isGuest]);
+
+  // 차단된 IP 목록 불러오기
+  useEffect(() => {
+    const fetchBlockedIPs = async () => {
+      try {
+        const blockedIPsSnapshot = await getDocs(collection(db, "blockedIPs"));
+        const ips = new Set<string>();
+        blockedIPsSnapshot.forEach((doc: QueryDocumentSnapshot) => ips.add(doc.id));
+        setBlockedIPs(ips);
+      } catch (error) {
+        console.error("차단된 IP 목록 로드 실패:", error);
+      }
+    };
+    fetchBlockedIPs();
+  }, []);
+
+  // 차단된 게스트 ID 목록 불러오기
+  useEffect(() => {
+    const fetchBlockedGuestIds = async () => {
+      try {
+        const blockedGuestIdsSnapshot = await getDocs(collection(db, "suspendedGuestIds"));
+        const ids = new Set<string>();
+        blockedGuestIdsSnapshot.forEach((doc: QueryDocumentSnapshot) => ids.add(doc.id));
+        setBlockedGuestIds(ids);
+      } catch (error) {
+        console.error("차단된 게스트 ID 목록 로드 실패:", error);
+      }
+    };
+    if (isGuest) {
+      fetchBlockedGuestIds();
+    }
+  }, [isGuest]);
 
   // 설정 화면에서 저장한 자동 저장 여부 불러오기
   useEffect(() => {
@@ -122,7 +167,6 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
       console.error("Failed to load userSettings in WriteScreen:", error);
     }
   }, []);
-  const { writeDraft, setWriteDraft } = useNavigation();
   // 임시저장 데이터 로드
   useEffect(() => {
     // ✅ 노트/질문정리에서 넘어온 초안이 있으면, 임시저장은 로드하지 않음
@@ -316,6 +360,18 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
       return;
     }
 
+    // 클라이언트 IP 차단 확인
+    if (clientIp && blockedIPs.has(clientIp)) {
+      toast.error("서비스 이용이 제한되었습니다. 관리자에게 문의하세요.");
+      return;
+    }
+
+    // 게스트 ID 차단 확인
+    if (isGuest && guestId && blockedGuestIds.has(guestId)) {
+      toast.error("게스트 계정이 정지되었습니다. 관리자에게 문의하세요.");
+      return;
+    }
+
     // 2단계: 쿨타임 체크
     const lastSubmitTimeStr = safeLocalStorage.getItem(LAST_POST_SUBMIT_TIME_KEY);
     if (lastSubmitTimeStr) {
@@ -323,7 +379,7 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
         const lastSubmitTime = parseInt(lastSubmitTimeStr, 10);
         const now = Date.now();
         const timeSinceLastSubmit = now - lastSubmitTime;
-        
+
         if (timeSinceLastSubmit < POST_COOLDOWN_MS) {
           const remainingSeconds = Math.ceil((POST_COOLDOWN_MS - timeSinceLastSubmit) / 1000);
           toast.error(`게시글 작성 쿨타임이 남아있습니다. ${remainingSeconds}초 후 다시 시도해주세요.`);
@@ -384,6 +440,8 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
       subCategory: selectedSubCategory,
       type: postType,
       tags,
+      ...(isGuest && { moderationStatus: "pending", guestId }), // 게스트일 경우 moderationStatus 및 guestId 추가
+      clientIp, // 획득한 IP 주소 추가
     });
 
     // 쿨타임 시간 저장
@@ -391,7 +449,7 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
 
     // 임시저장 삭제
     clearDraft();
-  }, [isOnline, title, content, selectedCategory, postType, selectedSubCategory, tags, onSubmit, clearDraft]);
+  }, [isOnline, title, content, selectedCategory, postType, selectedSubCategory, tags, onSubmit, clearDraft, isGuest, clientIp, guestId, blockedIPs, blockedGuestIds]);
 
   const handleBack = useCallback(() => {
     // 작성 중인 내용이 있으면 확인
@@ -445,7 +503,7 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
   }, [tagInput, tags]);
 
   const handleRemoveTag = useCallback((tagToRemove: string) => {
-    setTags(tags.filter(tag => tag !== tagToRemove));
+    setTags(tags.filter((tag: string) => tag !== tagToRemove));
   }, [tags]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
@@ -454,6 +512,15 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
       handleAddTag();
     }
   }, [handleAddTag]);
+
+  const isSubmitDisabled: boolean = !!(
+    !title.trim() ||
+    !content.trim() ||
+    !selectedCategory ||
+    !isOnline ||
+    (clientIp && blockedIPs.has(clientIp)) ||
+    (isGuest && guestId && blockedGuestIds.has(guestId))
+  );
 
   return (
     <div className="w-full h-full bg-background text-foreground overflow-hidden flex flex-col">
@@ -487,7 +554,7 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
             <Button
               onClick={handleSubmit}
               className="flex items-center space-x-2"
-              disabled={!title.trim() || !content.trim() || !selectedCategory || !isOnline}
+              disabled={isSubmitDisabled}
             >
               <Send className="w-4 h-4" />
               <span>게시</span>
@@ -555,7 +622,7 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
                         {/* eslint-disable react/jsx-no-bind, react-perf/jsx-no-new-function-as-prop */}
                         {categories
                           .filter(category => category.id !== "전체")
-                          .map((category) => (
+                          .map((category: Category) => (
                             <Button
                               key={category.id}
                               variant={selectedCategory === category.id ? "default" : "outline"}
@@ -584,7 +651,7 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
                           {/* eslint-disable react/jsx-no-bind, react-perf/jsx-no-new-function-as-prop */}
                           {subCategories
                             .filter(subCategory => subCategory.id !== "전체")
-                            .map((subCategory) => (
+                            .map((subCategory: SubCategory) => (
                               <Button
                                 key={subCategory.id}
                                 variant={selectedSubCategory === subCategory.id ? "default" : "outline"}
@@ -606,9 +673,9 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
                     <FolderOpen className="w-4 h-4" />
                     <span>
                       {selectedCategoryData?.name}
-                      {selectedCategory !== "전체" && selectedSubCategory && selectedSubCategory !== "전체" && subCategories.find(sub => sub.id === selectedSubCategory) &&
-                        ` > ${subCategories.find(sub => sub.id === selectedSubCategory)?.name}`
-                      }
+                      {selectedCategory !== "전체" && selectedSubCategory && selectedSubCategory !== "전체" && subCategories.find(sub => sub.id === selectedSubCategory)
+                        ? ` > ${subCategories.find(sub => sub.id === selectedSubCategory)?.name}`
+                        : null}
                     </span>
                   </div>
                 )}
@@ -652,7 +719,6 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
                 <div className="text-xs text-muted-foreground text-right">
                   {content.length}/2000
                 </div>
-
                 {/* 안내문 추가 */}
                 <div className="pt-2 border-t border-border/50">
                   <p className="text-xs text-muted-foreground leading-relaxed">
@@ -705,7 +771,7 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
                 {tags.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {/* eslint-disable react/jsx-no-bind, react-perf/jsx-no-new-function-as-prop */}
-                    {tags.map((tag) => (
+                    {tags.map((tag: string) => (
                       <Badge
                         key={tag}
                         variant="secondary"
@@ -732,8 +798,7 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
               </div>
             </CardContent>
           </Card>
-
-        </div>
+        </div> {/* 632줄의 div 닫기 */}
       </main>
 
       {/* 키보드 완료 버튼 */}
@@ -744,7 +809,7 @@ export function WriteScreen({ onBack, onSubmit, categories, lumenBalance: _lumen
         open={showExitConfirm}
         onOpenChange={setShowExitConfirm}
         title="작성을 취소하시겠습니까?"
-        description={exitDescription}   // ← 문자열 대신 변수 사용
+        description={exitDescription}
         confirmText="나가기"
         onConfirm={handleConfirmExit}
       />

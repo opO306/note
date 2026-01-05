@@ -17,6 +17,7 @@ interface UseAppInitializationReturn {
     };
     globalError: string | null;
     resetAuthState: () => Promise<void>;
+    isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 // 🚨 Cloud Function('verifyLogin'): { success: boolean, isNewUser: boolean } 반환
@@ -30,6 +31,12 @@ const callVerifyLogin = httpsCallable<
 //    - 첫 화면 결정을 더 빠르게 하기 위한 캐시 키/TTL
 const APP_INIT_CACHE_PREFIX = "app_init_cache_v1_";
 const APP_INIT_CACHE_TTL_MS = 60 * 60 * 1000; // 1시간
+
+const GUEST_USER_DATA = {
+    nickname: "게스트 사용자",
+    email: "", // 게스트는 이메일이 없음
+    profileImage: "", // 게스트용 기본 프로필 이미지 URL (필요시 추후 업데이트)
+};
 
 interface AppInitCache {
     nickname: string;
@@ -136,7 +143,8 @@ function checkCacheSynchronously(): { screen: string | null; userData: { nicknam
     return null;
 }
 
-export function useAppInitialization(): UseAppInitializationReturn {
+export function useAppInitialization(options?: { enableGuestMode?: boolean }): UseAppInitializationReturn {
+    const { enableGuestMode = false } = options || {};
     // ✅ 동기적으로 캐시를 확인하여 초기값 설정 (useState 초기값을 함수로 설정하여 한 번만 실행)
     const cacheResult = checkCacheSynchronously();
     const [isLoading, setIsLoading] = useState(() => {
@@ -151,6 +159,7 @@ export function useAppInitialization(): UseAppInitializationReturn {
         return cacheResult?.userData ?? { nickname: "", email: "", profileImage: "" };
     });
     const [globalError] = useState<string | null>(null);
+    const [isGuest, setIsGuest] = useState(false); // 게스트 모드 상태 추가
     const authStateCheckedRef = useRef(false); // onAuthStateChanged 호출 여부 추적
 
     useEffect(() => {
@@ -335,6 +344,14 @@ export function useAppInitialization(): UseAppInitializationReturn {
 
             // ✅ 사용자가 있지만 캐시를 사용하지 않은 경우
             if (user) {
+                // ✅ 게스트 모드가 활성화되어 있으면, 로그인된 상태라도 게스트 플로우를 따름
+                if (enableGuestMode) {
+                    setUserData(GUEST_USER_DATA); // 게스트 모드 데이터로 초기화
+                    setInitialScreen("main"); // 게스트 모드 활성화 시 메인 화면으로
+                    setIsGuest(true);
+                    setIsLoading(false);
+                    return; // 더 이상 진행하지 않고 함수 종료
+                }
                 try {
                     const cacheKey = `${APP_INIT_CACHE_PREFIX}${user.uid}`;
 
@@ -591,9 +608,14 @@ export function useAppInitialization(): UseAppInitializationReturn {
                     setIsLoading(false);
                 }
             } else {
-                // ✅ 로그아웃 상태 - 즉시 로그인 화면 표시
-                setUserData({ nickname: "", email: "", profileImage: "" });
-                setInitialScreen("login");
+                // ✅ 로그아웃 상태
+                setUserData(GUEST_USER_DATA);
+                if (enableGuestMode) {
+                    setInitialScreen("main"); // 게스트 모드 활성화 시 메인 화면으로
+                    setIsGuest(true);
+                } else {
+                    setInitialScreen("login"); // 아니면 로그인 화면
+                }
                 setIsLoading(false);
             }
 
@@ -610,9 +632,9 @@ export function useAppInitialization(): UseAppInitializationReturn {
             if (!authStateCheckedRef.current) {
                 setInitialScreen((prevScreen) => {
                     if (prevScreen === null) {
-                        // 캐시가 없고 사용자도 없으면 로그인 화면
+                        // 캐시가 없고 사용자도 없으면 게스트 모드 또는 로그인 화면
                         if (auth.currentUser === null) {
-                            return "login";
+                            return enableGuestMode ? "main" : "login"; // 게스트 모드 활성화 여부에 따라 결정
                         }
                     }
                     return prevScreen;
@@ -626,7 +648,7 @@ export function useAppInitialization(): UseAppInitializationReturn {
             unsubscribe();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // initialScreen과 isLoading은 함수형 업데이트로 처리하므로 의존성 제외
+    }, [enableGuestMode]); // enableGuestMode를 의존성 배열에 추가
 
     const resetAuthState = useCallback(async () => {
         // 로그아웃 시 모든 앱 초기화 캐시 제거
@@ -669,5 +691,5 @@ export function useAppInitialization(): UseAppInitializationReturn {
         }
     }, []);
 
-    return { isLoading, initialScreen, userData, globalError, resetAuthState };
+    return { isLoading, initialScreen, userData, globalError, resetAuthState, isGuest };
 }

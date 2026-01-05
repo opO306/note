@@ -1,5 +1,6 @@
 // MainScreen/components/PostDetailView.tsx
 import React, { useCallback, useMemo } from "react";
+import { toast } from "@/toastHelper";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { OptimizedAvatar } from "@/components/OptimizedAvatar";
@@ -86,6 +87,7 @@ interface PostDetailViewProps {
   // 새로고침 관련 (optional)
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 // 상대시간 전용 컴포넌트로 타이머 리렌더 범위 국소화
@@ -133,6 +135,7 @@ export function PostDetailView({
   canSubmitReply,
   onRefresh,
   isRefreshing = false,
+  isGuest, // 게스트 모드 여부 추가
 }: PostDetailViewProps) {
   const now = useNow(60_000);
   const scrollRef = useScrollRestoration({
@@ -315,23 +318,25 @@ export function PostDetailView({
                       </PopoverTrigger>
                       <PopoverContent className="w-48 p-2" align="end">
                         <div className="space-y-1">
-                          {post.isOwner && (
+                          {post.isOwner && !isGuest && ( // 게스트 모드 시 비활성화
                             <Button
                               variant="ghost"
                               size="sm"
                               className="w-full justify-start text-red-500"
-                              onClick={onDelete}
+                               onClick={isGuest ? () => console.log("로그인 후 삭제 기능을 이용할 수 있습니다.") : onDelete} // 게스트 모드 시 토스트 메시지
+                              disabled={isGuest} // 게스트 모드 시 비활성화
                             >
                               <X className="w-4 h-4 mr-2" />
                               삭제하기
                             </Button>
                           )}
-                          {!post.isOwner && (
+                          {!post.isOwner && !isGuest && ( // 게스트 모드 시 비활성화
                             <Button
                               variant="ghost"
                               size="sm"
                               className="w-full justify-start text-red-500"
-                              onClick={onReport}
+                               onClick={isGuest ? () => console.log("로그인 후 신고 기능을 이용할 수 있습니다.") : onReport} // 게스트 모드 시 토스트 메시지
+                              disabled={isGuest} // 게스트 모드 시 비활성화
                             >
                               <Flag className="w-4 h-4 mr-2" />
                               신고하기
@@ -365,13 +370,14 @@ export function PostDetailView({
                 {/* 등불/댓글/조회수/북마크 */}
                 <div className="flex items-center justify-between pt-4 border-t border-border">
                   <div className="flex items-center space-x-4">
-                    {post.author !== userNickname ? (
+                    {post.author !== userNickname && !isGuest ? ( // 게스트 모드 시 비활성화
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={onLanternToggle}
+                        onClick={isGuest ? () => console.log("로그인 후 등불을 사용할 수 있습니다.") : onLanternToggle} // 게스트 모드 시 토스트 메시지
                         className={`space-x-2 touch-target ${isPostLanterned ? "text-amber-500" : ""
                           }`}
+                        disabled={isGuest} // 게스트 모드 시 비활성화
                       >
                         {isPostLanterned ? (
                           <LanternFilledIcon className="w-4 h-4 text-amber-500" />
@@ -401,8 +407,9 @@ export function PostDetailView({
                   <Button
                     variant={isBookmarked ? "default" : "ghost"}
                     size="sm"
-                    onClick={onBookmarkToggle}
+                    onClick={isGuest ? () => console.log("로그인 후 북마크를 사용할 수 있습니다.") : onBookmarkToggle} // 게스트 모드 시 토스트 메시지
                     className="flex items-center space-x-1 touch-target"
+                    disabled={isGuest} // 게스트 모드 시 비활성화
                   >
                     <Bookmark
                       className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""
@@ -441,14 +448,16 @@ export function PostDetailView({
                 <Textarea
                   ref={replyInputRef as React.RefObject<HTMLTextAreaElement>}
                   placeholder={
-                    canSubmitReply
-                      ? "이 글에 대한 생각을 나눠보세요."
-                      : "신뢰도 0점에서는 답글을 작성할 수 없습니다"
+                    isGuest
+                      ? "로그인 후 답글을 작성할 수 있습니다." // 게스트 모드 시 메시지
+                      : canSubmitReply
+                        ? "이 글에 대한 생각을 나눠보세요."
+                        : "신뢰도 0점에서는 답글을 작성할 수 없습니다"
                   }
                   value={newReplyContent}
                   onChange={onReplyContentChange}
                   onKeyDown={handleKeyDown}
-                  disabled={!canSubmitReply}
+                  disabled={!canSubmitReply || isGuest} // 게스트 모드 시 비활성화
                   className="min-h-[100px] resize-none border-border/60 focus:border-primary/50 transition-colors duration-200 bg-background/50"
                 />
                 <div className="flex justify-between items-center">
@@ -456,8 +465,8 @@ export function PostDetailView({
                     {newReplyContent.length}/1000
                   </span>
                   <Button
-                    onClick={onReplySubmit}
-                    disabled={!newReplyContent.trim() || !canSubmitReply}
+                    onClick={isGuest ? () => toast.info("로그인 후 답글을 작성할 수 있습니다.") : onReplySubmit} // 게스트 모드 시 토스트 메시지
+                    disabled={!newReplyContent.trim() || !canSubmitReply || isGuest} // 게스트 모드 시 비활성화
                     size="sm"
                     className="touch-target px-6 py-2 rounded-xl transition-all duration-200 disabled:opacity-50"
                   >
@@ -612,6 +621,7 @@ const ReplyCard = React.memo(function ReplyCard({
     typeof reply.aiSummary === "string" && reply.aiSummary.length > 0
       ? reply.aiSummary
       : "1시간 동안 답변이 없어 자동으로 생성된 안내 답변입니다.";
+
 
   const handleLanternToggle = useCallback(() => {
     onReplyLanternToggle(reply.id, postId);

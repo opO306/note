@@ -53,25 +53,30 @@ export const aiModerationReview = onCall(
 
         logger.info(`[aiModeration] 요청 수신 (Region: Seoul / Model: US) - ${data.targetType}`, { uid: request.auth?.uid });
 
-        try {
-            // 2. Vertex AI 초기화 (모델은 US 리전 사용)
-            const vertex_ai = new VertexAI({
-                project: PROJECT_ID,
-                location: VERTEX_LOCATION // "us-central1"
-            });
+        return await _performAiModeration(data);
+    }
+);
 
-            // 3. 모델 설정
-            const model = vertex_ai.getGenerativeModel({
-                model: MODEL_ID,
-                generationConfig: {
-                    maxOutputTokens: 1000,
-                    temperature: 0.2,
-                    responseMimeType: "application/json"
-                }
-            });
+export async function _performAiModeration(data: AiModerationRequest): Promise<AiModerationResponse> {
+    try {
+        // 1. Vertex AI 초기화 (모델은 US 리전 사용)
+        const vertex_ai = new VertexAI({
+            project: PROJECT_ID,
+            location: VERTEX_LOCATION // "us-central1"
+        });
 
-            // 4. 프롬프트 구성
-            const prompt = `
+        // 2. 모델 설정
+        const model = vertex_ai.getGenerativeModel({
+            model: MODEL_ID,
+            generationConfig: {
+                maxOutputTokens: 1000,
+                temperature: 0.2,
+                responseMimeType: "application/json"
+            }
+        });
+
+        // 3. 프롬프트 구성
+        const prompt = `
             You are a strict content moderator for a community app.
             Analyze the following content and provide a JSON response.
             
@@ -89,42 +94,41 @@ export const aiModerationReview = onCall(
             }
             `;
 
-            const result = await model.generateContent(prompt);
-            const response = result.response;
-            const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-            if (!rawText) {
-                logger.error("[aiModeration] AI 응답 비어있음");
-                throw new HttpsError("internal", "AI 응답을 받을 수 없습니다.");
-            }
-
-            // 5. JSON 파싱
-            const jsonStr = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-            let parsed: any;
-            try {
-                parsed = JSON.parse(jsonStr);
-            } catch (error) {
-                logger.error("[aiModeration] JSON 파싱 실패", { rawText });
-                throw new HttpsError("internal", "AI 응답 형식이 올바르지 않습니다.");
-            }
-
-            const responsePayload: AiModerationResponse = {
-                summary: String(parsed.summary || ""),
-                recommendation: ["reject", "needs_review", "action_needed"].includes(parsed.recommendation)
-                    ? parsed.recommendation
-                    : "needs_review",
-                riskScore: typeof parsed.riskScore === "number"
-                    ? Math.min(Math.max(parsed.riskScore, 0), 1)
-                    : 0.5,
-                rationale: String(parsed.rationale || ""),
-                flags: Array.isArray(parsed.flags) ? parsed.flags.map(String) : [],
-            };
-
-            return responsePayload;
-
-        } catch (error: any) {
-            logger.error("[aiModeration] 처리 실패", error);
-            throw new HttpsError("internal", "AI 검수 중 오류가 발생했습니다.");
+        if (!rawText) {
+            logger.error("[aiModeration] AI 응답 비어있음");
+            throw new HttpsError("internal", "AI 응답을 받을 수 없습니다.");
         }
+
+        // 4. JSON 파싱
+        const jsonStr = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+        let parsed: any;
+        try {
+            parsed = JSON.parse(jsonStr);
+        } catch (error) {
+            logger.error("[aiModeration] JSON 파싱 실패", { rawText });
+            throw new HttpsError("internal", "AI 응답 형식이 올바르지 않습니다.");
+        }
+
+        const responsePayload: AiModerationResponse = {
+            summary: String(parsed.summary || ""),
+            recommendation: ["reject", "needs_review", "action_needed"].includes(parsed.recommendation)
+                ? parsed.recommendation
+                : "needs_review",
+            riskScore: typeof parsed.riskScore === "number"
+                ? Math.min(Math.max(parsed.riskScore, 0), 1)
+                : 0.5,
+            rationale: String(parsed.rationale || ""),
+            flags: Array.isArray(parsed.flags) ? parsed.flags.map(String) : [],
+        };
+
+        return responsePayload;
+
+    } catch (error: any) {
+        logger.error("[aiModeration] 처리 실패", error);
+        throw new HttpsError("internal", "AI 검수 중 오류가 발생했습니다.");
     }
-);
+}

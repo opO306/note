@@ -47,15 +47,25 @@ const INITIAL_LUMEN_DATA: LumenData = {
  * - Cloud Functions를 통해 안전하게 재화를 증감시킵니다.
  * - 낙관적 업데이트와 롤백 로직으로 사용자 경험과 데이터 정합성을 모두 확보합니다.
  */
-export function useLumens() {
+export function useLumens(options?: { enabled?: boolean }) {
+    const { enabled = true } = options || {};
+
+
     const [lumenData, setLumenData] = useState<LumenData>(INITIAL_LUMEN_DATA);
     const [isLoading, setIsLoading] = useState(true);
 
     // Firestore에서 데이터를 불러와 상태를 동기화하는 로직
     useEffect(() => {
+        if (!enabled) { // enabled가 false이면 데이터 로딩 건너뛰기
+            setIsLoading(false);
+            setLumenData(INITIAL_LUMEN_DATA); // 비활성화 시 기본값으로 설정
+            return;
+        }
+
         const uid = auth.currentUser?.uid;
         if (!uid) {
             setIsLoading(false);
+            setLumenData(INITIAL_LUMEN_DATA); // UID 없으면 기본값
             return;
         }
 
@@ -97,7 +107,7 @@ export function useLumens() {
         syncFromFirestore();
 
         return () => { isCancelled = true; };
-    }, []); // 이 useEffect는 마운트 시 한 번만 실행되는 것이 올바릅니다.
+    }, [enabled]); // 이 useEffect는 마운트 시 한 번만 실행되는 것이 올바릅니다.
 
     /**
      * 루멘 추가 (업적 달성 등)

@@ -7,6 +7,11 @@ import "./index.css";
 import { initFirebase, initFirebaseAppCheck } from "./firebase";
 import { initPerformanceMonitoring } from "./utils/performanceMonitoring";
 
+if (import.meta.env.DEV) {
+  import("./utils/react-version-check");
+  import("./utils/sw-unregister");
+}
+
 async function bootstrap() {
     // 시스템 네비게이션 바 높이 자동 계산 및 CSS 변수 업데이트
     // env(safe-area-inset-bottom)이 자동으로 작동하지 않는 경우를 대비한 보완 로직
@@ -125,7 +130,6 @@ async function bootstrap() {
     if (Capacitor.isNativePlatform()) {
         try {
             void FirebaseAppCheck.initialize({
-                provider: 'playIntegrity',
                 isTokenAutoRefreshEnabled: true,
             });
         } catch {

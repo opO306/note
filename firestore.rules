@@ -96,7 +96,9 @@ service cloud.firestore {
     }
 
     match /postViews/{viewId} { allow read, write: if isSignedIn(); }
-    // 팔로우 컬렉션: 본인이 팔로우하는 경우만 생성/삭제 가능
+
+    // 🔹 주간 통계 컬렉션 (랭킹)
+    match /weekly_stats/{docId} { allow read: if true; }    // 팔로우 컬렉션: 본인이 팔로우하는 경우만 생성/삭제 가능
     match /follows/{followId} { 
       // 팔로우 정보는 공개 정보로 누구나 읽을 수 있음 (다른 유저 프로필에서 팔로워/팔로잉 목록 조회용)
       // 트랜잭션에서 문서 존재 여부 확인을 위해 문서가 없을 때도 허용
@@ -125,6 +127,12 @@ service cloud.firestore {
     }
     match /weekly_stats/{statsId} { allow read: if isSignedIn(); allow write: if false; }
     match /config/{document=**} { allow read: if true; allow write: if false; }
+
+    // ✅ blockedIPs 컬렉션 규칙 추가
+    match /blockedIPs/{document=**} { allow read: if true; }
+
+    // ✅ suspendedGuestIds 컬렉션 규칙 추가
+    match /suspendedGuestIds/{document=**} { allow read: if true; }
 
     // ✅ notes 컬렉션 규칙 추가
     match /notes/{noteId} {

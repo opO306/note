@@ -1,0 +1,21 @@
+plugins {
+    id 'com.android.library'
+}
+
+android {
+    namespace 'com.bivunote.app'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 21
+    }
+}
+
+dependencies {
+    compileOnly 'com.getcapacitor:capacitor-android:6.0.0'
+
+    // 나머지 의존성은 그대로 유지
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+}

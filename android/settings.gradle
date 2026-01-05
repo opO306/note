@@ -1,6 +1,27 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "android"
+
+// 1. 메인 앱
 include ':app'
 
-include ':capacitor-cordova-android-plugins'
-project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')
-
+// 2. Capacitor 필수 모듈
 apply from: 'capacitor.settings.gradle'
+
+include ':android-plugins:google-one-tap'
+project(':android-plugins:google-one-tap').projectDir =
+        new File(rootDir, '../android-plugins/google-one-tap')

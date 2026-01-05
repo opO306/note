@@ -121,6 +121,7 @@ interface UserProfileScreenProps {
 
   // 🆕 [추가] 차단 기능을 위한 대상 유저의 UID
   targetUid?: string | null;
+  isGuest?: boolean; // 게스트 모드 여부 추가 (선택 사항으로 변경)
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -154,6 +155,7 @@ export function UserProfileDialog({
   activeSection,
   onChangeSection,
   targetUid,
+  isGuest = false, // 게스트 모드 여부 추가 (기본값 false)
 }: UserProfileScreenProps) {
   // 🔹 표시용 닉네임
   const displayName = username || userName || "사용자";
@@ -467,6 +469,7 @@ export function UserProfileDialog({
           onBack={handleBackToProfile}
           onUserClick={onFollowUserClick}
           currentTheme={currentTheme}
+          isGuest={isGuest}
         />
       </div>
     );
@@ -481,6 +484,7 @@ export function UserProfileDialog({
           onBack={handleBackToProfile}
           onUserClick={onFollowUserClick}
           currentTheme={currentTheme}
+          isGuest={isGuest}
         />
       </div>
     );
@@ -494,6 +498,7 @@ export function UserProfileDialog({
           posts={posts}
           onBack={handleBackToProfile}
           onPostClick={onPostClick}
+          isGuest={isGuest}
         />
       </div>
     );
@@ -507,6 +512,7 @@ export function UserProfileDialog({
           replies={userReplies}
           onBack={handleBackToProfile}
           onReplyClick={onReplyClick}
+          isGuest={isGuest}
         />
       </div>
     );

@@ -20,8 +20,12 @@
 # 구글 플레이 서비스 (로그인 관련)
 -keep class com.google.android.gms.auth.** { *; }
 -keep class com.google.android.gms.common.** { *; }
--keep class com.google.android.gms.tasks.** { *; }
--keep class com.google.android.gms.signin.** { *; }
+    -keep class com.google.android.gms.tasks.** { *; }
+    -keep class com.google.android.gms.signin.** { *; }
+
+# Credential Manager
+-keep class androidx.credentials.** { *; }
+-keep class com.google.android.libraries.identity.googleid.** { *; }
 
 # Firebase (사용 중이라면 필수)
 -keep class com.google.firebase.auth.** { *; }

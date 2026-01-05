@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <resources>
 
     <!-- Base application theme. -->
@@ -9,13 +9,13 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
-    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+    <style
+    name="AppTheme.NoActionBar"
+    parent="Theme.AppCompat.DayNight.NoActionBar"
+  >
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
-        <!-- 네비게이션 바 색상 설정 (기본값, JavaScript에서 동적으로 변경 가능) -->
-        <item name="android:navigationBarColor">#1a1a1a</item>
-        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
 

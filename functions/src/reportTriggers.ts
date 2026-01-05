@@ -16,6 +16,9 @@ interface ReplyData {
   reportCount?: number;
   hidden?: boolean;
   autoHiddenAt?: admin.firestore.Timestamp;
+  moderationStatus?: "pending" | "approved" | "rejected" | "needs_review" | "action_needed" | "error"; // moderationStatus 추가
+  clientIp?: string; // clientIp 추가
+  guestId?: string; // guestId 추가
   [key: string]: any;
 }
 
@@ -24,6 +27,9 @@ interface PostData {
   reportCount?: number;
   hidden?: boolean;
   replies?: ReplyData[];
+  moderationStatus?: "pending" | "approved" | "rejected" | "needs_review" | "action_needed" | "error"; // moderationStatus 추가
+  clientIp?: string; // clientIp 추가
+  guestId?: string; // guestId 추가
   [key: string]: any;
 }
 
@@ -142,6 +148,7 @@ export const onReportCreated = onDocumentCreated(
           updatedReply.autoHiddenAt = admin.firestore.Timestamp.now(); // 배열 내부는 Timestamp 객체 사용
           updateReportPayload.status = "auto_hidden";
           updateReportPayload.autoHidden = true;
+          updatedReply.moderationStatus = "rejected"; // 자동 숨김 시 moderationStatus 업데이트
         }
 
         const newReplies = [...replies];
@@ -187,6 +194,7 @@ export const onReportCreated = onDocumentCreated(
           updateTargetPayload.autoHiddenAt = admin.firestore.FieldValue.serverTimestamp();
           updateReportPayload.status = "auto_hidden";
           updateReportPayload.autoHidden = true;
+          updateTargetPayload.moderationStatus = "rejected"; // 자동 숨김 시 moderationStatus 업데이트
         }
 
         tx.update(targetRef, updateTargetPayload);
@@ -244,7 +252,7 @@ export const onReportStatusChanged = onDocumentUpdated(
         await updateUserTrustScore(tx, reporterUid, 1);
       }
 
-      // 3. 콘텐츠 숨김 처리 (hidden: true)
+      // 3. 콘텐츠 숨김 처리 (hidden: true) 및 IP/계정 차단
       if (targetType === "post") {
         const postData = rootDocSnap.data() as PostData;
         if (!postData.hidden) {
@@ -252,7 +260,39 @@ export const onReportStatusChanged = onDocumentUpdated(
             hidden: true,
             hiddenReason: "report_confirmed",
             confirmedAt: admin.firestore.FieldValue.serverTimestamp(),
+            moderationStatus: "rejected", // 관리자 확정 시 moderationStatus 업데이트
           });
+
+          // IP 차단 로직
+          if (postData.clientIp) {
+            await db.collection("blockedIPs").doc(postData.clientIp).set({
+                ip: postData.clientIp,
+                reason: "Report Confirmed (Post)",
+                blockedAt: admin.firestore.FieldValue.serverTimestamp(),
+                triggeredByReportId: after.id,
+                triggeredByPostId: targetId,
+            });
+            logger.warn(`[Report Trigger] 신고 확정으로 IP(${postData.clientIp}) 자동 차단됨 (게시글: ${targetId}).`);
+          }
+          
+          // 계정 정지 로직 (일반 사용자 또는 게스트 ID)
+          if (postData.authorUid) { // 일반 사용자
+              await tx.update(db.collection("users").doc(postData.authorUid), {
+                  isSuspended: true,
+                  suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
+                  suspendedReason: "Report Confirmed (Post)",
+              });
+              logger.warn(`[Report Trigger] 신고 확정으로 사용자 UID(${postData.authorUid}) 정지됨 (게시글: ${targetId}).`);
+          } else if (postData.guestId) { // 게스트 사용자
+              await db.collection("suspendedGuestIds").doc(postData.guestId).set({
+                  guestId: postData.guestId,
+                  reason: "Report Confirmed (Post)",
+                  suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
+                  triggeredByReportId: after.id,
+                  triggeredByPostId: targetId,
+              });
+              logger.warn(`[Report Trigger] 신고 확정으로 게스트 ID(${postData.guestId}) 정지됨 (게시글: ${targetId}).`);
+          }
         }
       } else if (targetType === "reply") {
         const postData = rootDocSnap.data() as PostData;
@@ -265,10 +305,43 @@ export const onReportStatusChanged = onDocumentUpdated(
             ...newReplies[index],
             hidden: true,
             hiddenReason: "report_confirmed",
-            // 배열 내부는 JS Date나 Timestamp 객체 사용
             autoHiddenAt: admin.firestore.Timestamp.now(),
+            moderationStatus: "rejected", // 관리자 확정 시 moderationStatus 업데이트
           };
           tx.update(rootDocRef, { replies: newReplies });
+
+          // IP 차단 로직
+          if (replies[index].clientIp) {
+            await db.collection("blockedIPs").doc(replies[index].clientIp!).set({
+                ip: replies[index].clientIp,
+                reason: "Report Confirmed (Reply)",
+                blockedAt: admin.firestore.FieldValue.serverTimestamp(),
+                triggeredByReportId: after.id,
+                triggeredByPostId: postId,
+                triggeredByReplyId: targetId,
+            });
+            logger.warn(`[Report Trigger] 신고 확정으로 IP(${replies[index].clientIp}) 자동 차단됨 (댓글: ${targetId}).`);
+          }
+
+          // 계정 정지 로직 (일반 사용자 또는 게스트 ID)
+          if (replies[index].authorUid) { // 일반 사용자
+              await tx.update(db.collection("users").doc(replies[index].authorUid!), {
+                  isSuspended: true,
+                  suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
+                  suspendedReason: "Report Confirmed (Reply)",
+              });
+              logger.warn(`[Report Trigger] 신고 확정으로 사용자 UID(${replies[index].authorUid}) 정지됨 (댓글: ${targetId}).`);
+          } else if (replies[index].guestId) { // 게스트 사용자
+              await db.collection("suspendedGuestIds").doc(replies[index].guestId!).set({
+                  guestId: replies[index].guestId,
+                  reason: "Report Confirmed (Reply)",
+                  suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
+                  triggeredByReportId: after.id,
+                  triggeredByPostId: postId,
+                  triggeredByReplyId: targetId,
+              });
+              logger.warn(`[Report Trigger] 신고 확정으로 게스트 ID(${replies[index].guestId}) 정지됨 (댓글: ${targetId}).`);
+          }
         }
       }
     });

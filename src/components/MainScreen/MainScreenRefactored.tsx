@@ -3,6 +3,7 @@
 // 기존 3,472줄 → 약 600줄로 축소
 /* eslint-disable react/jsx-no-bind, react-perf/jsx-no-new-function-as-prop */
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react";
+import { toast } from "@/toastHelper";
 import { App as CapacitorApp } from "@capacitor/app";
 import type { PluginListenerHandle } from "@capacitor/core";
 import { auth, db, functions, app } from "../../firebase";
@@ -11,14 +12,14 @@ import {
   collection,
   serverTimestamp,
   doc,
-  onSnapshot,
+  // onSnapshot,
   getDocs,
   query,
   where,
   limit,
+  updateDoc,
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { toast } from "@/toastHelper";
 import { useUserProfiles, useCurrentUserProfileLite } from "./hooks/useUserProfiles";
 import { formatRelativeOrDate } from "@/components/utils/timeUtils";
 import { BlockedUserListDialog } from "@/components/BlockedUserListDialog";
@@ -79,7 +80,7 @@ const MemoBookmarkScreen = React.memo(BookmarkScreen);
 const MemoSearchScreen = React.memo(SearchScreen);
 
 // 덜 자주 쓰이는 화면은 Lazy Loading 유지
-const WriteScreen = lazy(() => import("../WriteScreen").then((m) => ({ default: m.WriteScreen })));
+const WriteScreen = lazy(() => import("../WriteScreen").then((m) => ({ default: m.default })));
 const NotesScreen = lazy(() => import("../NotesScreen"));
 const NoteDetailScreen = lazy(() => import("../NoteDetailScreen"));
 const QuestionComposeScreen = lazy(() =>
@@ -287,6 +288,7 @@ function MainScreenInner({
   shouldOpenSettingsOnMyPage,
   onMainScreenReady,
   onSettingsOpenedFromMain,
+  isGuest, // 게스트 모드 여부 추가
 }: MainScreenProps) {
   // 현재 테마 확인 (커스텀 테마일 때는 dark 클래스 적용하지 않음)
   const [currentTheme, setCurrentTheme] = useState<string>(() => {
@@ -342,6 +344,23 @@ function MainScreenInner({
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   // 🆕 글쓰기 선택 시트
   const [showCreateSheet, setShowCreateSheet] = useState(false);
+  const [postMountReady, setPostMountReady] = useState(false);
+  // ✅ 화면이 실제로 그려진 "다음 프레임"에 무거운 작업 허용
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      setPostMountReady(true);
+    });
+
+    return () => cancelAnimationFrame(id);
+  }, []);
+  // ✅ 여기 추가
+  const lumenActions = useLumens({ enabled: postMountReady });
+
+  // ========================================
+  // 2. 기존 훅 연결
+  // ========================================
+  const { posts, setPosts, loading: postsLoading, refresh } = usePosts();
+  const lumenBalance = lumenActions.balance;
 
   // 🔹 글 상세로 들어올 때, 어디에서 왔는지 기억하는 상태
   const [postDetailSource, setPostDetailSource] = useState<PostDetailSource>("home");
@@ -356,7 +375,16 @@ function MainScreenInner({
   const [activeSubCategory, setActiveSubCategory] = useState("전체");
   const [sortBy, setSortBy] = useState<SortOption["value"]>("latest");
   const autoReplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autoReplyTriggeredRef = useRef<Set<string>>(new Set());
+  const autoReplyTriggeredRef = useRef<Set<string>>((() => {
+    if (typeof window === "undefined") return new Set<string>();
+    try {
+      const stored = localStorage.getItem("aiAutoReplyTriggered");
+      return stored ? new Set(JSON.parse(stored)) : new Set<string>();
+    } catch (e) {
+      console.error("Failed to load aiAutoReplyTriggered from localStorage", e);
+      return new Set<string>();
+    }
+  })());
   // ✅ postDetail을 노트에서 열었을 때, 다시 돌아갈 noteId 기억
   const postDetailReturnNoteIdRef = useRef<string | null>(null);
 
@@ -456,11 +484,6 @@ function MainScreenInner({
     "profile" | "followers" | "following" | "posts" | "replies"
   >("profile");
 
-  // ========================================
-  // 2. 기존 훅 연결
-  // ========================================
-  const { posts, setPosts, loading: postsLoading, refresh } = usePosts();
-  const { balance: lumenBalance } = useLumens();
 
   // 🔹 차단된 유저 목록 가져오기
   const currentUserProfileLite = useCurrentUserProfileLite();
@@ -566,7 +589,15 @@ function MainScreenInner({
       if (now - createdAtDate.getTime() < AUTO_REPLY_WAIT_MS) return;
 
       autoReplyTriggeredRef.current.add(targetId);
+      localStorage.setItem("aiAutoReplyTriggered", JSON.stringify(Array.from(autoReplyTriggeredRef.current)));
       try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          // 로그인하지 않은 사용자에게는 AI 답글을 생성하지 않음
+          autoReplyTriggeredRef.current.delete(targetId);
+          return;
+        }
+
         const callable = httpsCallable(functions, "aiAutoReply");
         const promptText = `${latestPost.title ?? ""} \n\n ${latestPost.content ?? ""}`;
 
@@ -581,6 +612,7 @@ function MainScreenInner({
         });
       } catch {
         autoReplyTriggeredRef.current.delete(targetId);
+        localStorage.setItem("aiAutoReplyTriggered", JSON.stringify(Array.from(autoReplyTriggeredRef.current)));
         // aiAutoReply 실패 (로그 제거)
       }
     },
@@ -640,8 +672,6 @@ function MainScreenInner({
   // 3. 분리된 훅들 연결
   // ========================================
 
-  const lumenActions = useLumens();
-
   // ✨ [해결] 이제 타입이 완벽하게 일치합니다.
   const {
     clampedTrust,
@@ -666,38 +696,17 @@ function MainScreenInner({
   const isAdmin = currentUserProfileLite?.role === "admin";
   const userStats = useUserStats({ posts, userNickname }) as any;
 
-  const [profileDescription, setProfileDescription] = useState("");
-
-  useEffect(() => {
+  // 🔹 프로필 설명 변경 핸들러 (Firestore에 저장)
+  const handleProfileDescriptionChange = useCallback(async (value: string) => {
+    // UI 즉시 반영은 MyPageScreen 내부에서 처리
     const uid = auth.currentUser?.uid;
-    if (!uid) {
-      setProfileDescription("");
-      return;
-    }
-
-    const userRef = doc(db, "users", uid);
-    const unsubscribe = onSnapshot(
-      userRef,
-      (snap) => {
-        if (!snap.exists()) {
-          setProfileDescription("");
-          return;
-        }
-        const data = snap.data() as any;
-        const desc =
-          typeof data.profileDescription === "string"
-            ? data.profileDescription
-            : "";
-        setProfileDescription(desc);
-      },
-      () => {
-        // users.profileDescription 구독 에러 (로그 제거)
+    if (uid) {
+      try {
+        await updateDoc(doc(db, "users", uid), { profileDescription: value });
+      } catch (e) {
+        console.error("프로필 설명 저장 실패", e);
       }
-    );
-
-    return () => {
-      unsubscribe();
-    };
+    }
   }, []);
 
   const lanternActions = useLanternActions({
@@ -774,6 +783,7 @@ function MainScreenInner({
     clampedTrust,
     updateActivity,
     userProfileImage,
+    isGuest, // isGuest 추가
   });
 
   const handlePostSelect = useCallback((post: Post) => {
@@ -1495,7 +1505,13 @@ function MainScreenInner({
             onRankingClick={navigateToRanking}
             onBookmarksClick={navigateToBookmarks}
             onMyPageClick={navigateToMyPage}
-            onWriteClick={() => setShowCreateSheet(true)}
+            onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
             activeTab={currentScreen}
           />
         </div>
@@ -1544,7 +1560,13 @@ function MainScreenInner({
             onRankingClick={navigateToRanking}
             onBookmarksClick={navigateToBookmarks}
             onMyPageClick={navigateToMyPage}
-            onWriteClick={() => setShowCreateSheet(true)}
+            onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
             activeTab={currentScreen}
           />
         </div>
@@ -1561,6 +1583,7 @@ function MainScreenInner({
           categories={categories}
           lumenBalance={lumenBalance}
           spendLumens={lumenActions.spendLumens}
+          isGuest={isGuest}
         />
       </Suspense>
     );
@@ -1659,10 +1682,11 @@ function MainScreenInner({
               hideSaveNote={postDetailSource === "notes"}
               onReportReply={(reply) => setReportingReply(reply)}
               renderContentWithMentions={renderContentWithMentions}
-              canSubmitReply={replyActions.canSubmitReply}
+              canSubmitReply={!!replyActions.canSubmitReply}
               blockedUserIds={blockedUserIds} // 🆕 차단 목록 전달
               onRefresh={handleRefresh}
               isRefreshing={isRefreshing}
+              isGuest={isGuest} // 게스트 모드 여부 prop 추가
             />
           ) : (
             <>
@@ -1686,6 +1710,7 @@ function MainScreenInner({
                 onTitleShopClick={handleTitleShopClick}
                 isAdmin={isAdmin}
                 onOpenAdminReports={handleOpenAdminReports}
+                isGuest={isGuest} // 게스트 모드 여부 prop 추가
               />
               <PostListView
                 posts={visiblePosts}
@@ -1709,6 +1734,8 @@ function MainScreenInner({
                 onRefresh={handleRefresh}
                 isRefreshing={isRefreshing}
                 isLoading={postsLoading} // ✅ 초기 로딩 상태 전달
+                isGuest={isGuest} // 게스트 모드 여부 prop 추가
+                userUid={auth.currentUser?.uid || ""} // userUid 추가
               />
             </>
           )}
@@ -1718,7 +1745,13 @@ function MainScreenInner({
           onRankingClick={navigateToRanking}
           onBookmarksClick={navigateToBookmarks}
           onMyPageClick={navigateToMyPage}
-          onWriteClick={() => setShowCreateSheet(true)}
+          onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
           activeTab={currentScreen}
         />
       </div>
@@ -1747,8 +1780,8 @@ function MainScreenInner({
                 onManageBlockedUsers={() => setShowBlockedUsers(true)}
                 userGuideCount={userStats.userGuideCount}
                 trustScore={clampedTrust}
-                profileDescription={profileDescription}
-                onProfileDescriptionChange={setProfileDescription}
+                profileDescription={currentUserProfileLite?.profileDescription ?? ""}
+                onProfileDescriptionChange={handleProfileDescriptionChange}
                 onHomeClick={navigateToHome}
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
@@ -1791,13 +1824,20 @@ function MainScreenInner({
                 }}
                 autoOpenSettings={shouldOpenSettingsOnMyPage}
                 onAutoSettingsOpened={onSettingsOpenedFromMain}
+                isGuest={isGuest} // 게스트 모드 여부 prop 추가
               />
               <BottomNavigation
                 onHomeClick={navigateToHome}
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => setShowCreateSheet(true)}
+                onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
                 activeTab={currentScreen}
               />
             </div>
@@ -1826,7 +1866,13 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => setShowCreateSheet(true)}
+                onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
                 activeTab={currentScreen}
               />
             </div>
@@ -1857,13 +1903,20 @@ function MainScreenInner({
                 }}
                 userNickname={userNickname}
                 currentTitle={titleActions.currentTitle}
+                isGuest={isGuest}
               />
               <BottomNavigation
                 onHomeClick={navigateToHome}
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => setShowCreateSheet(true)}
+                onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
                 activeTab={currentScreen}
               />
             </div>
@@ -1885,7 +1938,13 @@ function MainScreenInner({
               onRankingClick={navigateToRanking}
               onBookmarksClick={navigateToBookmarks}
               onMyPageClick={navigateToMyPage}
-              onWriteClick={() => setShowCreateSheet(true)}
+              onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
               activeTab={currentScreen}
             />
           </div>
@@ -1923,6 +1982,7 @@ function MainScreenInner({
               onBookmarkToggle={bookmarkActions.handleBookmarkToggle}
               formatTimeAgo={formatTimeAgo}
               formatCreatedAt={formatCreatedAt}
+              isGuest={isGuest} // 게스트 모드 여부 prop 추가
             />
           </Suspense>
         </div>
@@ -1951,6 +2011,8 @@ function MainScreenInner({
               onBookmarkToggle={bookmarkActions.handleBookmarkToggle}
               formatTimeAgo={formatTimeAgo}
               formatCreatedAt={formatCreatedAt}
+              isGuest={isGuest} // 게스트 모드 여부 prop 추가
+              userUid={auth.currentUser?.uid || ""} // userUid 추가
             />
           </Suspense>
         </div>
@@ -1969,8 +2031,8 @@ function MainScreenInner({
                   userGuideCount={userStats.userGuideCount}
                   ownedTitles={titleActions.ownedTitles}
                   currentTitle={titleActions.currentTitle}
-                  onTitlePurchase={titleActions.handleTitlePurchase}
-                  onTitleEquip={titleActions.handleTitleEquip}
+                  onTitlePurchase={isGuest ? (_themeId, _cost) => { toast.info("로그인 후 칭호를 구매할 수 있습니다."); return Promise.resolve(false); } : titleActions.handleTitlePurchase} // 게스트 모드 시 제한
+                  onTitleEquip={isGuest ? (_titleId) => toast.info("로그인 후 칭호를 장착할 수 있습니다.") : titleActions.handleTitleEquip} // 게스트 모드 시 제한
                 />
               </div>
               <BottomNavigation
@@ -1978,7 +2040,13 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => setShowCreateSheet(true)}
+                onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2026,7 +2094,7 @@ function MainScreenInner({
                     }
                     userBio={
                       isMyself
-                        ? profileDescription
+                        ? currentUserProfileLite?.profileDescription ?? ""
                         : profileOwnerProfile?.profileDescription ?? ""
                     }
                     posts={profilePosts}
@@ -2098,7 +2166,13 @@ function MainScreenInner({
                     onRankingClick={navigateToRanking}
                     onBookmarksClick={navigateToBookmarks}
                     onMyPageClick={navigateToMyPage}
-                    onWriteClick={() => setShowCreateSheet(true)}
+                    onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
                     activeTab={currentScreen}
                   />
                 </div>
@@ -2119,6 +2193,7 @@ function MainScreenInner({
                   equippedTitle={titleActions.currentTitle}
                   onTitleEquip={titleActions.handleTitleEquip}
                   onTitleUnequip={titleActions.handleTitleUnequip}
+                  isGuest={isGuest}
                 />
               </div>
               <BottomNavigation
@@ -2126,7 +2201,13 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => setShowCreateSheet(true)}
+                onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2151,13 +2232,20 @@ function MainScreenInner({
                   setRoute({ name: "userProfile", nickname });
                 }}
                 currentTheme={currentTheme}
+                isGuest={isGuest}
               />
               <BottomNavigation
                 onHomeClick={navigateToHome}
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => setShowCreateSheet(true)}
+                onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2183,7 +2271,7 @@ function MainScreenInner({
                 formatCreatedAt={formatCreatedAt}
                 onLanternToggle={lanternActions.handleLanternToggle}
                 onBookmarkToggle={bookmarkActions.handleBookmarkToggle}
-                onPostClick={(postId) => {
+                onPostClick={isGuest ? (_postId) => console.log("로그인 후 게시글 상세를 볼 수 있습니다.") : (postId) => {
                   const post = visiblePosts.find((p) => p.id === postId);
                   if (post) {
                     const source = effectiveMyContentList === "posts" ? "myPostsList" : "myRepliesList";
@@ -2192,7 +2280,7 @@ function MainScreenInner({
                     setRoute({ name: "postDetail", postId: post.id, source });
                   }
                 }}
-                onReplyClick={(postId, _replyId) => {
+                onReplyClick={isGuest ? (_postId, _replyId) => console.log("로그인 후 답글 상세를 볼 수 있습니다.") : (postId, _replyId) => {
                   const post = visiblePosts.find((p) => p.id === postId);
                   if (post) {
                     setPostDetailSource("myRepliesList");
@@ -2204,13 +2292,20 @@ function MainScreenInner({
                     });
                   }
                 }}
+                isGuest={isGuest}
               />
               <BottomNavigation
                 onHomeClick={navigateToHome}
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => setShowCreateSheet(true)}
+                onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2232,7 +2327,13 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => setShowCreateSheet(true)}
+                onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2271,7 +2372,13 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => setShowCreateSheet(true)}
+                onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2295,7 +2402,13 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => setShowCreateSheet(true)}
+                onWriteClick={() => {
+                        if (isGuest) {
+              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            } else {
+              setShowCreateSheet(true);
+            }
+          }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2398,18 +2511,18 @@ function MainScreenInner({
       <CreateActionSheet
         open={showCreateSheet}
         onClose={() => setShowCreateSheet(false)}
-        onSelectStructured={() => {
+        onSelectStructured={isGuest ? () => console.log("로그인 후 이용 가능합니다.") : () => {
           setShowCreateSheet(false);
 
           // TODO: 질문 정리 화면 route/layer는 다음 단계에서 추가
           // 지금은 일단 route만 이동하게 해도 됨
           setRoute({ name: "questionCompose" });
         }}
-        onSelectWrite={() => {
+        onSelectWrite={isGuest ? () => console.log("로그인 후 이용 가능합니다.") : () => {
           setShowCreateSheet(false);
           handleStartWriting(); // 기존 글쓰기 그대로
         }}
-        onSelectNotes={() => {
+        onSelectNotes={isGuest ? () => console.log("로그인 후 이용 가능합니다.") : () => {
           setShowCreateSheet(false);
           setRoute({ name: "notes" });
           setCurrentScreen("home");

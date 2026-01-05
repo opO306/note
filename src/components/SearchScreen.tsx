@@ -37,6 +37,8 @@ interface SearchScreenProps {
   onBookmarkToggle: (postId: string | number) => void;
   formatTimeAgo: (date?: Date) => string;
   formatCreatedAt: (date?: Date) => string;
+  isGuest: boolean; // 게스트 모드 여부 추가
+  userUid: string; // userUid 추가
 }
 
 interface UserSearchSettings {
@@ -57,6 +59,8 @@ interface SearchResultsListProps {
   onPostSelect: (post: Post) => void;
   onLanternToggle: (postId: string | number) => void;
   onBookmarkToggle: (postId: string | number) => void;
+  isGuest: boolean; // 게스트 모드 여부 추가
+  userUid: string; // userUid 추가
 }
 
 // Optimization: Constant for popular tags
@@ -79,6 +83,8 @@ const SearchResultsListComponent = ({
   onPostSelect,
   onLanternToggle,
   onBookmarkToggle,
+  isGuest, // 게스트 모드 여부 추가
+  userUid, // userUid 추가
 }: SearchResultsListProps) => {
   return (
     <PostCardsList
@@ -94,6 +100,8 @@ const SearchResultsListComponent = ({
       onPostClick={onPostSelect}
       onLanternToggle={onLanternToggle}
       onBookmarkToggle={onBookmarkToggle}
+      isGuest={isGuest} // 게스트 모드 여부 추가
+      userUid={userUid} // userUid 전달
     />
   );
 };
@@ -116,6 +124,8 @@ export function SearchScreen({
   onBookmarkToggle,
   formatTimeAgo,
   formatCreatedAt,
+  isGuest, // 게스트 모드 여부 추가
+  userUid, // userUid 추가
 }: SearchScreenProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Post[]>([]);
@@ -302,8 +312,8 @@ export function SearchScreen({
 
     executeSearch(trimmed);
 
-    // Save History
-    if (isAutoSaveEnabled) {
+    // Save History (게스트 모드에서는 저장 안 함)
+    if (isAutoSaveEnabled && !isGuest) {
       const newRecent = [
         trimmed,
         ...recentSearches.filter((s) => s !== trimmed),
@@ -313,15 +323,15 @@ export function SearchScreen({
       persistSearchSettings(newRecent, isAutoSaveEnabled);
     }
 
-    // Analytics Log
+    // Analytics Log (게스트 모드에서는 로깅 안 함)
     const uid = auth.currentUser?.uid;
-    if (uid) {
+    if (uid && !isGuest) {
       addDoc(collection(db, "user_activity", uid, "searchLogs"), {
         keyword: trimmed,
         createdAt: serverTimestamp(),
       }).catch(err => console.warn("Log error", err));
     }
-  }, [searchTerm, executeSearch, isAutoSaveEnabled, recentSearches, persistSearchSettings]);
+  }, [searchTerm, executeSearch, isAutoSaveEnabled, recentSearches, persistSearchSettings, isGuest]);
 
   // Wrapper handlers for buttons to avoid arrow functions in render
   const handleHistoryItemClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
@@ -415,6 +425,7 @@ export function SearchScreen({
                 <Switch
                   checked={isAutoSaveEnabled}
                   onCheckedChange={toggleAutoSave}
+                  disabled={isGuest} // 게스트 모드 시 비활성화
                 />
               </div>
             </div>
@@ -452,6 +463,8 @@ export function SearchScreen({
                 onPostSelect={onPostSelect}
                 onLanternToggle={onLanternToggle}
                 onBookmarkToggle={onBookmarkToggle}
+                isGuest={isGuest} // 게스트 모드 여부 prop 추가
+                userUid={userUid || ""} // userUid 추가
               />
             </div>
           </div>
@@ -486,8 +499,9 @@ export function SearchScreen({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={clearRecentSearches}
+                      onClick={isGuest ? () => console.log("로그인 후 검색 기록을 관리할 수 있습니다.") : clearRecentSearches} // 게스트 모드 시 토스트 메시지
                       className="text-muted-foreground hover:text-foreground"
+                      disabled={isGuest} // 게스트 모드 시 비활성화
                     >
                       전체 삭제
                     </Button>

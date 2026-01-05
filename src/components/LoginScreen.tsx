@@ -1,10 +1,13 @@
 /* eslint-disable react/forbid-dom-props */
-import React, { useMemo, useState, useCallback } from "react";
-import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
+import * as React from "react";
+// import { FirebaseAuthentication } from "@capacitor-firebase/authentication"; // 더 이상 사용하지 않을 경우 주석 처리 또는 제거
+import { Capacitor } from "@capacitor/core";
+import { GoogleCredentialAuth } from "../plugins/google-credential-auth";
 import { Moon, Sun, Loader2 } from "lucide-react";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { auth } from "../firebase";
 import { toast } from "../toastHelper";
+
 
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
@@ -57,6 +60,7 @@ interface LoginScreenProps {
   onShowPrivacy: () => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
+  onGuestLogin?: () => void; // 게스트 로그인 prop 추가
 }
 
 export function LoginScreen({
@@ -64,8 +68,9 @@ export function LoginScreen({
   onShowPrivacy,
   isDarkMode,
   onToggleDarkMode,
+  onGuestLogin, // 게스트 로그인 prop 추가
 }: LoginScreenProps) {
-  const floatingSymbols = useMemo<FloatingSymbolData[]>(() => {
+  const floatingSymbols = React.useMemo<FloatingSymbolData[]>(() => {
     return Array.from({ length: 30 }, (_, i) => ({
       id: i,
       symbol: CURSIVE_SYMBOLS[Math.floor(Math.random() * CURSIVE_SYMBOLS.length)],
@@ -77,48 +82,63 @@ export function LoginScreen({
       opacity: 0.15 + Math.random() * 0.2,
     }));
   }, []);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = React.useState(false);
+  const [isLoggingIn, setIsLoggingIn] = React.useState(false);
 
-  const handleGoogleLogin = useCallback(async () => {
+  const handleGoogleLogin = React.useCallback(async () => {
     if (!agreedToTerms) return toast.error("약관에 동의해주세요.");
     if (isLoggingIn) return;
     setIsLoggingIn(true);
 
     try {
-      // 1) 네이티브 구글 로그인
-      const result = await FirebaseAuthentication.signInWithGoogle();
 
-      // 2) 네이티브 로그인 결과를 설치본에서도 바로 확인
-      const idToken = result.credential?.idToken ?? "";
-      const accessToken = result.credential?.accessToken ?? "";
+      // 기존 FirebaseAuthentication.signOut()은 필요에 따라 유지하거나 제거합니다.
+      // Google Credential Manager SDK가 자체적으로 계정 선택 프롬프트를 처리하므로 필요 없을 수 있습니다.
+      // await FirebaseAuthentication.signOut(); 
 
-      // 3) 토큰이 없으면 에러 처리
-      if (!idToken && !accessToken) {
-        toast.error("로그인에 실패했습니다. 다시 시도해주세요.");
+      // 웹 환경에서는 Credential Manager 로그인을 지원하지 않습니다.
+      if (Capacitor.getPlatform() === 'web') {
+        console.warn('웹 환경에서는 Credential Manager 로그인을 지원하지 않습니다.');
+        toast.error('웹에서는 Credential Manager 로그인이 지원되지 않습니다. Android 앱에서 시도해주세요.');
         setIsLoggingIn(false);
-        return undefined;
+        return;
       }
 
-      // 4) Web SDK credential 생성 + 로그인 시도
-      const credential = GoogleAuthProvider.credential(
-        idToken || undefined,
-        accessToken || undefined
-      );
+      // 네이티브 Credential Manager 로그인 호출
+      const { idToken } = await GoogleCredentialAuth.signIn({
+        webClientId: '852428184810-eh4ojd3kj5ssvia7o54iteamk2sub31o.apps.googleusercontent.com',
+      });
 
+      if (!idToken) {
+        toast.error("로그인에 실패했습니다. (ID 토큰 없음)");
+        setIsLoggingIn(false);
+        return;
+      }
+
+      // ID 토큰으로 Firebase에 인증
+      const credential = GoogleAuthProvider.credential(idToken);
       await signInWithCredential(auth, credential);
 
-      // ✅ 로그인 성공 후 페이지 새로고침하여 인증 상태 업데이트
-      // useAppInitialization이 새로운 인증 상태를 감지하고 적절한 화면으로 전환하도록 함
-      window.location.reload();
-    } catch {
-      toast.error("로그인에 실패했습니다. 다시 시도해주세요.");
+      // ✅ 기존: window.location.reload(); 
+      // ✅ 변경: 아무것도 안 함 (또는 로딩 상태 유지)
+      // AuthContext가 로그인을 감지하면 App.tsx에서 자동으로 화면을 넘겨줍니다.
+
+      // SplashScreen.hide()는 App.tsx에서 화면 전환 시점에 호출하므로 여기서 제거 가능
+    } catch (e: any) {
+      console.error("Credential Manager Login Error:", e);
+      // User cancelled Credential Manager sign in can be ignored or handled specifically
+      if (e.message && e.message.includes("User cancelled")) { // 더 일반적인 취소 메시지
+        toast.info("로그인 취소");
+      } else {
+        toast.error("로그인에 실패했습니다. 다시 시도해주세요.");
+      }
       setIsLoggingIn(false);
+      return; // Added to ensure all code paths return a value
     }
-    return undefined;
+    return; // 모든 코드 경로가 값을 반환하도록 추가
   }, [agreedToTerms, isLoggingIn]);
 
-  const handleTermsChange = useCallback((checked: boolean | string) => {
+  const handleTermsChange = (checked: boolean | string) => {
     const value = Boolean(checked);
     setAgreedToTerms(value);
     try {
@@ -133,8 +153,10 @@ export function LoginScreen({
       }
     } catch {
       // LocalStorage 접근 실패는 무시 (선택적 기능)
+      // (catch 블록 비워두기)
     }
-  }, []);
+    return;
+  };
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center p-6 overflow-hidden bg-background text-foreground transition-colors duration-300">
@@ -190,7 +212,7 @@ export function LoginScreen({
                 <Checkbox
                   id="terms"
                   checked={agreedToTerms}
-                  onCheckedChange={(checked) => handleTermsChange(checked as boolean)}
+                  onCheckedChange={(checked: boolean) => handleTermsChange(checked)}
                   className="mt-0.5 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
                 <div className="grid gap-1.5 leading-none">
@@ -258,6 +280,17 @@ export function LoginScreen({
               )}
             </Button>
 
+            {onGuestLogin && ( // onGuestLogin prop이 있을 때만 표시
+              <Button
+                className="w-full h-12 text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.98] mt-2"
+                variant="outline" // 보조 버튼 스타일
+                onClick={onGuestLogin}
+                disabled={isLoggingIn} // 로그인 진행 중일 때는 비활성화
+              >
+                게스트 모드
+              </Button>
+            )}
+
             <p className="text-xs text-muted-foreground/60 text-center">
               © 2024 BiyuNote. All rights reserved.
             </p>
@@ -266,4 +299,5 @@ export function LoginScreen({
       </div>
     </div>
   );
-}
+};
+

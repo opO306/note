@@ -1,35 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <!-- safe-area 대응을 위해 viewport-fit=cover 추가 -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-    />
 
-    <!-- ▼▼▼ 이 부분을 추가하세요 ▼▼▼ -->
-    <meta name="android-hardware-accelerated-rendering" content="opengl" />
-    <!-- ▲▲▲ 여기까지 ▲▲▲ -->
+<head>
+  <meta charset="utf-8" />
+  <base href="./" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-    <!-- ✅ 성능 최적화: Resource Hints로 초기 로딩 속도 개선 -->
-    <!-- DNS Prefetch: Firebase CDN 도메인 사전 해석 -->
-    <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
-    <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
-    <link rel="dns-prefetch" href="https://asia-northeast3-bivunote.cloudfunctions.net" />
-    
-    <!-- Preconnect: Firebase 서비스 연결 사전 설정 -->
-    <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossorigin />
-    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
-    
-    <!-- Preload: Critical CSS (필요시) -->
-    <!-- <link rel="preload" href="/styles/globals.css" as="style" /> -->
+  <meta name="android-hardware-accelerated-rendering" content="opengl" />
 
-    <title>Android App Login Screens</title>
-  </head>
+  <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
+  <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
+  <link rel="dns-prefetch" href="https://asia-northeast3-bivunote.cloudfunctions.net" />
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
+
+  <title>Android App Login Screens</title>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="./src/main.tsx"></script>
+  <script type="module">
+    if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker
+          .register('./sw.js')
+          .then(r => console.log('SW scope:', r.scope))
+          .catch(err => console.error('SW 실패:', err));
+      });
+    }
+  </script>
+</body>
+
 </html>

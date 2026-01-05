@@ -20,13 +20,15 @@
   ],
   "hosting": {
     "site": "privacy-policy-45dcf",
-    "public": "public",
+    "public": "build",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "headers": [
+      { "source": "**/*.@(js|mjs)", "headers": [
+        { "key": "Content-Type", "value": "application/javascript" }
+      ] }
+    ],
     "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
+      { "source": "!/@(assets|images|css|js|mjs)/**", "destination": "/index.html" }
     ]
   },
   "emulators": {

@@ -1,13 +1,14 @@
 // src/components/hooks/usePosts.ts
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { auth, db } from "../../firebase";
 import {
     collection,
-    getDocs, // 👈 onSnapshot 대신 사용
+    // getDocs, // 👈 onSnapshot 대신 사용
     orderBy,
     query,
     limit,
+    onSnapshot, // 👈 onSnapshot 추가
 } from "firebase/firestore";
 import type { Post, Reply } from "../MainScreen/types";
 
@@ -17,8 +18,8 @@ interface UsePostsOptions {
 
 const INITIAL_POST_LIMIT = 10; // ✅ 비용 절감: 초기 로드 24개 → 10개로 감소
 
-export function usePosts(options?: UsePostsOptions) {
-    const { includeHidden = false } = options ?? {};
+export function usePosts(options?: UsePostsOptions & { enabled?: boolean }) {
+    const { includeHidden = false, enabled = true } = options ?? {};
 
     // 게시글 상태
     const [posts, setPosts] = useState<Post[]>([]);
@@ -26,20 +27,17 @@ export function usePosts(options?: UsePostsOptions) {
     const [loading, setLoading] = useState<boolean>(false);
 
     // ♻️ 데이터를 불러오는 함수 (onSnapshot 로직을 여기로 이관)
-    const fetchPosts = useCallback(async () => {
+    // onSnapshot을 사용하므로 useCallback으로 감쌀 필요 없음 (useEffect 내부에서 클린업 처리)
+    useEffect(() => {
+        if (!enabled) return; // enabled가 false일 경우 함수 실행을 막음
+
         setLoading(true);
-        try {
-            // ✅ Performance Monitoring 적용
-            const { tracedFirestoreCall } = await import("@/utils/performanceMonitoring");
-            const snapshot = await tracedFirestoreCall("fetchPosts", async () => {
-                const postsRef = collection(db, "posts");
-                const q = query(postsRef, orderBy("createdAt", "desc"), limit(INITIAL_POST_LIMIT));
-                // ⚡️ getDocs: 한 번만 읽어옴 (비용 절약)
-                return await getDocs(q);
-            });
+        const postsRef = collection(db, "posts");
+        const q = query(postsRef, orderBy("createdAt", "desc"), limit(INITIAL_POST_LIMIT));
 
+        // ⚡️ onSnapshot: 실시간 업데이트를 구독
+        const unsubscribe = onSnapshot(q, (snapshot) => {
             const currentUid = auth.currentUser?.uid ?? null;
-
             const fetchedPosts = snapshot.docs.map((docSnap) => {
                 const data = docSnap.data();
 
@@ -109,10 +107,12 @@ export function usePosts(options?: UsePostsOptions) {
                     views: data.views ?? 0,
                     isBookmarked: false,
                     isOwner: !!currentUid && !!data.authorUid && currentUid === data.authorUid,
-                    authorTitleId: null,
-                    authorTitleName: null,
+                    authorTitleId: data.authorTitleId ?? null,
+                    authorTitleName: data.authorTitleName ?? null,
                     hidden: isHidden,
-                    reportCount: data.reportCount,
+                    reportCount: data.reportCount ?? 0,
+                    moderationStatus: data.moderationStatus ?? "pending",
+                    clientIp: data.clientIp ?? null,
                 };
                 return post;
             });
@@ -120,19 +120,14 @@ export function usePosts(options?: UsePostsOptions) {
             // null 제거
             const visiblePosts = fetchedPosts.filter((p): p is Post => p !== null);
             setPosts(visiblePosts);
-
-        } catch {
-            // usePosts Fetch Error (로그 제거)
-        } finally {
+            setLoading(false); // 데이터 수신 완료 시 로딩 해제
+        }, (error) => {
+            console.error("Error fetching posts: ", error); // 에러 로그 추가
             setLoading(false);
-        }
-    }, [includeHidden]);
+        });
 
-    // 초기 진입 시 자동 실행
-    useEffect(() => {
-        fetchPosts();
-    }, [fetchPosts]);
+        return () => unsubscribe(); // 클린업 함수 반환
+    }, [includeHidden, enabled]);
 
-    // 🚨 외부에서 refresh 함수를 호출할 수 있도록 반환값에 추가
-    return { posts, setPosts, loading, refresh: fetchPosts } as const;
+    return { posts, setPosts, loading, refresh: () => { /* onSnapshot은 자동 새로고침 */ } } as const;
 }

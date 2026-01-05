@@ -14,12 +14,11 @@ type CreateActionSheetProps = {
 type ActionButtonProps = {
     icon: React.ReactNode;
     title: string;
-    description: string;
     onClick: () => void;
     variant?: "default" | "outline";
 };
 
-function ActionButton({ icon, title, description, onClick, variant = "default" }: ActionButtonProps) {
+function ActionButton({ icon, title, onClick, variant = "default" }: ActionButtonProps) {
     const [isDark, setIsDark] = React.useState(() =>
         document.documentElement.classList.contains('dark')
     );
@@ -86,9 +85,6 @@ function ActionButton({ icon, title, description, onClick, variant = "default" }
             <div className="min-w-0 flex-1 flex flex-col gap-1">
                 <div className={`text-[15px] font-semibold ${variant === "default" && isDark ? "text-[#D4D4D4]" : "text-foreground"}`}>
                     {title}
-                </div>
-                <div className={`text-[13px] leading-snug ${variant === "default" && isDark ? "text-[#D4D4D4]/80" : "text-muted-foreground"}`}>
-                    {description}
                 </div>
             </div>
         </button>
@@ -182,21 +178,18 @@ export function CreateActionSheet({
                             <ActionButton
                                 icon={<Sparkles size={18} />}
                                 title="질문을 정리하고 싶어요"
-                                description="혼자 정리하고 나중에 공개할 수 있어요"
                                 onClick={handleStructured}
                                 variant="default"
                             />
                             <ActionButton
                                 icon={<PenLine size={18} />}
                                 title="그냥 글을 쓰고 싶어요"
-                                description="바로 커뮤니티에 글을 작성해요"
                                 onClick={handleWrite}
                                 variant="default"
                             />
                             <ActionButton
                                 icon={<NotebookText size={18} />}
                                 title="내 노트를 보고 싶어요"
-                                description="정리해둔 내용을 다시 볼 수 있어요"
                                 onClick={handleNotes}
                                 variant="default"
                             />
