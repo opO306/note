@@ -42,9 +42,9 @@ const InitialAppShellFallback = () => (
 );
 
 // ✅ 메인 App 컴포넌트 내부 로직을 분리 (Context 사용을 위해)
-function AppContent() {
+function AppContent({ currentScreen, setCurrentScreen }: { currentScreen: AppScreen | null; setCurrentScreen: React.Dispatch<React.SetStateAction<AppScreen | null>> }) {
   const { user, userData, isGuest, isLoading, loginAsGuest, logout } = useAuth();
-  const [currentScreen, setCurrentScreen] = useState<AppScreen | null>(null);
+
 
   // 테마/UI 상태
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -350,9 +350,14 @@ function AppContent() {
 
 // ✅ 메인 App: Provider로 감싸기
 export default function App() {
+  const [currentScreen, setCurrentScreen] = useState<AppScreen | null>(null);
+  const navigateToLogin = useCallback(() => {
+    setCurrentScreen("login");
+  }, [setCurrentScreen]);
+
   return (
-    <AuthProvider>
-      <AppContent />
+    <AuthProvider navigateToLogin={navigateToLogin}>
+      <AppContent currentScreen={currentScreen} setCurrentScreen={setCurrentScreen} />
     </AuthProvider>
   );
 }

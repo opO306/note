@@ -1,6 +1,6 @@
 // MainScreen/components/PostListView.tsx
 // 게시물 목록 화면 컴포넌트 - 서브카테고리 필터 + 정렬 + 차단 필터링 포함
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Virtuoso } from "react-virtuoso";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +15,8 @@ import { getUserTitle, getTitleLabelById } from "@/data/titleData";
 import { filterGoogleProfileImage } from "@/utils/profileImageUtils";
 import { GreekColumn, getColumnStyleByTrustScore } from "@/components/icons/GreekColumn";
 import { LaurelWreath } from "@/components/icons/LaurelWreath";
+import { useAuth } from "@/contexts/AuthContext"; // useAuth 훅 임포트
+import { AlertDialogSimple } from "@/components/ui/alert-dialog-simple"; // AlertDialogSimple 임포트
 // import { getBookShelfLevelByTrustScore } from "@/components/icons/BookShelf"; // TODO: 향후 황금빛 서재 테마 구현 시 사용 예정
 import {
   getDisplayName,
@@ -110,18 +112,12 @@ function PostListViewComponent({
 
   // moderationStatus에 따른 추가 필터링
   const moderatedPosts = useMemo(() => {
-    return filteredPostsByBlock.filter((post) => {
-      const isOwnPost = post.authorUid === userUid; // 현재 사용자가 작성자인지 확인
-      const hasAiReply = post.replies?.some((r) => r.isAi === true) === true; // AI 답변이 있는지 확인
-
-      // 자신의 게시물 또는 AI 답변이 있는 게시물은 moderationStatus가 'approved'가 아니더라도 볼 수 있게 함
-      if (isOwnPost || hasAiReply) {
-        return true; // 자신의 게시물 또는 AI 답변이 있는 게시물은 항상 표시
-      }
-      // 다른 사람의 게시물은 moderationStatus가 'approved'인 경우에만 볼 수 있게 함
-      return post.moderationStatus === "approved";
+    return filteredPostsByBlock.filter(() => {
+      // isModerated 로직 제거에 따라 모든 게시물을 표시합니다.
+      // 숨김 처리는 post.hidden 필드에 의해 별도로 제어됩니다.
+      return true;
     });
-  }, [filteredPostsByBlock, userUid]); // userUid 의존성 추가
+  }, [filteredPostsByBlock, userUid]);
 
   const {
     scrollRef,
@@ -436,11 +432,10 @@ export const PostCard = React.memo(
     userTrustScore,
     isGuest, // 게스트 모드 여부 추가
   }: PostCardProps & { index?: number }) => {
+    const { navigateToLogin } = useAuth(); // navigateToLogin 가져오기
+    const [showLoginConfirm, setShowLoginConfirm] = useState(false); // 로그인 필요 다이얼로그
     const isOwnPost = post.authorUid === userUid; // userUid로 비교
     // AI 답변이 있는 게시글은 moderationStatus와 상관없이 모더레이션 상태가 아니라고 간주
-    const isAiPost = post.replies?.some((r) => r.isAi === true) === true;
-    const isModerated = !isAiPost && post.moderationStatus && post.moderationStatus !== "approved";
-    const isRejected = !isAiPost && post.moderationStatus === "rejected";
 
     const liveAuthorTitleId = authorProfile?.currentTitleId ?? null;
     const liveAuthorTitle = getTitleLabelById(liveAuthorTitleId);
@@ -474,17 +469,14 @@ export const PostCard = React.memo(
       : post.authorTitleName || liveAuthorTitle || authorTitleFallback;
 
     const handleCardClick = useCallback(() => {
-      if (isModerated) { // moderation 중이거나 거부된 게시글 클릭 불가
-        console.log("조정 중이거나 거부된 게시글입니다.");
-        return;
-      }
+      // isModerated 조건 제거: 게시글 클릭 가능하도록 변경
       onPostClick(post);
-    }, [onPostClick, post, isModerated]);
+    }, [onPostClick, post]); // isModerated 의존성 제거
 
     const handleLanternClick = useCallback(
       (e: React.MouseEvent<HTMLButtonElement>) => {
-        if (isGuest || isModerated) { // 게스트 모드 시 제한 또는 moderation 중/거부 시 제한
-          console.log("로그인 후 등불을 사용할 수 있거나 조정 중인 게시글입니다.");
+        if (isGuest) { // 게스트 모드 시 제한 (moderation 조건 제거)
+          setShowLoginConfirm(true); // 로그인 필요 다이얼로그 표시
           e.preventDefault();
           e.stopPropagation();
           e.nativeEvent.stopImmediatePropagation();
@@ -514,13 +506,13 @@ export const PostCard = React.memo(
 
         onLanternToggle(post.id);
       },
-      [onLanternToggle, post.id, isGuest, isModerated] // isGuest, isModerated 의존성 추가
+      [onLanternToggle, post.id, isGuest] // isModerated 의존성 제거
     );
 
     const handleBookmarkClick = useCallback(
       (e: React.MouseEvent) => {
-        if (isGuest || isModerated) { // 게스트 모드 시 제한 또는 moderation 중/거부 시 제한
-          console.log("로그인 후 북마크를 사용할 수 있거나 조정 중인 게시글입니다.");
+        if (isGuest) { // 게스트 모드 시 제한 (moderation 조건 제거)
+          setShowLoginConfirm(true); // 로그인 필요 다이얼로그 표시
           e.preventDefault();
           e.stopPropagation();
           return;
@@ -529,7 +521,7 @@ export const PostCard = React.memo(
         e.stopPropagation();
         onBookmarkToggle(post.id);
       },
-      [onBookmarkToggle, post.id, isGuest, isModerated] // isGuest, isModerated 의존성 추가
+      [onBookmarkToggle, post.id, isGuest] // isModerated 의존성 제거
     );
 
     // 현재 테마 확인 (useMemo로 최적화)
@@ -589,192 +581,196 @@ export const PostCard = React.memo(
     }, [post.lanterns, post.views, post.type, post.author, userNickname]);
 
     return (
-      <Card
-        className={`${cardThemeClass} backdrop-blur-sm transition-all cursor-pointer list-optimized relative ${isOwnPost && isGoldenLibraryTheme ? 'my-post-golden-border' : ''} ${isModerated ? 'opacity-50 pointer-events-none' : ''}`}
-        onClick={handleCardClick}
-        data-highlighted={isHighlighted ? "true" : "false"}
-        data-lanterns={post.lanterns ?? 0}
-        data-views={post.views ?? 0}
-        data-type={post.type || ""}
-        data-is-owner={isOwnPost ? "true" : "false"} // userUid로 비교
-      >
-        {/* 그리스 신전 테마: 신뢰도 기반 기둥 장식 (왼쪽) */}
-        {isGreekTempleTheme && columnStyle && (
-          <div className="absolute left-0 top-0 bottom-0 w-1 flex items-center justify-center opacity-60">
-            <div className="h-full flex items-center justify-center py-2">
-              <GreekColumn style={columnStyle} size={16} className="text-primary/70" />
+      <>
+        <Card
+          className={`${cardThemeClass} backdrop-blur-sm transition-all cursor-pointer list-optimized relative ${isOwnPost && isGoldenLibraryTheme ? 'my-post-golden-border' : ''}`}
+          onClick={handleCardClick}
+          data-highlighted={isHighlighted ? "true" : "false"}
+          data-lanterns={post.lanterns ?? 0}
+          data-views={post.views ?? 0}
+          data-type={post.type || ""}
+          data-is-owner={isOwnPost ? "true" : "false"} // userUid로 비교
+        >
+          {/* 그리스 신전 테마: 신뢰도 기반 기둥 장식 (왼쪽) */}
+          {isGreekTempleTheme && columnStyle && (
+            <div className="absolute left-0 top-0 bottom-0 w-1 flex items-center justify-center opacity-60">
+              <div className="h-full flex items-center justify-center py-2">
+                <GreekColumn style={columnStyle} size={16} className="text-primary/70" />
+              </div>
             </div>
-          </div>
-        )}
-        <CardContent className="p-4 relative z-10">
-          <div className="space-y-3">
-            {/* 작성자 + 시간 */}
-            <div className="flex items-center space-x-3">
-              <OptimizedAvatar
-                src={postAuthorProfileImage || undefined}
-                alt={
-                  displayAuthorName
-                    ? `${displayAuthorName}님의 프로필`
-                    : "프로필 이미지"
-                }
-                nickname={isAuthorDeleted ? undefined : displayAuthorName}
-                fallbackText={displayAuthorName.charAt(0)?.toUpperCase() || "?"}
-                className="w-10 h-10 ring-2 ring-border/20"
-                size={40}
-                loading={index < 3 ? "eager" : "lazy"}
-                decoding="async"
-              />
-              <div className="w-full">
-                <div className="flex flex-col">
-                  {/* 윗줄: 닉네임 + 칭호 */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="flex items-center gap-1.5">
-                        {/* 월계관 왕관 (그리스 신전 테마 + 신뢰도 70 이상) */}
-                        {isGreekTempleTheme && authorTrustScore !== undefined && authorTrustScore >= 70 && (
-                          <div className={`shrink-0 ${isGreekTempleTheme ? 'laurel-wreath-premium' : 'laurel-wreath'}`}>
-                            <LaurelWreath size={14} isPremium={isGreekTempleTheme} />
-                          </div>
+          )}
+          <CardContent className="p-4 relative z-10">
+            <div className="space-y-3">
+              {/* 작성자 + 시간 */}
+              <div className="flex items-center space-x-3">
+                <OptimizedAvatar
+                  src={postAuthorProfileImage || undefined}
+                  alt={
+                    displayAuthorName
+                      ? `${displayAuthorName}님의 프로필`
+                      : "프로필 이미지"
+                  }
+                  nickname={isAuthorDeleted ? undefined : displayAuthorName}
+                  fallbackText={displayAuthorName.charAt(0)?.toUpperCase() || "?"}
+                  className="w-10 h-10 ring-2 ring-border/20"
+                  size={40}
+                  loading={index < 3 ? "eager" : "lazy"}
+                  decoding="async"
+                />
+                <div className="w-full">
+                  <div className="flex flex-col">
+                    {/* 윗줄: 닉네임 + 칭호 */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-1.5">
+                          {/* 월계관 왕관 (그리스 신전 테마 + 신뢰도 70 이상) */}
+                          {isGreekTempleTheme && authorTrustScore !== undefined && authorTrustScore >= 70 && (
+                            <div className={`shrink-0 ${isGreekTempleTheme ? 'laurel-wreath-premium' : 'laurel-wreath'}`}>
+                              <LaurelWreath size={14} isPremium={isGreekTempleTheme} />
+                            </div>
+                          )}
+                          <p
+                            className={
+                              "text-sm font-medium " +
+                              (isAuthorDeleted ? "text-muted-foreground" : "")
+                            }
+                          >
+                            {displayAuthorName}
+                          </p>
+                        </div>
+                        {authorTitle && (
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] px-2 py-0.5 h-auto bg-primary/10 text-primary border-primary/20"
+                          >
+                            {authorTitle}
+                          </Badge>
                         )}
-                        <p
-                          className={
-                            "text-sm font-medium " +
-                            (isAuthorDeleted ? "text-muted-foreground" : "")
-                          }
-                        >
-                          {displayAuthorName}
-                        </p>
+                        {/* moderationStatus 표시 */}
                       </div>
-                      {authorTitle && (
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] px-2 py-0.5 h-auto bg-primary/10 text-primary border-primary/20"
-                        >
-                          {authorTitle}
-                        </Badge>
-                      )}
-                      {/* moderationStatus 표시 */}
-                      {isModerated && (
-                        <Badge
-                          variant="destructive"
-                          className="text-[10px] px-2 py-0.5 h-auto bg-red-500/10 text-red-500 border-red-500/20"
-                        >
-                          {isRejected ? "게시글 거부됨" : "검토 중"}
-                        </Badge>
-                      )}
+
+                      {/* 오른쪽: 시간 */}
+                      <div className="text-xs text-muted-foreground">
+                        {(post.timeAgo ?? timeAgo) && (
+                          <span title={createdAtText || undefined}>
+                            {post.timeAgo ?? timeAgo}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    {/* 오른쪽: 시간 */}
-                    <div className="text-xs text-muted-foreground">
-                      {(post.timeAgo ?? timeAgo) && (
-                        <span title={createdAtText || undefined}>
-                          {post.timeAgo ?? timeAgo}
-                        </span>
-                      )}
-                    </div>
+                    {/* 타입 / 카테고리 텍스트 (닉네임 아래, 배지 제거) */}
+                    {(() => {
+                      const parts = [
+                        post.category && post.category !== "전체" ? post.category : null,
+                        post.subCategory && post.subCategory !== "전체" ? post.subCategory : null,
+                        post.type ? (post.type === "guide" ? "길잡이 글" : "질문글") : null,
+                      ].filter(Boolean) as string[];
+                      return parts.length ? (
+                        <div className="text-xs text-muted-foreground mt-2">
+                          {parts.join(" · ")}
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
-
-                  {/* 타입 / 카테고리 텍스트 (닉네임 아래, 배지 제거) */}
-                  {(() => {
-                    const parts = [
-                      post.category && post.category !== "전체" ? post.category : null,
-                      post.subCategory && post.subCategory !== "전체" ? post.subCategory : null,
-                      post.type ? (post.type === "guide" ? "길잡이 글" : "질문글") : null,
-                    ].filter(Boolean) as string[];
-                    return parts.length ? (
-                      <div className="text-xs text-muted-foreground mt-2">
-                        {parts.join(" · ")}
-                      </div>
-                    ) : null;
-                  })()}
                 </div>
               </div>
-            </div>
 
-            {/* 제목 + 내용 미리보기 */}
-            <div className="space-y-2">
-              <h3 className="font-medium text-base mb-1 line-clamp-1">
-                {post.title}
-              </h3>
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {post.content}
-              </p>
-            </div>
+              {/* 제목 + 내용 미리보기 */}
+              <div className="space-y-2">
+                <h3 className="font-medium text-base mb-1 line-clamp-1">
+                  {post.title}
+                </h3>
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {post.content}
+                </p>
+              </div>
 
-            {/* 태그 (앞 2개만) */}
-            {/* 목록에서는 태그 미표시 (상세에서만 표시) */}
+              {/* 태그 (앞 2개만) */}
+              {/* 목록에서는 태그 미표시 (상세에서만 표시) */}
 
-            {/* 등불 / 댓글 / 조회수 / 북마크 */}
-            <div
-              className="flex items-center justify-between pt-2 border-t border-border/50 relative z-10"
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center space-x-4 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-                {/* 등불 */}
-                {!isOwnPost ? (
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleLanternClick}
-                      data-post-id={post.id}
-                      className={`h-8 px-2 space-x-1 ${isLanterned ? "text-amber-500" : "text-muted-foreground"
-                        }`}
-                      disabled={isGuest || isModerated} // 게스트 모드 시 비활성화 또는 moderation 중/거부 시 비활성화
-                    >
-                      {isLanterned ? (
-                        <LanternFilledIcon className="w-4 h-4" />
-                      ) : (
-                        <LanternIcon className="w-4 h-4" />
-                      )}
+              {/* 등불 / 댓글 / 조회수 / 북마크 */}
+              <div
+                className="flex items-center justify-between pt-2 border-t border-border/50 relative z-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center space-x-4 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                  {/* 등불 */}
+                  {!isOwnPost ? (
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleLanternClick}
+                        data-post-id={post.id}
+                        className={`h-8 px-2 space-x-1 ${isLanterned ? "text-amber-500" : "text-muted-foreground"
+                          }`}
+                        disabled={isGuest} // 게스트 모드 시 비활성화 (moderation 조건 제거)
+                      >
+                        {isLanterned ? (
+                          <LanternFilledIcon className="w-4 h-4" />
+                        ) : (
+                          <LanternIcon className="w-4 h-4" />
+                        )}
+                        <span className="text-xs">{post.lanterns ?? 0}</span>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-1">
+                      <LanternIcon className="w-4 h-4" />
                       <span className="text-xs">{post.lanterns ?? 0}</span>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-1">
-                    <LanternIcon className="w-4 h-4" />
-                    <span className="text-xs">{post.lanterns ?? 0}</span>
-                  </div>
-                )}
+                    </div>
+                  )}
 
-                {/* 댓글 수 */}
-                <div className="flex items-center space-x-1">
-                  <MessageCircle className="w-4 h-4" />
-                  <span className="text-xs">
-                    {post.comments ?? post.replies?.length ?? 0}
-                  </span>
+                  {/* 댓글 수 */}
+                  <div className="flex items-center space-x-1">
+                    <MessageCircle className="w-4 h-4" />
+                    <span className="text-xs">
+                      {post.comments ?? post.replies?.length ?? 0}
+                    </span>
+                  </div>
+
+                  {/* 조회수 */}
+                  <span>조회수 {post.views ?? 0}</span>
                 </div>
 
-                {/* 조회수 */}
-                <span>조회수 {post.views ?? 0}</span>
-              </div>
-
-              {/* 북마크 */}
-              <div onClick={(e) => e.stopPropagation()}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleBookmarkClick}
-                  className={`h-8 px-2 ${isBookmarked ? "text-primary" : "text-muted-foreground"
-                    }`}
-                  disabled={isGuest || isModerated} // 게스트 모드 시 비활성화 또는 moderation 중/거부 시 비활성화
-                >
-                  <Bookmark
-                    className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""
+                {/* 북마크 */}
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleBookmarkClick}
+                    className={`h-8 px-2 ${isBookmarked ? "text-primary" : "text-muted-foreground"
                       }`}
-                  />
-                </Button>
+                    disabled={isGuest} // 게스트 모드 시 비활성화 (moderation 조건 제거)
+                  >
+                    <Bookmark
+                      className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""
+                        }`}
+                    />
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* 로그인 필요 다이얼로그 */}
+        <AlertDialogSimple
+          open={showLoginConfirm}
+          onOpenChange={setShowLoginConfirm}
+          title="로그인이 필요합니다."
+          description="로그인 후 이 기능을 이용할 수 있습니다. 지금 로그인하시겠습니까?"
+          confirmText="로그인"
+          onConfirm={navigateToLogin}
+        />
+      </>
     );
   },
   (prev, next) => {

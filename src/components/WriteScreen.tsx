@@ -9,6 +9,7 @@ import { safeLocalStorage } from "@/components/utils/storageUtils";
 import { toast } from "@/toastHelper";
 import { containsProfanity } from "@/components/utils/profanityFilter";
 import { detectPersonalInfo, getPersonalInfoMessage } from "@/components/utils/personalInfoDetector";
+import { useAuth } from "@/contexts/AuthContext"; // useAuth 훅 임포트
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -67,6 +68,7 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
   const [showCategorySelect, setShowCategorySelect] = useState(false);
   const [showTagInput, setShowTagInput] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showLoginConfirm, setShowLoginConfirm] = useState(false); // 로그인 필요 다이얼로그
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,6 +86,7 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
 
   // Online status
   const { isOnline } = useOnlineStatus();
+  const { navigateToLogin } = useAuth(); // useAuth 훅을 통해 navigateToLogin 가져오기
   const [writeDraft, setWriteDraft] = useState<any>(null); // 임시 정의, 실제 useNavigation 훅 찾아서 대체 필요
 
   const selectedCategoryData = categories.find((cat: Category) => cat.id === selectedCategory);
@@ -433,6 +436,12 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
     }
 
     // 5단계: 모든 검사를 통과하면 제출
+    // 게스트 모드에서는 글쓰기 불가
+    if (isGuest) {
+      setShowLoginConfirm(true); // 로그인 필요 다이얼로그 표시
+      return;
+    }
+
     onSubmit({
       title: title.trim(),
       content: content.trim(),
@@ -440,7 +449,8 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
       subCategory: selectedSubCategory,
       type: postType,
       tags,
-      ...(isGuest && { moderationStatus: "pending", guestId }), // 게스트일 경우 moderationStatus 및 guestId 추가
+      // 게스트 모드에서 글 작성을 막으므로, 이 로직은 더 이상 필요 없음
+      // ...(isGuest && { moderationStatus: "pending", guestId }),
       clientIp, // 획득한 IP 주소 추가
     });
 
@@ -519,7 +529,8 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
     !selectedCategory ||
     !isOnline ||
     (clientIp && blockedIPs.has(clientIp)) ||
-    (isGuest && guestId && blockedGuestIds.has(guestId))
+    (guestId && blockedGuestIds.has(guestId)) ||
+    isGuest // 게스트 모드일 경우 무조건 비활성화
   );
 
   return (
@@ -812,6 +823,18 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
         description={exitDescription}
         confirmText="나가기"
         onConfirm={handleConfirmExit}
+      />
+
+      {/* 로그인 필요 다이얼로그 */}
+      <AlertDialogSimple
+        open={showLoginConfirm}
+        onOpenChange={setShowLoginConfirm}
+        title="로그인이 필요합니다."
+        description="로그인 후 이 기능을 이용할 수 있습니다. 지금 로그인하시겠습니까?"
+        confirmText="로그인"
+        onConfirm={() => {
+          navigateToLogin(); // 로그인 화면으로 이동
+        }}
       />
     </div>
   );

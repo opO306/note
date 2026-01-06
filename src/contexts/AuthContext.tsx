@@ -20,11 +20,12 @@ interface AuthContextType {
   loginAsGuest: () => void;  // 게스트 로그인 함수
   logout: () => Promise<void>; // 로그아웃 함수
   refreshUserData: () => Promise<void>; // 프로필 변경 시 데이터 갱신
+  navigateToLogin: () => void; // 로그인 화면으로 이동 함수
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children, navigateToLogin }: { children: React.ReactNode; navigateToLogin: () => void }) {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isGuest, setIsGuest] = useState(false);
@@ -112,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, userData, isLoading, isGuest, loginAsGuest, logout, refreshUserData }}>
+    <AuthContext.Provider value={{ user, userData, isLoading, isGuest, loginAsGuest, logout, refreshUserData, navigateToLogin }}>
       {children}
     </AuthContext.Provider>
   );

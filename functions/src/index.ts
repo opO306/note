@@ -32,4 +32,4 @@ export * from "./aiAutoReply";
 export * from "./dailyRecommendations";
 export * from "./weeklyQuiz";
 export * from "./weeklyStats";
-export * from "./guestContentModeration";
+export * from "./aiScheduler";

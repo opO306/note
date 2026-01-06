@@ -16,7 +16,6 @@ interface ReplyData {
   reportCount?: number;
   hidden?: boolean;
   autoHiddenAt?: admin.firestore.Timestamp;
-  moderationStatus?: "pending" | "approved" | "rejected" | "needs_review" | "action_needed" | "error"; // moderationStatus 추가
   clientIp?: string; // clientIp 추가
   guestId?: string; // guestId 추가
   [key: string]: any;
@@ -27,7 +26,6 @@ interface PostData {
   reportCount?: number;
   hidden?: boolean;
   replies?: ReplyData[];
-  moderationStatus?: "pending" | "approved" | "rejected" | "needs_review" | "action_needed" | "error"; // moderationStatus 추가
   clientIp?: string; // clientIp 추가
   guestId?: string; // guestId 추가
   [key: string]: any;
@@ -136,11 +134,6 @@ export const onReportCreated = onDocumentCreated(
 
         const updateReportPayload: any = {};
 
-        // 3회 이상 -> 검토 필요
-        if (newCount >= REPORT_NEEDS_REVIEW_THRESHOLD) {
-          updateReportPayload.status = "needs_review";
-          updateReportPayload.priority = "high";
-        }
 
         // 5회 이상 -> 자동 숨김
         if (newCount >= REPORT_AUTO_HIDE_THRESHOLD) {
@@ -148,7 +141,6 @@ export const onReportCreated = onDocumentCreated(
           updatedReply.autoHiddenAt = admin.firestore.Timestamp.now(); // 배열 내부는 Timestamp 객체 사용
           updateReportPayload.status = "auto_hidden";
           updateReportPayload.autoHidden = true;
-          updatedReply.moderationStatus = "rejected"; // 자동 숨김 시 moderationStatus 업데이트
         }
 
         const newReplies = [...replies];
@@ -184,17 +176,12 @@ export const onReportCreated = onDocumentCreated(
         };
         const updateReportPayload: any = {};
 
-        if (newCount >= REPORT_NEEDS_REVIEW_THRESHOLD) {
-          updateReportPayload.status = "needs_review";
-          updateReportPayload.priority = "high";
-        }
 
         if (newCount >= REPORT_AUTO_HIDE_THRESHOLD) {
           updateTargetPayload.hidden = true;
           updateTargetPayload.autoHiddenAt = admin.firestore.FieldValue.serverTimestamp();
           updateReportPayload.status = "auto_hidden";
           updateReportPayload.autoHidden = true;
-          updateTargetPayload.moderationStatus = "rejected"; // 자동 숨김 시 moderationStatus 업데이트
         }
 
         tx.update(targetRef, updateTargetPayload);
@@ -260,7 +247,6 @@ export const onReportStatusChanged = onDocumentUpdated(
             hidden: true,
             hiddenReason: "report_confirmed",
             confirmedAt: admin.firestore.FieldValue.serverTimestamp(),
-            moderationStatus: "rejected", // 관리자 확정 시 moderationStatus 업데이트
           });
 
           // IP 차단 로직
@@ -306,7 +292,6 @@ export const onReportStatusChanged = onDocumentUpdated(
             hidden: true,
             hiddenReason: "report_confirmed",
             autoHiddenAt: admin.firestore.Timestamp.now(),
-            moderationStatus: "rejected", // 관리자 확정 시 moderationStatus 업데이트
           };
           tx.update(rootDocRef, { replies: newReplies });
 

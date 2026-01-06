@@ -1,6 +1,5 @@
 // MainScreen/components/PostDetailView.tsx
-import React, { useCallback, useMemo } from "react";
-import { toast } from "@/toastHelper";
+import React, { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { OptimizedAvatar } from "@/components/OptimizedAvatar";
@@ -17,6 +16,9 @@ import { type UserProfileLite } from "@/components/MainScreen/hooks/useUserProfi
 import { formatDateTime, usePostDetailViewModel, type ReplyWithGuide } from "../hooks/usePostDetailViewModel";
 import { LanternIcon, LanternFilledIcon } from "@/components/icons/Lantern";
 import { LaurelWreath } from "@/components/icons/LaurelWreath";
+import { useAuth } from "@/contexts/AuthContext"; // useAuth 훅 임포트
+import { AlertDialogSimple } from "@/components/ui/alert-dialog-simple"; // AlertDialogSimple 임포트
+// import { getBookShelfLevelByTrustScore } from "@/components/icons/BookShelf"; // TODO: 향후 황금빛 서재 테마 구현 시 사용 예정
 import {
   MessageCircle,
   MoreHorizontal,
@@ -137,6 +139,8 @@ export function PostDetailView({
   isRefreshing = false,
   isGuest, // 게스트 모드 여부 추가
 }: PostDetailViewProps) {
+  const { navigateToLogin } = useAuth(); // navigateToLogin 가져오기
+  const [showLoginConfirm, setShowLoginConfirm] = useState(false); // 로그인 필요 다이얼로그 상태
   const now = useNow(60_000);
   const scrollRef = useScrollRestoration({
     key: `post-detail-${post.id}`,
@@ -216,273 +220,284 @@ export function PostDetailView({
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* 헤더 */}
-      <div className="bg-card/95 border-b border-border px-4 pb-4 flex-shrink-0 safe-top-with-padding">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <h2 className="font-medium">게시글 상세</h2>
+    <> {/* 👈 여기에 여는 태그 추가 */}
+      <div className="h-full flex flex-col">
+        {/* 헤더 */}
+        <div className="bg-card/95 border-b border-border px-4 pb-4 flex-shrink-0 safe-top-with-padding">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Button variant="ghost" size="icon" onClick={onClose}>
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <h2 className="font-medium">게시글 상세</h2>
+            </div>
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="touch-target"
+              >
+                <RotateCw
+                  className={`w-5 h-5 text-muted-foreground ${isRefreshing ? "animate-spin" : ""}`}
+                />
+              </Button>
+            )}
           </div>
-          {onRefresh && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className="touch-target"
-            >
-              <RotateCw
-                className={`w-5 h-5 text-muted-foreground ${isRefreshing ? "animate-spin" : ""}`}
-              />
-            </Button>
-          )}
         </div>
-      </div>
 
-      {/* 게시물 내용 */}
-      <div ref={scrollRef} className="flex-1 scroll-container">
-        <div className="px-4 py-3 pb-24 space-y-4">
-          {/* 게시물 카드 */}
-          <Card className="border-border/60 shadow-sm bg-card/80 backdrop-blur-sm">
-            <CardContent className="p-6">
-              <div className="space-y-5">
-                {/* 작성자 정보 */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-4">
-                    <OptimizedAvatar
-                      src={postAuthorProfileImage || undefined}
-                      alt={
-                        postAuthorName
-                          ? `${postAuthorName}님의 프로필`
-                          : "프로필 이미지"
-                      }
-                      nickname={isPostAuthorDeleted ? undefined : (post.author || postAuthorName)}
-                      fallbackText={
-                        postAuthorName.charAt(0)?.toUpperCase() || "?"
-                      }
-                      className="w-12 h-12 ring-2 ring-border/30 cursor-pointer"
-                      size={48}
-                      loading="eager"
-                      decoding="async"
-                      onClick={isPostAuthorDeleted ? undefined : onAuthorClick}
-                    />
+        {/* 게시물 내용 */}
+        <div ref={scrollRef} className="flex-1 scroll-container">
+          <div className="px-4 py-3 pb-24 space-y-4">
+            {/* 게시물 카드 */}
+            <Card className="border-border/60 shadow-sm bg-card/80 backdrop-blur-sm">
+              <CardContent className="p-6">
+                <div className="space-y-5">
+                  {/* 작성자 정보 */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-4">
+                      <OptimizedAvatar
+                        src={postAuthorProfileImage || undefined}
+                        alt={
+                          postAuthorName
+                            ? `${postAuthorName}님의 프로필`
+                            : "프로필 이미지"
+                        }
+                        nickname={isPostAuthorDeleted ? undefined : (post.author || postAuthorName)}
+                        fallbackText={
+                          postAuthorName.charAt(0)?.toUpperCase() || "?"
+                        }
+                        className="w-12 h-12 ring-2 ring-border/30 cursor-pointer"
+                        size={48}
+                        loading="eager"
+                        decoding="async"
+                        onClick={isPostAuthorDeleted ? undefined : onAuthorClick}
+                      />
 
-                    {/* 이름 + 칭호 한 줄, 그 아래에 날짜 */}
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        {/* 월계관 왕관 (그리스 신전 테마 + 신뢰도 70 이상) */}
-                        {isGreekTempleTheme && postAuthorProfile?.trustScore !== undefined && postAuthorProfile.trustScore >= 70 && (
-                          <div className={`shrink-0 ${isGreekTempleTheme ? 'laurel-wreath-premium' : 'laurel-wreath'}`}>
-                            <LaurelWreath size={18} isPremium={isGreekTempleTheme} />
-                          </div>
-                        )}
-                        <p
-                          className={
-                            "font-semibold text-base " +
-                            (isPostAuthorDeleted
-                              ? "text-muted-foreground cursor-default"
-                              : "cursor-pointer hover:text-primary transition-colors duration-200")
-                          }
-                          onClick={
-                            isPostAuthorDeleted ? undefined : onMentionAuthor
-                          }
-                        >
-                          {postAuthorName}
-                        </p>
-                        {authorTitle && (
-                          <Badge
-                            variant="secondary"
-                            className="text-[10px] px-2 py-0.5 h-auto bg-primary/10 text-primary border-primary/20"
-                          >
-                            {authorTitle}
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                        <RelativeTime date={postCreatedAtDate} title={postCreatedAtText} />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 더보기 메뉴 */}
-                  <div className="flex items-center space-x-2">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="touch-target">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-48 p-2" align="end">
-                        <div className="space-y-1">
-                          {post.isOwner && !isGuest && ( // 게스트 모드 시 비활성화
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="w-full justify-start text-red-500"
-                               onClick={isGuest ? () => console.log("로그인 후 삭제 기능을 이용할 수 있습니다.") : onDelete} // 게스트 모드 시 토스트 메시지
-                              disabled={isGuest} // 게스트 모드 시 비활성화
-                            >
-                              <X className="w-4 h-4 mr-2" />
-                              삭제하기
-                            </Button>
+                      {/* 이름 + 칭호 한 줄, 그 아래에 날짜 */}
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          {/* 월계관 왕관 (그리스 신전 테마 + 신뢰도 70 이상) */}
+                          {isGreekTempleTheme && postAuthorProfile?.trustScore !== undefined && postAuthorProfile.trustScore >= 70 && (
+                            <div className={`shrink-0 ${isGreekTempleTheme ? 'laurel-wreath-premium' : 'laurel-wreath'}`}>
+                              <LaurelWreath size={18} isPremium={isGreekTempleTheme} />
+                            </div>
                           )}
-                          {!post.isOwner && !isGuest && ( // 게스트 모드 시 비활성화
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="w-full justify-start text-red-500"
-                               onClick={isGuest ? () => console.log("로그인 후 신고 기능을 이용할 수 있습니다.") : onReport} // 게스트 모드 시 토스트 메시지
-                              disabled={isGuest} // 게스트 모드 시 비활성화
+                          <p
+                            className={
+                              "font-semibold text-base " +
+                              (isPostAuthorDeleted
+                                ? "text-muted-foreground cursor-default"
+                                : "cursor-pointer hover:text-primary transition-colors duration-200")
+                            }
+                            onClick={
+                              isPostAuthorDeleted ? undefined : onMentionAuthor
+                            }
+                          >
+                            {postAuthorName}
+                          </p>
+                          {authorTitle && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] px-2 py-0.5 h-auto bg-primary/10 text-primary border-primary/20"
                             >
-                              <Flag className="w-4 h-4 mr-2" />
-                              신고하기
-                            </Button>
+                              {authorTitle}
+                            </Badge>
                           )}
                         </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
 
-                {/* 게시물 제목 및 내용 */}
-                <div>
-                  <h1 className="text-xl font-medium mb-3">{post.title}</h1>
-                  <div className="text-base text-foreground/90 leading-7 break-words [&>div:not(:first-child)]:mt-5 [&>div:not(:last-child)]:mb-0">
-                    {renderContentWithMentions(post.content)}
-                  </div>
-                </div>
-
-                {/* 태그 */}
-                {post.tags && post.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {post.tags.map((tag: string) => (
-                      <Badge key={tag} variant="secondary">
-                        #{tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-
-                {/* 등불/댓글/조회수/북마크 */}
-                <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <div className="flex items-center space-x-4">
-                    {post.author !== userNickname && !isGuest ? ( // 게스트 모드 시 비활성화
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={isGuest ? () => console.log("로그인 후 등불을 사용할 수 있습니다.") : onLanternToggle} // 게스트 모드 시 토스트 메시지
-                        className={`space-x-2 touch-target ${isPostLanterned ? "text-amber-500" : ""
-                          }`}
-                        disabled={isGuest} // 게스트 모드 시 비활성화
-                      >
-                        {isPostLanterned ? (
-                          <LanternFilledIcon className="w-4 h-4 text-amber-500" />
-                        ) : (
-                          <LanternIcon className="w-4 h-4" />
-                        )}
-                        <span>{post.lanterns}</span>
-                      </Button>
-                    ) : (
-                      <div className="flex items-center space-x-2 text-muted-foreground">
-                        <LanternIcon className="w-4 h-4" />
-                        <span>{post.lanterns}</span>
+                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                          <RelativeTime date={postCreatedAtDate} title={postCreatedAtText} />
+                        </div>
                       </div>
-                    )}
-
-                    <div className="flex items-center space-x-1 text-muted-foreground">
-                      <MessageCircle className="w-4 h-4" />
-                      <span>{post.comments ?? post.replies?.length ?? 0}</span>
                     </div>
 
-                    <div className="flex items-center space-x-1 text-muted-foreground">
-                      <Eye className="w-4 h-4" />
-                      <span>{post.views ?? 0}</span>
+                    {/* 더보기 메뉴 */}
+                    <div className="flex items-center space-x-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="touch-target">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-48 p-2" align="end">
+                          <div className="space-y-1">
+                            {post.isOwner && !isGuest && ( // 게스트 모드 시 비활성화
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start text-red-500"
+                                onClick={isGuest ? () => setShowLoginConfirm(true) : onDelete} // 게스트 모드 시 다이얼로그 표시
+                                disabled={isGuest} // 게스트 모드 시 비활성화
+                              >
+                                <X className="w-4 h-4 mr-2" />
+                                삭제하기
+                              </Button>
+                            )}
+                            {!post.isOwner && !isGuest && ( // 게스트 모드 시 비활성화
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start text-red-500"
+                                onClick={isGuest ? () => setShowLoginConfirm(true) : onReport} // 게스트 모드 시 다이얼로그 표시
+                                disabled={isGuest} // 게스트 모드 시 비활성화
+                              >
+                                <Flag className="w-4 h-4 mr-2" />
+                                신고하기
+                              </Button>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
 
-                  <Button
-                    variant={isBookmarked ? "default" : "ghost"}
-                    size="sm"
-                    onClick={isGuest ? () => console.log("로그인 후 북마크를 사용할 수 있습니다.") : onBookmarkToggle} // 게스트 모드 시 토스트 메시지
-                    className="flex items-center space-x-1 touch-target"
-                    disabled={isGuest} // 게스트 모드 시 비활성화
-                  >
-                    <Bookmark
-                      className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""
-                        }`}
-                    />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                  {/* 게시물 제목 및 내용 */}
+                  <div>
+                    <h1 className="text-xl font-medium mb-3">{post.title}</h1>
+                    <div className="text-base text-foreground/90 leading-7 break-words [&>div:not(:first-child)]:mt-5 [&>div:not(:last-child)]:mb-0">
+                      {renderContentWithMentions(post.content)}
+                    </div>
+                  </div>
 
-          {/* 답글 목록 */}
-          <ReplyList
-            post={post}
-            userNickname={userNickname}
-            userProfileImage={_userProfileImage}
-            currentTitle={currentTitle}
-            now={now}
-            hasGuide={hasGuide}
-            isReplyLanterned={isReplyLanterned}
-            onReplyLanternToggle={onReplyLanternToggle}
-            onGuideSelect={onGuideSelect}
-            onMentionReplyAuthor={onMentionReplyAuthor}
-            onReplyAuthorClick={onReplyAuthorClick}
-            onReportReply={onReportReply}
-            renderContentWithMentions={renderContentWithMentions}
-            userProfiles={userProfiles}
-            visibleReplies={visibleReplies}
-            blockedUserIds={blockedUserIds} // 🆕 필터링용 차단 목록 전달
-          />
+                  {/* 태그 */}
+                  {post.tags && post.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {post.tags.map((tag: string) => (
+                        <Badge key={tag} variant="secondary">
+                          #{tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
 
-          {/* 답글 입력 카드 */}
-          <Card className="border-border/60 shadow-sm bg-card/80 backdrop-blur-sm">
-            <CardContent className="p-4">
-              <div className="space-y-4">
-                <Textarea
-                  ref={replyInputRef as React.RefObject<HTMLTextAreaElement>}
-                  placeholder={
-                    isGuest
-                      ? "로그인 후 답글을 작성할 수 있습니다." // 게스트 모드 시 메시지
-                      : canSubmitReply
-                        ? "이 글에 대한 생각을 나눠보세요."
-                        : "신뢰도 0점에서는 답글을 작성할 수 없습니다"
-                  }
-                  value={newReplyContent}
-                  onChange={onReplyContentChange}
-                  onKeyDown={handleKeyDown}
-                  disabled={!canSubmitReply || isGuest} // 게스트 모드 시 비활성화
-                  className="min-h-[100px] resize-none border-border/60 focus:border-primary/50 transition-colors duration-200 bg-background/50"
-                />
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">
-                    {newReplyContent.length}/1000
-                  </span>
-                  <Button
-                    onClick={isGuest ? () => toast.info("로그인 후 답글을 작성할 수 있습니다.") : onReplySubmit} // 게스트 모드 시 토스트 메시지
-                    disabled={!newReplyContent.trim() || !canSubmitReply || isGuest} // 게스트 모드 시 비활성화
-                    size="sm"
-                    className="touch-target px-6 py-2 rounded-xl transition-all duration-200 disabled:opacity-50"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    답글 작성
-                  </Button>
+                  {/* 등불/댓글/조회수/북마크 */}
+                  <div className="flex items-center justify-between pt-4 border-t border-border">
+                    <div className="flex items-center space-x-4">
+                      {post.author !== userNickname && !isGuest ? ( // 게스트 모드 시 비활성화
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={isGuest ? () => setShowLoginConfirm(true) : onLanternToggle} // 게스트 모드 시 다이얼로그 표시
+                          className={`space-x-2 touch-target ${isPostLanterned ? "text-amber-500" : ""
+                            }`}
+                          disabled={isGuest} // 게스트 모드 시 비활성화
+                        >
+                          {isPostLanterned ? (
+                            <LanternFilledIcon className="w-4 h-4 text-amber-500" />
+                          ) : (
+                            <LanternIcon className="w-4 h-4" />
+                          )}
+                          <span>{post.lanterns}</span>
+                        </Button>
+                      ) : (
+                        <div className="flex items-center space-x-2 text-muted-foreground">
+                          <LanternIcon className="w-4 h-4" />
+                          <span>{post.lanterns}</span>
+                        </div>
+                      )}
+
+                      <div className="flex items-center space-x-1 text-muted-foreground">
+                        <MessageCircle className="w-4 h-4" />
+                        <span>{post.comments ?? post.replies?.length ?? 0}</span>
+                      </div>
+
+                      <div className="flex items-center space-x-1 text-muted-foreground">
+                        <Eye className="w-4 h-4" />
+                        <span>{post.views ?? 0}</span>
+                      </div>
+                    </div>
+
+                    <Button
+                      variant={isBookmarked ? "default" : "ghost"}
+                      size="sm"
+                      onClick={isGuest ? () => setShowLoginConfirm(true) : onBookmarkToggle} // 게스트 모드 시 다이얼로그 표시
+                      className="flex items-center space-x-1 touch-target"
+                      disabled={isGuest} // 게스트 모드 시 비활성화
+                    >
+                      <Bookmark
+                        className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""
+                          }`}
+                      />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            {/* 답글 목록 */}
+            <ReplyList
+              post={post}
+              userNickname={userNickname}
+              userProfileImage={_userProfileImage}
+              currentTitle={currentTitle}
+              now={now}
+              hasGuide={hasGuide}
+              isReplyLanterned={isReplyLanterned}
+              onReplyLanternToggle={onReplyLanternToggle}
+              onGuideSelect={onGuideSelect}
+              onMentionReplyAuthor={onMentionReplyAuthor}
+              onReplyAuthorClick={onReplyAuthorClick}
+              onReportReply={onReportReply}
+              renderContentWithMentions={renderContentWithMentions}
+              userProfiles={userProfiles}
+              visibleReplies={visibleReplies}
+              blockedUserIds={blockedUserIds} // 🆕 필터링용 차단 목록 전달
+            />
+
+            {/* 답글 입력 카드 */}
+            <Card className="border-border/60 shadow-sm bg-card/80 backdrop-blur-sm">
+              <CardContent className="p-4">
+                <div className="space-y-4">
+                  <Textarea
+                    ref={replyInputRef as React.RefObject<HTMLTextAreaElement>}
+                    placeholder={
+                      isGuest
+                        ? "로그인 후 답글을 작성할 수 있습니다." // 게스트 모드 시 메시지
+                        : canSubmitReply
+                          ? "이 글에 대한 생각을 나눠보세요."
+                          : "신뢰도 0점에서는 답글을 작성할 수 없습니다"
+                    }
+                    value={newReplyContent}
+                    onChange={onReplyContentChange}
+                    onKeyDown={handleKeyDown}
+                    disabled={isGuest || !canSubmitReply} // 게스트 모드 시 비활성화
+                    className="min-h-[100px] resize-none border-border/60 focus:border-primary/50 transition-colors duration-200 bg-background/50"
+                  />
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">
+                      {newReplyContent.length}/1000
+                    </span>
+                    <Button
+                      onClick={isGuest ? () => setShowLoginConfirm(true) : onReplySubmit} // 게스트 모드 시 다이얼로그 표시
+                      disabled={isGuest || !newReplyContent.trim() || !canSubmitReply} // 게스트 모드 시 비활성화
+                      size="sm"
+                      className="touch-target px-6 py-2 rounded-xl transition-all duration-200 disabled:opacity-50"
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      답글 작성
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* 로그인 필요 다이얼로그 */}
+      <AlertDialogSimple
+        open={showLoginConfirm}
+        onOpenChange={setShowLoginConfirm}
+        title="로그인이 필요합니다."
+        description="로그인 후 이 기능을 이용할 수 있습니다. 지금 로그인하시겠습니까?"
+        confirmText="로그인"
+        onConfirm={navigateToLogin}
+      />
+    </>
   );
 }
-
 interface ReplyListProps {
   post: Post;
   userNickname: string;
