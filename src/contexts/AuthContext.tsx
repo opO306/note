@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { signInGuestSafe } from "../auth/signInGuestSafe";
 import { doc, getDoc } from "firebase/firestore";
 import { AuthError } from "../authErrors";
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import * as Sentry from "@sentry/react";
 
 // 유저 데이터 타입 정의
@@ -67,7 +68,20 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
   useEffect(() => {
     console.log("🔄 AuthContext: 인증 상태 감지 useEffect 시작");
 
-    // ✅ 1. 이미 로그인된 상태 fallback
+    // ✅ 1. Firebase Authentication 플러그인의 authStateChange 이벤트 리스너 추가
+    const authStateChangeListener = FirebaseAuthentication.addListener('authStateChange', async (state) => {
+      console.log("🔥 AuthContext: FirebaseAuthentication authStateChange:", state.user?.email || "로그아웃");
+
+      if (state.user) {
+        console.log("✅ AuthContext: 네이티브 인증 상태 변경 감지 - 로그인");
+        // 네이티브에서 인증 상태가 변경되면 Firebase JS SDK에도 반영
+        // Firebase JS SDK의 onAuthStateChanged가 이를 처리할 예정
+      } else {
+        console.log("✅ AuthContext: 네이티브 인증 상태 변경 감지 - 로그아웃");
+      }
+    });
+
+    // ✅ 2. 이미 로그인된 상태 fallback
     const current = auth.currentUser;
     if (current) {
       console.log("🔄 AuthContext: 기존 로그인 사용자 발견:", current.email);
@@ -83,7 +97,7 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
       setIsLoading(true);
     }
 
-    // ✅ 2. 이후 상태 변화 구독
+    // ✅ 3. Firebase JS SDK 상태 변화 구독
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log("🔥 AuthContext: onAuthStateChanged 호출됨:", firebaseUser?.email || "로그아웃");
 
@@ -114,7 +128,10 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
       console.log("✅ AuthContext: isLoading = false 설정됨");
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      authStateChangeListener.remove();
+    };
   }, [fetchUserData]);
 
   // 게스트 로그인 액션
