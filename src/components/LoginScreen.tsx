@@ -15,8 +15,8 @@ import { useOnlineStatus } from "./hooks/useOnlineStatus";
 
 /**
  * ENV 설정
- *  VITE_ANDROID_CLIENT_ID, VITE_IOS_CLIENT_ID
- *  ➜ Google Cloud Console / OAuth 클라이언트 ID 에서 발급받은 값
+ *  VITE_GOOGLE_WEB_CLIENT_ID
+ *  ➜ Google Cloud Console / OAuth Web Client ID
  */
 
 interface FloatingSymbolData {
@@ -88,10 +88,11 @@ export function LoginScreen({
 
   const [agreedToTerms, setAgreedToTerms] = React.useState(false);
   const [isLoggingIn, setIsLoggingIn] = React.useState(false);
+  const isNative = Capacitor.isNativePlatform();
 
   const handleGoogleLogin = React.useCallback(async (): Promise<void> => {
     // 0) 웹 환경 분기
-    if (Capacitor.getPlatform() === "web") {
+    if (!isNative) {
       if (!agreedToTerms) {
         toast.error("약관에 동의해주세요.");
         return;
