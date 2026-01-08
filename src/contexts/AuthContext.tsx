@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { auth, db } from "../firebase";
-import { onAuthStateChanged, signOut, User, signInAnonymously } from "firebase/auth";
+import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { signInGuestSafe } from "../auth/signInGuestSafe";
 import { doc, getDoc } from "firebase/firestore";
+import { AuthError } from "../authErrors";
+import * as Sentry from "@sentry/react";
 
 // 유저 데이터 타입 정의
 export interface UserData {
@@ -22,6 +25,7 @@ interface AuthContextType {
   refreshUserData: () => Promise<void>; // 프로필 변경 시 데이터 갱신
   navigateToLogin: () => void; // 로그인 화면으로 이동 함수
   debugMessage: string; // 개발용 디버그 메시지
+  authError: AuthError | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -32,6 +36,7 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [debugMessage] = useState('');
+  const [authError, setAuthError] = useState<AuthError | null>(null);
 
   // 로컬 스토리지 키
   const GUEST_KEY = "biyunote-guest-mode";
@@ -60,31 +65,53 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
 
   // 인증 상태 감지
   useEffect(() => {
+    console.log("🔄 AuthContext: 인증 상태 감지 useEffect 시작");
+
+    // ✅ 1. 이미 로그인된 상태 fallback
+    const current = auth.currentUser;
+    if (current) {
+      console.log("🔄 AuthContext: 기존 로그인 사용자 발견:", current.email);
+      setUser(current);
+      setIsGuest(current.isAnonymous);
+      fetchUserData(current.uid).finally(() => {
+        console.log("✅ AuthContext: 기존 사용자 데이터 로드 완료");
+        setIsLoading(false);
+      });
+    } else {
+      console.log("🔄 AuthContext: 로그인된 사용자 없음, 로딩 상태 유지");
+      // current가 없으면 일단 로딩 상태 유지
+      setIsLoading(true);
+    }
+
+    // ✅ 2. 이후 상태 변화 구독
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log("🔥 AuthContext: onAuthStateChanged 호출됨:", firebaseUser?.email || "로그아웃");
+
       if (firebaseUser) {
-        // 로그인 됨 (익명 또는 일반)
+        console.log("✅ AuthContext: 사용자 로그인 감지, 상태 설정 시작");
         setUser(firebaseUser);
-        // 실제 Firebase User 객체의 isAnonymous 속성 사용
         const isAnon = firebaseUser.isAnonymous;
         setIsGuest(isAnon);
+
         if (!isAnon) {
-          // 익명 사용자가 아니라면 게스트 모드 해제
           localStorage.removeItem(GUEST_KEY);
         } else {
-          // 익명 사용자라면 게스트 모드 유지 (또는 설정)
           localStorage.setItem(GUEST_KEY, "true");
         }
+
+        console.log("🔄 AuthContext: fetchUserData 호출");
         await fetchUserData(firebaseUser.uid);
+        console.log("✅ AuthContext: 사용자 데이터 로드 완료");
       } else {
-        // 로그아웃 됨
+        console.log("🔄 AuthContext: 사용자 로그아웃 감지");
         setUser(null);
         setUserData(null);
-        // 게스트 플래그가 로컬 스토리지에 없으면 게스트 모드도 해제
         if (!localStorage.getItem(GUEST_KEY)) {
           setIsGuest(false);
         }
       }
       setIsLoading(false);
+      console.log("✅ AuthContext: isLoading = false 설정됨");
     });
 
     return () => unsubscribe();
@@ -93,22 +120,26 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
   // 게스트 로그인 액션
   const loginAsGuest = useCallback(async () => {
     setIsLoading(true);
+    setAuthError(null); // 새로운 시도 전에 에러 초기화
     try {
-      // Firebase 익명 인증으로 로그인
-      const userCredential = await signInAnonymously(auth);
-      // 익명 사용자는 isGuest를 true로 설정
-      setIsGuest(true);
-      // 로컬 스토리지에 게스트 모드 플래그 설정
-      localStorage.setItem(GUEST_KEY, "true");
-      setUser(userCredential.user); // Firebase User 객체 설정
-      setUserData(null); // 게스트는 초기 사용자 데이터 없음
-      // setIsLoading(false)는 onAuthStateChanged에서 처리
+      await signInGuestSafe();
+      // 상태 변경은 onAuthStateChanged가 처리
     } catch (error) {
       console.error("Guest login failed", error);
+      if (error instanceof AuthError) {
+        setAuthError(error);
+        Sentry.captureException(error, {
+          tags: {
+            auth_reason: error.reason,
+          },
+        });
+      } else {
+        setAuthError(new AuthError("UNKNOWN", (error as Error).message));
+      }
       setIsLoading(false);
       setIsGuest(false);
     }
-  }, []);
+  }, [setAuthError]);
 
   // 로그아웃 액션
   const logout = useCallback(async () => {
@@ -118,6 +149,7 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
       setUser(null);
       setUserData(null);
       setIsGuest(false);
+      setAuthError(null); // 로그아웃 시 에러 상태 초기화
     } catch (error) {
       console.error("Logout failed", error);
     }
@@ -128,7 +160,7 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
   }, [user, fetchUserData]);
 
   return (
-    <AuthContext.Provider value={{ user, userData, isLoading, isGuest, loginAsGuest, logout, refreshUserData, navigateToLogin, debugMessage }}>
+    <AuthContext.Provider value={{ user, userData, isLoading, isGuest, loginAsGuest, logout, refreshUserData, navigateToLogin, debugMessage, authError }}>
       {children}
     </AuthContext.Provider>
   );

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { toast } from "../toastHelper";
 import {
     BookOpen,
     Lock,
@@ -403,11 +404,11 @@ function TitleCard({ title, isUnlocked, isEquipped, onEquip, onUnequip, variant,
                     <div className="shrink-0">
                         {isUnlocked ? (
                             isEquipped ? (
-                                <Button size="sm" variant="outline" onClick={isGuest ? () => console.log("로그인 후 칭호를 해제할 수 있습니다.") : onUnequip} className="h-8 text-xs" disabled={isGuest}>
+                                <Button size="sm" variant="outline" onClick={isGuest ? () => toast.info("로그인 후 칭호를 해제할 수 있습니다.") : onUnequip} className="h-8 text-xs" disabled={isGuest}>
                                     해제
                                 </Button>
                             ) : (
-                                <Button size="sm" onClick={isGuest ? () => console.log("로그인 후 칭호를 장착할 수 있습니다.") : () => onEquip(title.id)} className="h-8 text-xs" disabled={isGuest}>
+                                <Button size="sm" onClick={isGuest ? () => toast.info("로그인 후 칭호를 장착할 수 있습니다.") : () => onEquip(title.id)} className="h-8 text-xs" disabled={isGuest}>
                                     장착
                                 </Button>
                             )

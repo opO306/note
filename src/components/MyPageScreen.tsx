@@ -817,7 +817,7 @@ export function MyPageScreen({
             </Button>
           )}
 
-          {false && onThemeClick && (
+          {onThemeClick && (
             <Button
               variant="ghost"
               className="w-full justify-start p-4 h-auto"

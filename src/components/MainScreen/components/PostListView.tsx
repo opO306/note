@@ -3,6 +3,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { Virtuoso } from "react-virtuoso";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/toastHelper";
 import { Card, CardContent } from "@/components/ui/card";
 import { OptimizedAvatar } from "@/components/OptimizedAvatar";
 import { Badge } from "@/components/ui/badge";
@@ -284,7 +285,7 @@ function EmptyState({ onStartWriting, isGuest }: { onStartWriting: () => void; i
       description="첫 번째 글을 작성해서 비유노트 커뮤니티를 시작해보세요!"
       action={
         <Button
-          onClick={isGuest ? () => console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.") : onStartWriting}
+          onClick={isGuest ? () => toast.info("로그인 후 글쓰기 기능을 이용할 수 있습니다.") : onStartWriting}
           className="bg-primary text-primary-foreground px-6 py-2 rounded-xl"
           disabled={isGuest} // 게스트 모드 시 비활성화
         >

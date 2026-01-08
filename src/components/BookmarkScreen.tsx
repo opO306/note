@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useDeferredValue, useEffect } from "react";
 import { useScrollRestoration } from "./hooks/useScrollRestoration";
 import { useStabilizedList } from "./hooks/useStabilizedList";
+import { toast } from "../toastHelper";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { OptimizedAvatar } from "@/components/OptimizedAvatar";
@@ -338,7 +339,7 @@ const BookmarkCard = React.memo(
               </div>
               <Bookmark
                 className={`w-4 h-4 ${isBookmarked ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`}
-                onClick={isGuest ? () => console.log("로그인 후 북마크를 관리할 수 있습니다.") : undefined} // 게스트 모드 시 토스트 메시지
+                onClick={isGuest ? () => toast.info("로그인 후 북마크를 관리할 수 있습니다.") : undefined} // 게스트 모드 시 토스트 메시지
                 // 북마크 아이콘 자체는 비활성화하기 어려우므로, onClick을 제한하고 CSS로 커서 변경 가능
                 style={isGuest ? { cursor: "not-allowed" } : undefined}
               />

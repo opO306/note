@@ -3,14 +3,6 @@
 	"appName": "비유노트",
 	"webDir": "build",
 	"plugins": {
-		"GoogleAuth": {
-			"scopes": [
-				"profile",
-				"email"
-			],
-			"serverClientId": "852428184810-eh4ojd3kj5ssvia7o54iteamk2sub31o.apps.googleusercontent.com",
-			"forceCodeForRefreshToken": true
-		},
 		"SplashScreen": {
 			"launchShowDuration": 1000,
 			"launchAutoHide": true,

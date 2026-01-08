@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useScrollIntoView } from "./hooks/useScrollIntoView";
 import { KeyboardDismissButton } from "./ui/keyboard-dismiss-button";
+import { toast } from "../toastHelper";
 import { SlowConnectionWarning } from "./ui/offline-indicator";
 import { Button } from "./ui/button";
 import { ArrowLeft, Search, Clock, TrendingUp, Settings } from "lucide-react";
@@ -499,7 +500,7 @@ export function SearchScreen({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={isGuest ? () => console.log("로그인 후 검색 기록을 관리할 수 있습니다.") : clearRecentSearches} // 게스트 모드 시 토스트 메시지
+                      onClick={isGuest ? () => toast.info("로그인 후 검색 기록을 관리할 수 있습니다.") : clearRecentSearches} // 게스트 모드 시 토스트 메시지
                       className="text-muted-foreground hover:text-foreground"
                       disabled={isGuest} // 게스트 모드 시 비활성화
                     >

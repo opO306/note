@@ -3,6 +3,7 @@
 /* eslint-disable react/jsx-no-bind, react-perf/jsx-no-new-function-as-prop */
 import React, { useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/toastHelper";
 import {
   Popover,
   PopoverContent,
@@ -107,7 +108,7 @@ function HomeHeaderComponent({
               variant="ghost"
               size="icon"
               className="touch-target rounded-xl hover:bg-accent/80 transition-all duration-200 text-foreground"
-              onClick={isGuest ? () => console.log("로그인 후 이용 가능합니다.") : onTitleShopClick}
+              onClick={isGuest ? () => toast.info("로그인 후 이용 가능합니다.") : onTitleShopClick}
               disabled={isGuest} // 게스트 모드 시 비활성화
             >
               <ShoppingBag className="w-5 h-5" />
@@ -119,7 +120,7 @@ function HomeHeaderComponent({
                 variant="ghost"
                 size="icon"
                 className="touch-target rounded-xl hover:bg-accent/80 transition-all duration-200 text-foreground"
-                onClick={isGuest ? () => console.log("로그인 후 이용 가능합니다.") : onOpenAdminReports} // 게스트 모드 시 토스트 메시지
+                onClick={isGuest ? () => toast.info("로그인 후 이용 가능합니다.") : onOpenAdminReports} // 게스트 모드 시 토스트 메시지
                 disabled={isGuest} // 게스트 모드 시 비활성화
               >
                 {/* 이미 import된 아이콘 중에서 적당한 것 사용 (예: Star) */}

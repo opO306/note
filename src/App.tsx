@@ -1,26 +1,28 @@
-import { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
+import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { PluginListenerHandle } from "@capacitor/core";
+import { onAuthStateChanged } from "firebase/auth";
+import { Loader2 } from "lucide-react";
 
 const DEBUG_LOGIN = import.meta.env.VITE_DEBUG_LOGIN === "true";
 
+import { initGoogleAuth } from "./lib/googleLogin";
+import { auth } from "./firebase";
+
 // Context
-import { AuthProvider, useAuth } from "./contexts/AuthContext"; // 경로 맞춰주세요
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 // UI & Components
 import { Toaster } from "./components/ui/sonner";
 import { DelayedLoadingOverlay } from "./components/ui/delayed-loading-overlay";
-import { OfflineIndicator } from "./components/ui/offline-indicator"; // lazy 대신 직접 import 추천 (작음)
+import { OfflineIndicator } from "./components/ui/offline-indicator";
 import "./styles/globals.css";
 
 // Screens (Lazy)
 const LoginScreen = lazy(() => import("@/components/LoginScreen").then(m => ({ default: m.LoginScreen })));
 const NicknameScreen = lazy(() => import("@/components/NicknameScreen").then(m => ({ default: m.NicknameScreen })));
 const MainScreen = lazy(() => import('@/components/MainScreen/MainScreenRefactored').then(m => ({ default: m.MainScreenRefactored })));
-// ... 나머지 스크린 import 유지 ...
-// (CommunityGuidelinesScreen, WelcomeScreen, PrivacyPolicyScreen 등등)
-// 코드 길이상 생략하지만 기존 import 그대로 유지하세요.
 const CommunityGuidelinesScreen = lazy(() => import("./components/CommunityGuidelinesScreen").then(module => ({ default: module.CommunityGuidelinesScreen })));
 const WelcomeScreen = lazy(() => import("./components/WelcomeScreen").then(m => ({ default: m.WelcomeScreen })));
 const PrivacyPolicyScreen = lazy(() => import("./components/PrivacyPolicyScreen").then(m => ({ default: m.PrivacyPolicyScreen })));
@@ -45,7 +47,7 @@ const InitialAppShellFallback = () => (
 
 // ✅ 메인 App 컴포넌트 내부 로직을 분리 (Context 사용을 위해)
 function AppContent({ currentScreen, setCurrentScreen }: { currentScreen: AppScreen | null; setCurrentScreen: React.Dispatch<React.SetStateAction<AppScreen | null>> }) {
-  const { user, userData, isGuest, isLoading, loginAsGuest, logout, debugMessage } = useAuth();
+  const { user, userData, isGuest, isLoading, loginAsGuest, logout, debugMessage, refreshUserData } = useAuth();
 
 
   // 테마/UI 상태
@@ -58,19 +60,44 @@ function AppContent({ currentScreen, setCurrentScreen }: { currentScreen: AppScr
 
   // 🔹 인증 상태 변화에 따른 자동 화면 라우팅
   useEffect(() => {
-    if (isLoading) return; // 로딩 중엔 대기
+    console.log("🔄 App: 라우팅 useEffect 실행");
+    console.log("   user:", user?.email || "null");
+    console.log("   userData:", userData ? `nickname: ${userData.nickname}, agreed: ${userData.communityGuidelinesAgreed}, complete: ${userData.onboardingComplete}` : "null");
+    console.log("   isGuest:", isGuest);
+    console.log("   isLoading:", isLoading);
+    console.log("   currentScreen:", currentScreen);
+
+    if (isLoading) {
+      console.log("⏳ App: isLoading=true이므로 라우팅 대기");
+      return; // 로딩 중엔 대기
+    }
 
     let nextScreen: AppScreen;
 
-    if (isGuest && !user) nextScreen = "main";
-    else if (!user) nextScreen = "login";
-    else if (!userData?.nickname) nextScreen = "nickname";
-    else if (!userData.communityGuidelinesAgreed) nextScreen = "guidelines";
-    else if (!userData.onboardingComplete) nextScreen = "welcome";
-    else nextScreen = "main";
+    if (isGuest && !user) {
+      nextScreen = "main";
+      console.log("🎯 App: 게스트 모드 → main 화면");
+    } else if (!user) {
+      nextScreen = "login";
+      console.log("🎯 App: 로그인 필요 → login 화면");
+    } else if (!userData?.nickname) {
+      nextScreen = "nickname";
+      console.log("🎯 App: 닉네임 설정 필요 → nickname 화면");
+    } else if (!userData.communityGuidelinesAgreed) {
+      nextScreen = "guidelines";
+      console.log("🎯 App: 가이드라인 동의 필요 → guidelines 화면");
+    } else if (!userData.onboardingComplete) {
+      nextScreen = "welcome";
+      console.log("🎯 App: 온보딩 필요 → welcome 화면");
+    } else {
+      nextScreen = "main";
+      console.log("🎯 App: 모든 조건 충족 → main 화면");
+    }
 
+    console.log(`🔄 App: 화면 전환: ${currentScreen} → ${nextScreen}`);
     setCurrentScreen(nextScreen);
     if (nextScreen !== "login") {
+      console.log("🔄 App: SplashScreen.hide() 호출");
       SplashScreen.hide();
     }
   }, [user, userData, isGuest, isLoading]);
@@ -260,10 +287,25 @@ function AppContent({ currentScreen, setCurrentScreen }: { currentScreen: AppScr
           <NicknameScreen
             onBack={handleLogout}
             onComplete={async (_nickname: string) => {
-              // TODO: Firestore에 닉네임 저장 로직이 필요할 경우 AuthContext의 refreshUserData를 활용하거나 별도 함수 구현
-              // 현재는 useAppInitialization에서 처리되었던 로직을 Context 내부 또는 여기에 옮겨와야 함.
-              // 일단은 화면 전환만 처리
-              setCurrentScreen("guidelines");
+              console.log("🔄 닉네임 저장 완료, userData 갱신 시작");
+              await refreshUserData(); // 닉네임 저장 후 사용자 데이터 갱신
+
+              // ✅ userData가 실제로 갱신될 때까지 대기 (최대 2초)
+              console.log("⏳ userData 갱신 대기 중...");
+              let tries = 0;
+              while ((!userData?.nickname || userData.nickname !== _nickname) && tries < 20) {
+                await new Promise(res => setTimeout(res, 100));
+                tries++;
+                console.log(`🔄 userData 확인 시도 ${tries}/20:`, userData?.nickname);
+              }
+
+              if (userData?.nickname === _nickname) {
+                console.log("✅ userData 갱신 확인됨, guidelines 화면으로 이동");
+                setCurrentScreen("guidelines");
+              } else {
+                console.error("❌ userData 갱신 실패 또는 타임아웃");
+                // 실패 시 다시 시도하거나 에러 처리
+              }
             }}
             userEmail={userData?.email || ""}
             isDarkMode={isDarkMode}
@@ -340,7 +382,7 @@ function AppContent({ currentScreen, setCurrentScreen }: { currentScreen: AppScr
 
       <Toaster isDarkMode={isDarkMode} />
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<div className="flex items-center justify-center p-4"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
         <AlertDialogSimple
           open={showExitConfirm}
           onOpenChange={setShowExitConfirm}
@@ -354,11 +396,32 @@ function AppContent({ currentScreen, setCurrentScreen }: { currentScreen: AppScr
 }
 
 // ✅ 메인 App: Provider로 감싸기
-export default function App() {
+export default function App(): JSX.Element {
   const [currentScreen, setCurrentScreen] = useState<AppScreen | null>(null);
   const navigateToLogin = useCallback(() => {
     setCurrentScreen("login");
   }, [setCurrentScreen]);
+
+  // ✅ App 시작 시 GoogleAuth 초기화
+  useEffect(() => {
+    initGoogleAuth();
+  }, []);
+
+  // ✅ Firebase 인증 상태 변화 감지
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      console.log('🔥 auth 상태 변경됨:', user);
+      if (user) {
+        // 로그인된 상태 → 메인으로
+        // 이 부분은 AuthContext의 로직과 중복될 수 있으므로, AuthContext에서 처리하는 것이 좋습니다.
+      } else {
+        // 로그아웃 상태 → 로그인 화면
+        // 이 부분도 AuthContext의 로직과 중복될 수 있으므로, AuthContext에서 처리하는 것이 좋습니다.
+      }
+    });
+
+    return () => unsub();
+  }, []);
 
   return (
     <AuthProvider navigateToLogin={navigateToLogin}>

@@ -3,6 +3,7 @@
 // 기존 3,472줄 → 약 600줄로 축소
 /* eslint-disable react/jsx-no-bind, react-perf/jsx-no-new-function-as-prop */
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
 import { toast } from "@/toastHelper";
 import { App as CapacitorApp } from "@capacitor/app";
 import type { PluginListenerHandle } from "@capacitor/core";
@@ -2271,7 +2272,7 @@ function MainScreenInner({
                 formatCreatedAt={formatCreatedAt}
                 onLanternToggle={lanternActions.handleLanternToggle}
                 onBookmarkToggle={bookmarkActions.handleBookmarkToggle}
-                onPostClick={isGuest ? (_postId) => console.log("로그인 후 게시글 상세를 볼 수 있습니다.") : (postId) => {
+                onPostClick={isGuest ? (_postId) => toast.info("로그인 후 게시글 상세를 볼 수 있습니다.") : (postId) => {
                   const post = visiblePosts.find((p) => p.id === postId);
                   if (post) {
                     const source = effectiveMyContentList === "posts" ? "myPostsList" : "myRepliesList";
@@ -2280,7 +2281,7 @@ function MainScreenInner({
                     setRoute({ name: "postDetail", postId: post.id, source });
                   }
                 }}
-                onReplyClick={isGuest ? (_postId, _replyId) => console.log("로그인 후 답글 상세를 볼 수 있습니다.") : (postId, _replyId) => {
+                onReplyClick={isGuest ? (_postId, _replyId) => toast.info("로그인 후 답글 상세를 볼 수 있습니다.") : (postId, _replyId) => {
                   const post = visiblePosts.find((p) => p.id === postId);
                   if (post) {
                     setPostDetailSource("myRepliesList");
@@ -2419,7 +2420,7 @@ function MainScreenInner({
       {/* 2. 알림 설정 다이얼로그 수정 */}
       {showNotificationSettings && (
         <div className="fixed inset-0 z-50 bg-background">
-          <Suspense fallback={null}>
+          <Suspense fallback={<div className="flex items-center justify-center p-4"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
             <NotificationSettingsDialog
               onBack={handleLayerBack}
               categories={categories}
@@ -2430,7 +2431,7 @@ function MainScreenInner({
 
       {/* 3. 신고 다이얼로그 (게시글) 수정 */}
       {reportingPost && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<div className="flex items-center justify-center p-4"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
           <ReportDialog
             open={!!reportingPost}
             onOpenChange={(open) => !open && setReportingPost(null)}
@@ -2464,7 +2465,7 @@ function MainScreenInner({
 
       {/* 4. 신고 다이얼로그 (답글) 수정 */}
       {reportingReply && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<div className="flex items-center justify-center p-4"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
           <ReportDialog
             open={!!reportingReply}
             onOpenChange={(open) => !open && setReportingReply(null)}
@@ -2518,7 +2519,7 @@ function MainScreenInner({
           // 지금은 일단 route만 이동하게 해도 됨
           setRoute({ name: "questionCompose" });
         }}
-        onSelectWrite={isGuest ? () => console.log("로그인 후 이용 가능합니다.") : () => {
+        onSelectWrite={isGuest ? () => toast.info("로그인 후 이용 가능합니다.") : () => {
           setShowCreateSheet(false);
           handleStartWriting(); // 기존 글쓰기 그대로
         }}
