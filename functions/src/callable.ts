@@ -46,6 +46,12 @@ export const finalizeOnboarding = onCall({ region: "asia-northeast3" }, async (r
     const userRef = db.collection("users").doc(auth.uid);
     await db.runTransaction(async (tx) => {
         const userSnap = await tx.get(userRef);
+
+        if (userSnap.exists && userSnap.get("onboardingComplete")) {
+            logger.info("User already onboarded, skipping update.", { uid: auth.uid });
+            return; // 이미 처리됨
+        }
+
         const now = admin.firestore.FieldValue.serverTimestamp();
         const payload: any = {
             nickname,
@@ -247,10 +253,10 @@ export const toggleLantern = onCall({ region: "asia-northeast3" }, async (reques
 export const toggleReplyLantern = onCall({ region: "asia-northeast3" }, async (request) => {
     const { auth, data } = request;
     if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
-    
+
     const postId = data?.postId as string;
     const replyId = data?.replyId;
-    
+
     if (!postId) throw new HttpsError("invalid-argument", "postId가 필요합니다.");
     if (replyId === undefined || replyId === null) {
         throw new HttpsError("invalid-argument", "replyId가 필요합니다.");
@@ -294,11 +300,11 @@ export const awardLumens = onCall({ region: "asia-northeast3" }, async (request)
     const { auth, data } = request;
     if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
     await checkRateLimit(auth.uid, "awardLumens");
-    
+
     const amount = data?.amount as number;
     const reason = data?.reason as string;
     const achievementId = data?.achievementId as string | undefined;
-    
+
     if (!amount || amount <= 0) {
         throw new HttpsError("invalid-argument", "유효한 보상 금액이 필요합니다.");
     }
@@ -309,7 +315,7 @@ export const awardLumens = onCall({ region: "asia-northeast3" }, async (request)
     await db.runTransaction(async (tx) => {
         const userRef = db.collection("users").doc(auth.uid);
         const userSnap = await tx.get(userRef);
-        
+
         if (!userSnap.exists) {
             throw new HttpsError("not-found", "사용자 정보를 찾을 수 없습니다.");
         }
@@ -332,7 +338,7 @@ export const awardLumens = onCall({ region: "asia-northeast3" }, async (request)
             lumenTransactions: admin.firestore.FieldValue.arrayUnion(transactionRecord),
         });
     });
-    
+
     return { success: true };
 });
 
@@ -445,7 +451,7 @@ export const selectGuide = onCall({ region: "asia-northeast3" }, async (request)
             guideReplyAuthorUid: replyAuthorUid,
             replies: updatedReplies,
         });
-        
+
         // 보상 지급 (현자의 종으로 채택된 경우 추가 보상)
         tx.set(replyUserRef, {
             guideCount: admin.firestore.FieldValue.increment(1),
@@ -470,7 +476,7 @@ export const selectGuide = onCall({ region: "asia-northeast3" }, async (request)
                 const replyAuthorUid = replyData.authorUid;
                 const postTitle = postData.title || "게시글";
                 const postAuthorNickname = postData.author || "작성자";
-                
+
                 if (replyAuthorUid && replyAuthorUid !== auth.uid) {
                     // 1. Firestore에 알림 문서 생성
                     const notifRef = db
@@ -478,16 +484,16 @@ export const selectGuide = onCall({ region: "asia-northeast3" }, async (request)
                         .doc(replyAuthorUid)
                         .collection("items")
                         .doc();
-                    
+
                     const nowMs = Date.now();
                     const isSagesBell = postData.useSagesBell === true;
-                    const notificationTitle = isSagesBell 
-                        ? "🌟 현자의 종으로 채택되었어요! (보너스 보상)" 
+                    const notificationTitle = isSagesBell
+                        ? "🌟 현자의 종으로 채택되었어요! (보너스 보상)"
                         : "길잡이로 채택되었어요 ⭐";
                     const notificationBody = isSagesBell
                         ? `"${postTitle.substring(0, 30)}${postTitle.length > 30 ? '...' : ''}" 글에서 회원님의 답변이 현자의 종으로 선택되었습니다! 추가 보상이 지급되었어요.`
                         : `"${postTitle.substring(0, 30)}${postTitle.length > 30 ? '...' : ''}" 글에서 회원님의 답변이 길잡이로 선택되었습니다.`;
-                    
+
                     await notifRef.set({
                         id: notifRef.id,
                         type: "guide",
@@ -507,7 +513,7 @@ export const selectGuide = onCall({ region: "asia-northeast3" }, async (request)
                         categoryId: postData.categoryId ?? postData.category ?? null,
                         createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     });
-                    
+
                     // 2. 푸시 알림 발송 (onNotificationCreated 트리거가 자동으로 처리하지만, 여기서도 직접 발송)
                     await sendPushNotification({
                         targetUid: replyAuthorUid,
@@ -533,9 +539,9 @@ export const selectGuide = onCall({ region: "asia-northeast3" }, async (request)
 export const callSagesBell = onCall({ region: "asia-northeast3" }, async (request) => {
     const { auth, data } = request;
     if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
-    
+
     const { postId, categoryId, questionTitle } = data as any;
-    
+
     if (!postId || !categoryId || !questionTitle) {
         throw new HttpsError("invalid-argument", "postId, categoryId, questionTitle이 필요합니다.");
     }
@@ -553,12 +559,12 @@ export const verifyThemePurchase = onCall({ region: "asia-northeast3" }, async (
     const { auth, data } = request;
     if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
     await checkRateLimit(auth.uid, "verifyThemePurchase");
-    
+
     const themeId = data?.themeId as string;
     const transactionId = data?.transactionId as string;
     const receipt = data?.receipt as string;
     const platform = data?.platform as string; // "android" | "ios"
-    
+
     if (!themeId || !transactionId || !receipt || !platform) {
         throw new HttpsError("invalid-argument", "themeId, transactionId, receipt, platform이 필요합니다.");
     }
@@ -566,15 +572,15 @@ export const verifyThemePurchase = onCall({ region: "asia-northeast3" }, async (
     // TODO: 실제 구매 영수증 검증 로직 추가
     // Google Play Billing 또는 App Store 영수증 검증
     // 현재는 기본적인 검증만 수행
-    
+
     const userRef = db.collection("users").doc(auth.uid);
-    
+
     await db.runTransaction(async (tx) => {
         const userSnap = await tx.get(userRef);
         if (!userSnap.exists) throw new HttpsError("not-found", "사용자 정보를 찾을 수 없습니다.");
 
         const purchasedThemes = userSnap.data()?.purchasedThemes || [];
-        
+
         if (purchasedThemes.includes(themeId)) {
             throw new HttpsError("already-exists", "이미 구매한 테마입니다.");
         }
@@ -582,7 +588,7 @@ export const verifyThemePurchase = onCall({ region: "asia-northeast3" }, async (
         // 구매 내역 저장 (중복 구매 방지)
         const purchaseHistoryRef = db.collection("theme_purchases").doc(transactionId);
         const purchaseSnap = await tx.get(purchaseHistoryRef);
-        
+
         if (purchaseSnap.exists) {
             throw new HttpsError("already-exists", "이미 처리된 구매입니다.");
         }
@@ -602,6 +608,6 @@ export const verifyThemePurchase = onCall({ region: "asia-northeast3" }, async (
             purchasedThemes: admin.firestore.FieldValue.arrayUnion(themeId),
         });
     });
-    
+
     return { success: true };
 });

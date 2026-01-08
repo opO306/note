@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { auth, db } from "../firebase";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { onAuthStateChanged, signOut, User, signInAnonymously } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
 // 유저 데이터 타입 정의
@@ -21,6 +21,7 @@ interface AuthContextType {
   logout: () => Promise<void>; // 로그아웃 함수
   refreshUserData: () => Promise<void>; // 프로필 변경 시 데이터 갱신
   navigateToLogin: () => void; // 로그인 화면으로 이동 함수
+  debugMessage: string; // 개발용 디버그 메시지
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -30,6 +31,7 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [debugMessage] = useState('');
 
   // 로컬 스토리지 키
   const GUEST_KEY = "biyunote-guest-mode";
@@ -58,28 +60,28 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
 
   // 인증 상태 감지
   useEffect(() => {
-    const isGuestMode = localStorage.getItem(GUEST_KEY) === "true";
-    
-    // 게스트 모드라면 Firebase 체크 건너뛰기 가능 (혹은 병행)
-    if (isGuestMode) {
-      setIsGuest(true);
-      setIsLoading(false);
-    }
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // 로그인 됨
+        // 로그인 됨 (익명 또는 일반)
         setUser(firebaseUser);
-        setIsGuest(false); // 로그인하면 게스트 아님
-        localStorage.removeItem(GUEST_KEY); // 게스트 모드 해제
+        // 실제 Firebase User 객체의 isAnonymous 속성 사용
+        const isAnon = firebaseUser.isAnonymous;
+        setIsGuest(isAnon);
+        if (!isAnon) {
+          // 익명 사용자가 아니라면 게스트 모드 해제
+          localStorage.removeItem(GUEST_KEY);
+        } else {
+          // 익명 사용자라면 게스트 모드 유지 (또는 설정)
+          localStorage.setItem(GUEST_KEY, "true");
+        }
         await fetchUserData(firebaseUser.uid);
       } else {
         // 로그아웃 됨
         setUser(null);
         setUserData(null);
-        // 여기서 isGuest 상태는 유지 (게스트 모드 로그아웃은 별도 처리)
+        // 게스트 플래그가 로컬 스토리지에 없으면 게스트 모드도 해제
         if (!localStorage.getItem(GUEST_KEY)) {
-            setIsGuest(false);
+          setIsGuest(false);
         }
       }
       setIsLoading(false);
@@ -89,14 +91,27 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
   }, [fetchUserData]);
 
   // 게스트 로그인 액션
-  const loginAsGuest = () => {
-    localStorage.setItem(GUEST_KEY, "true");
-    setIsGuest(true);
-    // 화면 전환을 위해 isLoading을 잠시 true로 뒀다 풀 수도 있음
-  };
+  const loginAsGuest = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Firebase 익명 인증으로 로그인
+      const userCredential = await signInAnonymously(auth);
+      // 익명 사용자는 isGuest를 true로 설정
+      setIsGuest(true);
+      // 로컬 스토리지에 게스트 모드 플래그 설정
+      localStorage.setItem(GUEST_KEY, "true");
+      setUser(userCredential.user); // Firebase User 객체 설정
+      setUserData(null); // 게스트는 초기 사용자 데이터 없음
+      // setIsLoading(false)는 onAuthStateChanged에서 처리
+    } catch (error) {
+      console.error("Guest login failed", error);
+      setIsLoading(false);
+      setIsGuest(false);
+    }
+  }, []);
 
   // 로그아웃 액션
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await signOut(auth);
       localStorage.removeItem(GUEST_KEY);
@@ -106,14 +121,14 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
     } catch (error) {
       console.error("Logout failed", error);
     }
-  };
+  }, []);
 
-  const refreshUserData = async () => {
+  const refreshUserData = useCallback(async () => {
     if (user) await fetchUserData(user.uid);
-  };
+  }, [user, fetchUserData]);
 
   return (
-    <AuthContext.Provider value={{ user, userData, isLoading, isGuest, loginAsGuest, logout, refreshUserData, navigateToLogin }}>
+    <AuthContext.Provider value={{ user, userData, isLoading, isGuest, loginAsGuest, logout, refreshUserData, navigateToLogin, debugMessage }}>
       {children}
     </AuthContext.Provider>
   );

@@ -4,6 +4,9 @@ import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { ArrowLeft, Users, AlertCircle, ThumbsUp, Ban, Flag, Moon, Sun } from "lucide-react";
 import { useState, useCallback, useMemo } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { db } from "../firebase";
+import { doc, updateDoc } from "firebase/firestore";
 
 // 아이콘 스타일 상수
 const ICON_STYLE = {
@@ -31,10 +34,12 @@ export function CommunityGuidelinesScreen({
   isDarkMode,
   onToggleDarkMode,
 }: CommunityGuidelinesScreenProps) {
+  const { user, refreshUserData } = useAuth();
   // 체크박스 state (이미 동의했으면 모두 true로 시작)
   const [agreement1, setAgreement1] = useState(isAlreadyAgreed);
   const [agreement2, setAgreement2] = useState(isAlreadyAgreed);
   const [agreement3, setAgreement3] = useState(isAlreadyAgreed);
+  const [saving, setSaving] = useState(false); // 중복 클릭 방지 상태 추가
 
   // 모두 동의했는지 확인
   const allAgreed = useMemo(
@@ -42,13 +47,24 @@ export function CommunityGuidelinesScreen({
     [agreement1, agreement2, agreement3]
   );
   // 버튼 클릭 핸들러
-  const handleContinue = useCallback(() => {
+  const handleContinue = useCallback(async () => {
+    if (saving) return; // 중복 클릭 방지
+
     if (onContinue && allAgreed) {
-      onContinue();
+      setSaving(true);
+      try {
+        if (user) {
+          await updateDoc(doc(db, "users", user.uid), { communityGuidelinesAgreed: true });
+          refreshUserData();
+        }
+        onContinue();
+      } finally {
+        setSaving(false);
+      }
     } else {
       onBack();
     }
-  }, [onContinue, allAgreed, onBack]);
+  }, [onContinue, allAgreed, onBack, user, refreshUserData, saving]);
 
   // ✅ 체크박스 변경 핸들러들 (JSX 안에서 화살표 함수 안 쓰기 위해 분리)
   const handleAgreement1Change = useCallback(

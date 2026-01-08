@@ -2,6 +2,9 @@ import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { LogOut, Sun, Moon, Sparkles } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import { db } from "../firebase";
+import { doc, updateDoc } from "firebase/firestore";
 
 interface WelcomeScreenProps {
   nickname: string;
@@ -21,6 +24,7 @@ Array.from({ length: 20 }).map((_, i) => ({
 }));
 
 export function WelcomeScreen({ nickname, onRestart, onStartApp, isDarkMode, onToggleDarkMode }: WelcomeScreenProps) {
+  const { user, refreshUserData } = useAuth();
 
   return (
     <div className="w-full h-full bg-background text-foreground flex items-center justify-center relative overflow-hidden">
@@ -103,7 +107,13 @@ export function WelcomeScreen({ nickname, onRestart, onStartApp, isDarkMode, onT
                 {/* 만약 색이 다르면 bg-[#BFA15F] 같은 하드코딩 색상으로 변경 가능 */}
                 <Button
                   className="w-full h-11 text-base font-medium rounded-md shadow-sm transition-all active:scale-[0.98]"
-                  onClick={onStartApp}
+                  onClick={async () => {
+                    if (user) {
+                      await updateDoc(doc(db, "users", user.uid), { onboardingComplete: true });
+                      refreshUserData();
+                    }
+                    onStartApp();
+                  }}
                 >
                   <Sparkles className="w-4 h-4 mr-2 opacity-80" />
                   탐험 시작하기

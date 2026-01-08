@@ -33,7 +33,7 @@ interface WeeklyQuiz {
 
 const PROJECT_ID = process.env.GCLOUD_PROJECT || process.env.VERTEX_PROJECT_ID; // Firebase 배포 시 GCLOUD_PROJECT 자동 설정됨
 const LOCATION = "us-central1"; // Gemini 2.0은 us-central1에서만 사용 가능
-const MODEL_ID = "gemini-2.0-flash"; // Gemini 2.0 Flash 모델 사용
+const MODEL_ID = "gemini-2.5-flash"; // Gemini 2.5 Flash 모델 사용
 
 const QUIZ_COLLECTION = "weekly_quizzes";
 const QUESTIONS_PER_CATEGORY = 5; // 한 주차, 한 카테고리당 문제 수 (적절히 조절)

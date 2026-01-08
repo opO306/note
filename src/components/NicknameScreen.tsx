@@ -6,6 +6,7 @@ import { Label } from "./ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { ArrowLeft, Check, AlertCircle, Moon, Sun } from "lucide-react";
 import { auth, functions } from "../firebase";
+import { useAuth } from "../contexts/AuthContext";
 import { httpsCallable } from "firebase/functions";
 import { NicknameConfirmModal } from "./modals/NicknameConfirmModal";
 import { FloatingSymbolItem } from "@/components/FloatingSymbolItem";
@@ -38,10 +39,11 @@ export function NicknameScreen({
   isDarkMode,
   onToggleDarkMode,
 }: NicknameScreenProps) {
+  const { refreshUserData } = useAuth();
   const [nickname, setNickname] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [isChecking, setIsChecking] = useState(false);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [saving, setSaving] = useState(false); // 🔒 중복 클릭 방지 상태 추가
 
   const floatingSymbols = useMemo(() => {
     return Array.from({ length: 30 }, (_, i) => ({
@@ -64,7 +66,7 @@ export function NicknameScreen({
 
   const handleSubmit = useCallback(() => {
     const trimmed = nickname.trim();
-    if (isChecking) return;
+    if (saving) return;
 
     if (trimmed.length < 2 || trimmed.length > 12) {
       setErrorMsg("닉네임은 2~12글자로 입력해주세요.");
@@ -74,7 +76,7 @@ export function NicknameScreen({
       setErrorMsg("한글, 영문, 숫자만 사용할 수 있어요.");
       return;
     }
-    
+
     // ✅ 욕설 필터링 검사
     if (containsProfanity(trimmed)) {
       setErrorMsg("부적절한 단어가 포함되어 있습니다.");
@@ -82,7 +84,7 @@ export function NicknameScreen({
     }
 
     setShowConfirmPopup(true);
-  }, [nickname, isChecking]);
+  }, [nickname, saving]);
 
   const handleCancelModal = useCallback(() => {
     setShowConfirmPopup(false);
@@ -90,7 +92,8 @@ export function NicknameScreen({
 
   const handleConfirmNickname = useCallback(async () => {
     setShowConfirmPopup(false);
-    setIsChecking(true);
+    if (saving) return; // 🔒 중복 클릭 방지
+    setSaving(true);
 
     const user = auth.currentUser;
     if (!user) {
@@ -101,6 +104,10 @@ export function NicknameScreen({
     try {
       const finalizeFn = httpsCallable(functions, "finalizeOnboarding");
       await finalizeFn({ nickname: nickname.trim() });
+
+      // 닉네임 저장 및 사용자 데이터 새로고침 (finalizeOnboarding에서 처리되므로 닉네임 직접 업데이트는 제거)
+      refreshUserData();
+
       onComplete(nickname.trim());
     } catch (error: any) {
       const rawCode = String(error?.code ?? "");
@@ -116,7 +123,7 @@ export function NicknameScreen({
         setErrorMsg("오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       }
     } finally {
-      setIsChecking(false);
+      setSaving(false);
     }
   }, [nickname, onBack, onComplete]);
 
@@ -251,7 +258,7 @@ export function NicknameScreen({
                   onClick={handleSubmit}
                   className="w-full h-12 text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  {isChecking ? "저장 중..." : "계속하기"}
+                  {saving ? "저장 중..." : "계속하기"}
                 </Button>
 
                 <Button

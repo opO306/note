@@ -1,10 +1,7 @@
 /* eslint-disable react/forbid-dom-props */
 import * as React from "react";
-import { Capacitor } from "@capacitor/core";
-import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
 import { Moon, Sun, Loader2 } from "lucide-react";
-import { GoogleAuthProvider, linkWithCredential, signInWithCredential, signInWithPopup } from "firebase/auth";
-import { auth } from "../firebase";
+import { signInWithGoogle } from "../googleAuth";
 import { toast } from "../toastHelper";
 
 import { Button } from "./ui/button";
@@ -88,77 +85,19 @@ export function LoginScreen({
 
   const [agreedToTerms, setAgreedToTerms] = React.useState(false);
   const [isLoggingIn, setIsLoggingIn] = React.useState(false);
-  const isNative = Capacitor.isNativePlatform();
 
   const handleGoogleLogin = React.useCallback(async (): Promise<void> => {
-    // 0) 웹 환경 분기
-    if (!isNative) {
-      if (!agreedToTerms) {
-        toast.error("약관에 동의해주세요.");
-        return;
-      }
-      if (isLoggingIn) return;
-      setIsLoggingIn(true);
-      try {
-        toast.info("WEB GOOGLE SIGNIN START");
-        const provider = new GoogleAuthProvider();
-        // prompt: "select_account"를 추가하여 계정 선택기를 강제
-        provider.setCustomParameters({ prompt: "select_account" });
-        await signInWithPopup(auth, provider);
-        toast.success("WEB GOOGLE SIGNIN OK");
-      } catch (err: unknown) {
-        const message = (err as Error).message ?? "알 수 없는 오류";
-        if (message.includes("popup-closed-by-user")) {
-          toast.info("팝업이 닫혔습니다. 다시 시도해주세요.");
-        } else if (message.includes("auth/cancelled-popup-request")) {
-          toast.info("로그인 팝업 요청이 취소되었습니다.");
-        } else {
-          toast.error(`로그인 실패: ${message}`);
-          console.error("WEB LOGIN ERROR:", err);
-        }
-      } finally {
-        setIsLoggingIn(false);
-      }
-      return;
-    }
-
-    // 1) 약관 동의 확인
     if (!agreedToTerms) {
       toast.error("약관에 동의해주세요.");
       return;
     }
     if (isLoggingIn) return;
     setIsLoggingIn(true);
-
     try {
-      toast.info("GOOGLE SIGNIN START");
-      const googleUser = await GoogleAuth.signIn();
-      console.log("GOOGLE USER RAW:", googleUser);
-      toast.success("GOOGLE SIGNIN OK");
-
-      const idToken = googleUser.authentication.idToken;
-      if (!idToken) throw new Error("ID 토큰이 반환되지 않았습니다.");
-      toast.info("FIREBASE CREDENTIAL");
-
-      const credential = GoogleAuthProvider.credential(idToken);
-
-      // 현재 사용자가 익명 계정인지 확인
-      if (auth.currentUser && auth.currentUser.isAnonymous) {
-        // 익명 계정이라면 Google 계정과 연결
-        await linkWithCredential(auth.currentUser, credential);
-      } else {
-        // 일반 로그인 또는 첫 로그인
-        await signInWithCredential(auth, credential);
-      }
-      toast.success("FIREBASE AUTH OK");
-    } catch (err: unknown) {
-      const message = (err as Error).message ?? "알 수 없는 오류";
-      if (message.includes("User cancelled")) {
-        toast.info("로그인이 취소되었습니다.");
-      } else {
-        toast.error(`로그인 실패: ${message}`);
-        console.error("FULL LOGIN ERROR:", err);
-      }
+      await signInWithGoogle();
+    } catch (err) {
+      console.error("GOOGLE LOGIN FAILED:", err);
+      toast.error("Google 로그인에 실패했습니다.");
     } finally {
       setIsLoggingIn(false);
     }

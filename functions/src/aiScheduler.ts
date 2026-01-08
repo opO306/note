@@ -6,7 +6,7 @@ import { db } from "./firebaseAdmin"; // db 객체 임포트
 
 const SYSTEM_AI_UID = "AI_BOT"; // AI 시스템 UID
 
-export const autoAiReply = onSchedule("every 60 minutes", async (event): Promise<void> => {
+const autoAiReply = onSchedule("every 60 minutes", async (event): Promise<void> => {
     try {
         // DB 초기화 (함수 인스턴스마다 한 번만 실행되도록)
         if (!admin.apps.length) {

@@ -29,7 +29,7 @@ const PROJECT_ID = "dddd-e6a52";
 // 2. 모델 위치: 최신 모델(Gemini 2.0) 사용을 위해 'us-central1' 유지
 const VERTEX_LOCATION = "us-central1";
 // 3. 모델명
-const MODEL_ID = "gemini-2.0-flash";
+const MODEL_ID = "gemini-2.5-flash";
 
 export const aiModerationReview = onCall(
     {

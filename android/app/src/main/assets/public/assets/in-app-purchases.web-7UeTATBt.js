@@ -1,0 +1,1 @@
+import{W as r}from"./vendor-capacitor-B-BXHHKA.js";class t extends r{async initialize(){return{success:!1}}async getProducts(s){return{products:[]}}async purchase(s){return{transaction:null}}async restorePurchases(){return{products:[]}}}export{t as InAppPurchasesWeb};

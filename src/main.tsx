@@ -4,6 +4,7 @@ import "./index.css";
 import { initFirebase, initFirebaseAppCheck } from "./firebase";
 import { initPerformanceMonitoring } from "./utils/performanceMonitoring";
 import * as Sentry from "@sentry/react";
+import { initGoogleAuthOnce } from "./googleAuth";
 
 Sentry.init({
     dsn: "https://2a980add45c1a46d6284b4aff8acc727@o4510675590381568.ingest.us.sentry.io/4510675597000704",
@@ -31,26 +32,9 @@ if (import.meta.env.DEV) {
     import("./utils/sw-unregister");
 }
 
-let googleAuthInitialized = false;
-
-async function initGoogleAuth() {
-  const { Capacitor } = await import("@capacitor/core");
-  if (!Capacitor.isNativePlatform()) return;
-  if (googleAuthInitialized) return;
-
-  const { GoogleAuth } = await import("@codetrix-studio/capacitor-google-auth");
-
-  GoogleAuth.initialize({
-    clientId: import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID,
-    scopes: ["profile", "email"],
-    grantOfflineAccess: false,
-  });
-
-  googleAuthInitialized = true;
-}
 
 async function bootstrap() {
-    await initGoogleAuth(); // 🔒 가장 먼저
+    await initGoogleAuthOnce(); // 🔒 가장 먼저
     // 시스템 네비게이션 바 높이 자동 계산 및 CSS 변수 업데이트
     // env(safe-area-inset-bottom)이 자동으로 작동하지 않는 경우를 대비한 보완 로직
     if (typeof window !== 'undefined') {

@@ -1,4 +1,3 @@
-/// <reference types="@capacitor-firebase/authentication" />
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
@@ -6,12 +5,10 @@ const config: CapacitorConfig = {
   appName: '비유노트',
   webDir: 'build',
   plugins: {
-    FirebaseAuthentication: {
-      skipNativeAuth: true,
-      providers: ['google.com'],
-    },
-    GoogleCredentialAuth: {
-      enabled: true,
+    GoogleAuth: {
+      scopes: ["profile", "email"],
+      serverClientId: "852428184810-eh4ojd3kj5ssvia7o54iteamk2sub31o.apps.googleusercontent.com", // 웹 클라이언트 ID
+      forceCodeForRefreshToken: true,
     },
     SplashScreen: {
       launchShowDuration: 1000, // 1초로 단축 (성능 최적화)

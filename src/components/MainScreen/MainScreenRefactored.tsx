@@ -1506,12 +1506,12 @@ function MainScreenInner({
             onBookmarksClick={navigateToBookmarks}
             onMyPageClick={navigateToMyPage}
             onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+              if (isGuest) {
+                toast.info("로그인 후 이용 가능합니다.");
+              } else {
+                setShowCreateSheet(true);
+              }
+            }}
             activeTab={currentScreen}
           />
         </div>
@@ -1561,12 +1561,12 @@ function MainScreenInner({
             onBookmarksClick={navigateToBookmarks}
             onMyPageClick={navigateToMyPage}
             onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+              if (isGuest) {
+                toast.info("로그인 후 이용 가능합니다.");
+              } else {
+                setShowCreateSheet(true);
+              }
+            }}
             activeTab={currentScreen}
           />
         </div>
@@ -1746,8 +1746,8 @@ function MainScreenInner({
           onBookmarksClick={navigateToBookmarks}
           onMyPageClick={navigateToMyPage}
           onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
+            if (isGuest) {
+              toast.info("로그인 후 이용 가능합니다.");
             } else {
               setShowCreateSheet(true);
             }
@@ -1832,12 +1832,12 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+                  if (isGuest) {
+                    toast.info("로그인 후 이용 가능합니다.");
+                  } else {
+                    setShowCreateSheet(true);
+                  }
+                }}
                 activeTab={currentScreen}
               />
             </div>
@@ -1867,12 +1867,12 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+                  if (isGuest) {
+                    toast.info("로그인 후 이용 가능합니다.");
+                  } else {
+                    setShowCreateSheet(true);
+                  }
+                }}
                 activeTab={currentScreen}
               />
             </div>
@@ -1911,12 +1911,12 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+                  if (isGuest) {
+                    toast.info("로그인 후 이용 가능합니다.");
+                  } else {
+                    setShowCreateSheet(true);
+                  }
+                }}
                 activeTab={currentScreen}
               />
             </div>
@@ -1939,12 +1939,12 @@ function MainScreenInner({
               onBookmarksClick={navigateToBookmarks}
               onMyPageClick={navigateToMyPage}
               onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+                if (isGuest) {
+                  toast.info("로그인 후 이용 가능합니다.");
+                } else {
+                  setShowCreateSheet(true);
+                }
+              }}
               activeTab={currentScreen}
             />
           </div>
@@ -2041,12 +2041,12 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+                  if (isGuest) {
+                    toast.info("로그인 후 이용 가능합니다.");
+                  } else {
+                    setShowCreateSheet(true);
+                  }
+                }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2167,12 +2167,12 @@ function MainScreenInner({
                     onBookmarksClick={navigateToBookmarks}
                     onMyPageClick={navigateToMyPage}
                     onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+                      if (isGuest) {
+                        toast.info("로그인 후 이용 가능합니다.");
+                      } else {
+                        setShowCreateSheet(true);
+                      }
+                    }}
                     activeTab={currentScreen}
                   />
                 </div>
@@ -2202,12 +2202,12 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+                  if (isGuest) {
+                    toast.info("로그인 후 이용 가능합니다.");
+                  } else {
+                    setShowCreateSheet(true);
+                  }
+                }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2240,12 +2240,12 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+                  if (isGuest) {
+                    toast.info("로그인 후 이용 가능합니다.");
+                  } else {
+                    setShowCreateSheet(true);
+                  }
+                }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2300,12 +2300,12 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+                  if (isGuest) {
+                    toast.info("로그인 후 이용 가능합니다.");
+                  } else {
+                    setShowCreateSheet(true);
+                  }
+                }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2328,12 +2328,12 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+                  if (isGuest) {
+                    toast.info("로그인 후 이용 가능합니다.");
+                  } else {
+                    setShowCreateSheet(true);
+                  }
+                }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2373,12 +2373,12 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+                  if (isGuest) {
+                    toast.info("로그인 후 이용 가능합니다.");
+                  } else {
+                    setShowCreateSheet(true);
+                  }
+                }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2403,12 +2403,12 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                        if (isGuest) {
-              console.log("로그인 후 글쓰기 기능을 이용할 수 있습니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
-          }}
+                  if (isGuest) {
+                    toast.info("로그인 후 이용 가능합니다.");
+                  } else {
+                    setShowCreateSheet(true);
+                  }
+                }}
                 activeTab={currentScreen}
               />
             </div>
@@ -2511,7 +2511,7 @@ function MainScreenInner({
       <CreateActionSheet
         open={showCreateSheet}
         onClose={() => setShowCreateSheet(false)}
-        onSelectStructured={isGuest ? () => console.log("로그인 후 이용 가능합니다.") : () => {
+        onSelectStructured={isGuest ? () => toast.info("로그인 후 이용 가능합니다.") : () => {
           setShowCreateSheet(false);
 
           // TODO: 질문 정리 화면 route/layer는 다음 단계에서 추가
@@ -2522,7 +2522,7 @@ function MainScreenInner({
           setShowCreateSheet(false);
           handleStartWriting(); // 기존 글쓰기 그대로
         }}
-        onSelectNotes={isGuest ? () => console.log("로그인 후 이용 가능합니다.") : () => {
+        onSelectNotes={isGuest ? () => toast.info("로그인 후 이용 가능합니다.") : () => {
           setShowCreateSheet(false);
           setRoute({ name: "notes" });
           setCurrentScreen("home");

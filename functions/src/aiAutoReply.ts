@@ -13,7 +13,7 @@ export async function generateAiReply(rawInput: string, postTitle: string): Prom
     });
 
     const model = vertex_ai.getGenerativeModel({
-        model: "gemini-2.0-flash",
+        model: "gemini-2.5-flash",
         generationConfig: {
             maxOutputTokens: 500,
             temperature: 0.7,
@@ -94,7 +94,7 @@ export const aiAutoReply = onCall(
                 authorAvatar: null,
                 createdAt: new Date(),
                 isAi: true,
-                aiLabel: "Gemini 2.0",
+                aiLabel: "Gemini 2.5",
                 lanterns: 0,
                 isGuide: false
             };

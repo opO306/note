@@ -1,11 +1,4 @@
-// functions/src/seedTitles.ts
-
 import { admin, db } from "./firebaseAdmin";
-
-/**
- * Firestore에 titles 컬렉션을 한 번에 채워 넣는 스크립트
- * - node 환경에서 한 번만 실행하면 됨
- */
 
 interface TitleSeedData {
     id: string;
@@ -13,7 +6,6 @@ interface TitleSeedData {
     price: number;
 }
 
-// TitleShop.tsx에서 쓰는 칭호들 + cost 값 그대로 가져온 것
 const TITLE_SEED_DATA: TitleSeedData[] = [
     { id: "guide_sprout", name: "길잡이 꿈나무", price: 0 },
     { id: "little_guide", name: "꼬마 길잡이", price: 3 },
@@ -33,7 +25,7 @@ const TITLE_SEED_DATA: TitleSeedData[] = [
     { id: "philosopher_soul", name: "사유의 항해자", price: 50 },
 ];
 
-async function seedTitles() {
+export async function seedTitles() {
     console.log("[seedTitles] seeding titles...");
 
     const batch = db.batch();
@@ -44,14 +36,11 @@ async function seedTitles() {
         batch.set(
             ref,
             {
-                // 서버에서 실제로 사용할 필드
                 price: title.price,
                 name: title.name,
-
-                // 나중에 디버깅용으로 도움 되는 메타 정보
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             },
-            { merge: true }, // 있으면 덮어쓰고, 없으면 새로 생성
+            { merge: true },
         );
 
         console.log(
@@ -63,12 +52,15 @@ async function seedTitles() {
     console.log("[seedTitles] batch commit 완료");
 }
 
-seedTitles()
-    .then(() => {
-        console.log("[seedTitles] 완료");
-        process.exit(0);
-    })
-    .catch((err) => {
-        console.error("[seedTitles] 오류:", err);
-        process.exit(1);
-    });
+// 이 스크립트가 로컬에서 단독으로 실행될 때만 호출되도록 변경하거나,
+// Firebase Functions로 배포된 후 필요에 따라 호출되도록 변경해야 합니다.
+// 현재는 배포 시 자동으로 실행되지 않도록 제거합니다.
+// seedTitles()
+//     .then(() => {
+//         console.log("[seedTitles] 완료");
+//         process.exit(0);
+//     })
+//     .catch((err) => {
+//         console.error("[seedTitles] 오류:", err);
+//         process.exit(1);
+//     });
