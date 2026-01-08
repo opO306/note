@@ -3,6 +3,8 @@ import { App as CapacitorApp } from "@capacitor/app";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { PluginListenerHandle } from "@capacitor/core";
 
+const DEBUG_LOGIN = import.meta.env.VITE_DEBUG_LOGIN === "true";
+
 // Context
 import { AuthProvider, useAuth } from "./contexts/AuthContext"; // 경로 맞춰주세요
 
@@ -43,7 +45,7 @@ const InitialAppShellFallback = () => (
 
 // ✅ 메인 App 컴포넌트 내부 로직을 분리 (Context 사용을 위해)
 function AppContent({ currentScreen, setCurrentScreen }: { currentScreen: AppScreen | null; setCurrentScreen: React.Dispatch<React.SetStateAction<AppScreen | null>> }) {
-  const { user, userData, isGuest, isLoading, loginAsGuest, logout } = useAuth();
+  const { user, userData, isGuest, isLoading, loginAsGuest, logout, debugMessage } = useAuth();
 
 
   // 테마/UI 상태
@@ -58,31 +60,17 @@ function AppContent({ currentScreen, setCurrentScreen }: { currentScreen: AppScr
   useEffect(() => {
     if (isLoading) return; // 로딩 중엔 대기
 
-    if (isGuest) {
-      // 게스트면 바로 메인
-      setCurrentScreen("main");
-      SplashScreen.hide();
-      return;
-    }
+    let nextScreen: AppScreen;
 
-    if (!user) {
-      // 비로그인 -> 로그인 화면
-      setCurrentScreen("login");
-      SplashScreen.hide();
-      return;
-    }
+    if (isGuest && !user) nextScreen = "main";
+    else if (!user) nextScreen = "login";
+    else if (!userData?.nickname) nextScreen = "nickname";
+    else if (!userData.communityGuidelinesAgreed) nextScreen = "guidelines";
+    else if (!userData.onboardingComplete) nextScreen = "welcome";
+    else nextScreen = "main";
 
-    // 로그인 된 상태: 사용자 데이터 확인 후 적절한 화면으로 이동
-    if (userData) {
-      if (!userData.nickname) {
-        setCurrentScreen("nickname");
-      } else if (!userData.communityGuidelinesAgreed) {
-        setCurrentScreen("guidelines");
-      } else if (!userData.onboardingComplete) {
-        setCurrentScreen("welcome");
-      } else {
-        setCurrentScreen("main");
-      }
+    setCurrentScreen(nextScreen);
+    if (nextScreen !== "login") {
       SplashScreen.hide();
     }
   }, [user, userData, isGuest, isLoading]);
@@ -205,6 +193,23 @@ function AppContent({ currentScreen, setCurrentScreen }: { currentScreen: AppScr
 
   return (
     <div className={`w-full h-screen ${shouldApplyDark ? "dark" : ""} bg-background text-foreground`}>
+      {DEBUG_LOGIN && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: "rgba(0,0,0,0.7)",
+            color: "#0f0",
+            fontSize: 12,
+            padding: 8,
+            zIndex: 9999
+          }}
+        >
+          LOGIN DEBUG: {debugMessage}
+        </div>
+      )}
       {/* 화면 렌더링 (기존 스위치 문과 유사) */}
 
       {currentScreen === "login" && (

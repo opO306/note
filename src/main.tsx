@@ -1,18 +1,56 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { Capacitor } from "@capacitor/core";
-import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
-import { FirebaseAppCheck } from "@capacitor-firebase/app-check"; // App Check 임포트
 import "./index.css";
 import { initFirebase, initFirebaseAppCheck } from "./firebase";
 import { initPerformanceMonitoring } from "./utils/performanceMonitoring";
+import * as Sentry from "@sentry/react";
+
+Sentry.init({
+    dsn: "https://2a980add45c1a46d6284b4aff8acc727@o4510675590381568.ingest.us.sentry.io/4510675597000704",
+
+    integrations: [
+        Sentry.browserTracingIntegration(),
+    ],
+
+    // ✅ v8에서는 여기!
+    tracePropagationTargets: [
+        "localhost",
+        /^https:\/\/yourserver\.io\/api/,
+    ],
+
+    // 로그인 디버깅 중
+    tracesSampleRate: 1.0,
+
+    environment: import.meta.env.MODE,
+});
+
+
 
 if (import.meta.env.DEV) {
-  import("./utils/react-version-check");
-  import("./utils/sw-unregister");
+    import("./utils/react-version-check");
+    import("./utils/sw-unregister");
+}
+
+let googleAuthInitialized = false;
+
+async function initGoogleAuth() {
+  const { Capacitor } = await import("@capacitor/core");
+  if (!Capacitor.isNativePlatform()) return;
+  if (googleAuthInitialized) return;
+
+  const { GoogleAuth } = await import("@codetrix-studio/capacitor-google-auth");
+
+  GoogleAuth.initialize({
+    clientId: import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID,
+    scopes: ["profile", "email"],
+    grantOfflineAccess: false,
+  });
+
+  googleAuthInitialized = true;
 }
 
 async function bootstrap() {
+    await initGoogleAuth(); // 🔒 가장 먼저
     // 시스템 네비게이션 바 높이 자동 계산 및 CSS 변수 업데이트
     // env(safe-area-inset-bottom)이 자동으로 작동하지 않는 경우를 대비한 보완 로직
     if (typeof window !== 'undefined') {
@@ -99,10 +137,11 @@ async function bootstrap() {
     }
 
     // ✅ Cold start 최적화: Firebase 초기화와 App 컴포넌트 로드를 병렬로 실행
-    const [_firebaseInit, AppModule] = await Promise.all([
-        initFirebase(),
-        import("./App")
-    ]);
+    await initFirebase(); // initFirebase()를 await으로 변경
+    void initFirebaseAppCheck().catch(() => {
+        // App Check 초기화 실패는 무시 (백그라운드 작업)
+    });
+    const AppModule = await import("./App");
 
     // ✅ Performance Monitoring 초기화 (백그라운드에서 실행)
     try {
@@ -118,35 +157,6 @@ async function bootstrap() {
     } catch {
         // Foreground 핸들러 초기화 실패는 무시
     }
-
-    // ✅ AppCheck와 Authentication 리스너는 "백그라운드"에서 초기화
-    //    - 첫 화면 렌더링을 막지 않도록 await 사용하지 않음
-    //    - 웹 환경에서는 initFirebaseAppCheck()에서 App Check를 설정
-    //    - 네이티브 환경에서는 Capacitor App Check 플러그인도 함께 초기화
-    void initFirebaseAppCheck().catch(() => {
-        // App Check 초기화 실패는 무시 (백그라운드 작업)
-    });
-
-    if (Capacitor.isNativePlatform()) {
-        try {
-            void FirebaseAppCheck.initialize({
-                isTokenAutoRefreshEnabled: true,
-            });
-        } catch {
-            // App Check initialization failed (로그 제거)
-        }
-    }
-
-    // FirebaseAuthentication 리스너 설정 (렌더링을 블로킹하지 않음)
-    FirebaseAuthentication.removeAllListeners()
-        .then(() => {
-            return FirebaseAuthentication.addListener('authStateChange', () => {
-                // Auth State 변경 (로그 제거)
-            });
-        })
-        .catch(() => {
-            // FirebaseAuthentication listener setup failed (로그 제거)
-        });
 
     // ✅ App 컴포넌트 로드 및 렌더링 (이미 위에서 로드됨)
     const { default: App } = AppModule;
