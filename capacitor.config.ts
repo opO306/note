@@ -13,6 +13,10 @@ const config: CapacitorConfig = {
       androidScaleType: "CENTER_CROP",
       showSpinner: false,
     },
+    FirebaseAuthentication: {
+      skipNativeAuth: false,
+      providers: ["google.com"],
+    },
   },
   server: {
     androidScheme: 'https',
