@@ -7,7 +7,6 @@ import { Loader2 } from "lucide-react";
 
 const DEBUG_LOGIN = import.meta.env.VITE_DEBUG_LOGIN === "true";
 
-import { initGoogleAuth } from "./lib/googleLogin";
 import { auth } from "./firebase";
 
 // Context
@@ -402,10 +401,10 @@ export default function App(): JSX.Element {
     setCurrentScreen("login");
   }, [setCurrentScreen]);
 
-  // ✅ App 시작 시 GoogleAuth 초기화
-  useEffect(() => {
-    initGoogleAuth();
-  }, []);
+  // ✅ Firebase Authentication 초기화 (Capacitor 플러그인 자동 처리)
+  // useEffect(() => {
+  //   initGoogleAuth(); // 제거됨 - @capacitor-firebase/authentication이 자동 처리
+  // }, []);
 
   // ✅ Firebase 인증 상태 변화 감지
   useEffect(() => {

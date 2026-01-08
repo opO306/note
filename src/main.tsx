@@ -4,7 +4,6 @@ import "./index.css";
 import { initFirebaseAppCheck } from "./firebase";
 import { initPerformanceMonitoring } from "./utils/performanceMonitoring";
 import * as Sentry from "@sentry/react";
-import { initGoogleAuth } from "./lib/googleLogin";
 
 Sentry.init({
     dsn: "https://2a980add45c1a46d6284b4aff8acc727@o4510675590381568.ingest.us.sentry.io/4510675597000704",
@@ -45,8 +44,8 @@ async function bootstrap() {
         console.error("App Check init failed", e);
     }
 
-    // 3. GoogleAuth
-    initGoogleAuth();
+    // 3. Firebase Authentication (Capacitor 플러그인 자동 초기화)
+    // initGoogleAuth(); // 제거됨 - @capacitor-firebase/authentication이 자동 처리
 
     // 4. App 로드
     const { default: App } = await import("./App");

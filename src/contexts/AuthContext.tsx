@@ -5,6 +5,7 @@ import { signInGuestSafe } from "../auth/signInGuestSafe";
 import { doc, getDoc } from "firebase/firestore";
 import { AuthError } from "../authErrors";
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+import { PluginListenerHandle } from '@capacitor/core';
 import * as Sentry from "@sentry/react";
 
 // 유저 데이터 타입 정의
@@ -69,17 +70,22 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
     console.log("🔄 AuthContext: 인증 상태 감지 useEffect 시작");
 
     // ✅ 1. Firebase Authentication 플러그인의 authStateChange 이벤트 리스너 추가
-    const authStateChangeListener = FirebaseAuthentication.addListener('authStateChange', async (state) => {
-      console.log("🔥 AuthContext: FirebaseAuthentication authStateChange:", state.user?.email || "로그아웃");
+    let authStateChangeListener: PluginListenerHandle;
+    const setupAuthListener = async () => {
+      authStateChangeListener = await FirebaseAuthentication.addListener('authStateChange', async (state) => {
+        console.log("🔥 AuthContext: FirebaseAuthentication authStateChange:", state.user?.email || "로그아웃");
 
-      if (state.user) {
-        console.log("✅ AuthContext: 네이티브 인증 상태 변경 감지 - 로그인");
-        // 네이티브에서 인증 상태가 변경되면 Firebase JS SDK에도 반영
-        // Firebase JS SDK의 onAuthStateChanged가 이를 처리할 예정
-      } else {
-        console.log("✅ AuthContext: 네이티브 인증 상태 변경 감지 - 로그아웃");
-      }
-    });
+        if (state.user) {
+          console.log("✅ AuthContext: 네이티브 인증 상태 변경 감지 - 로그인");
+          // 네이티브에서 인증 상태가 변경되면 Firebase JS SDK에도 반영
+          // Firebase JS SDK의 onAuthStateChanged가 이를 처리할 예정
+        } else {
+          console.log("✅ AuthContext: 네이티브 인증 상태 변경 감지 - 로그아웃");
+        }
+      });
+    };
+
+    setupAuthListener();
 
     // ✅ 2. 이미 로그인된 상태 fallback
     const current = auth.currentUser;
@@ -130,7 +136,9 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
 
     return () => {
       unsubscribe();
-      authStateChangeListener.remove();
+      if (authStateChangeListener) {
+        authStateChangeListener.remove();
+      }
     };
   }, [fetchUserData]);
 
