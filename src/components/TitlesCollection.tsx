@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { toast } from "../toastHelper";
 import {
     BookOpen,
     Lock,
@@ -37,7 +36,6 @@ interface TitlesCollectionProps {
     equippedTitle: string; // 현재 장착 중인 칭호 ID
     onTitleEquip: (titleId: string) => void;
     onTitleUnequip: () => void;
-    isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 // ----------------------
@@ -124,7 +122,6 @@ export function TitlesCollection({
     equippedTitle,
     onTitleEquip,
     onTitleUnequip,
-    isGuest, // 게스트 모드 여부 추가
 }: TitlesCollectionProps) {
 
     // 1. 데이터 분류 및 메모이제이션
@@ -214,7 +211,6 @@ export function TitlesCollection({
                             onEquip={onTitleEquip}
                             onUnequip={onTitleUnequip}
                             variant="shop"
-                            isGuest={isGuest} // 게스트 모드 여부 추가
                         />
                     ))}
                 </div>
@@ -237,7 +233,6 @@ export function TitlesCollection({
                                     onEquip={onTitleEquip}
                                     onUnequip={onTitleUnequip}
                                     variant="hidden"
-                                    isGuest={isGuest} // 게스트 모드 여부 추가
                                 />
                             ))}
                         </div>
@@ -260,7 +255,6 @@ export function TitlesCollection({
                             onEquip={onTitleEquip}
                             onUnequip={onTitleUnequip}
                             variant="achievement"
-                            isGuest={isGuest} // 게스트 모드 여부 추가
                         />
                     ))}
                 </div>
@@ -296,10 +290,9 @@ interface TitleCardProps {
     onEquip: (id: string) => void;
     onUnequip: () => void;
     variant: 'shop' | 'hidden' | 'achievement';
-    isGuest: boolean; // 게스트 모드 여부 추가
 }
 
-function TitleCard({ title, isUnlocked, isEquipped, onEquip, onUnequip, variant, isGuest }: TitleCardProps) {
+function TitleCard({ title, isUnlocked, isEquipped, onEquip, onUnequip, variant }: TitleCardProps) {
     // 스타일 설정
     const styles = {
         shop: {
@@ -404,11 +397,11 @@ function TitleCard({ title, isUnlocked, isEquipped, onEquip, onUnequip, variant,
                     <div className="shrink-0">
                         {isUnlocked ? (
                             isEquipped ? (
-                                <Button size="sm" variant="outline" onClick={isGuest ? () => toast.info("로그인 후 칭호를 해제할 수 있습니다.") : onUnequip} className="h-8 text-xs" disabled={isGuest}>
+                                <Button size="sm" variant="outline" onClick={onUnequip} className="h-8 text-xs">
                                     해제
                                 </Button>
                             ) : (
-                                <Button size="sm" onClick={isGuest ? () => toast.info("로그인 후 칭호를 장착할 수 있습니다.") : () => onEquip(title.id)} className="h-8 text-xs" disabled={isGuest}>
+                                <Button size="sm" onClick={() => onEquip(title.id)} className="h-8 text-xs">
                                     장착
                                 </Button>
                             )

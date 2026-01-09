@@ -3,7 +3,6 @@
 // 기존 3,472줄 → 약 600줄로 축소
 /* eslint-disable react/jsx-no-bind, react-perf/jsx-no-new-function-as-prop */
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react";
-import { Loader2 } from "lucide-react";
 import { toast } from "@/toastHelper";
 import { App as CapacitorApp } from "@capacitor/app";
 import type { PluginListenerHandle } from "@capacitor/core";
@@ -289,7 +288,6 @@ function MainScreenInner({
   shouldOpenSettingsOnMyPage,
   onMainScreenReady,
   onSettingsOpenedFromMain,
-  isGuest, // 게스트 모드 여부 추가
 }: MainScreenProps) {
   // 현재 테마 확인 (커스텀 테마일 때는 dark 클래스 적용하지 않음)
   const [currentTheme, setCurrentTheme] = useState<string>(() => {
@@ -784,7 +782,6 @@ function MainScreenInner({
     clampedTrust,
     updateActivity,
     userProfileImage,
-    isGuest, // isGuest 추가
   });
 
   const handlePostSelect = useCallback((post: Post) => {
@@ -1507,11 +1504,7 @@ function MainScreenInner({
             onBookmarksClick={navigateToBookmarks}
             onMyPageClick={navigateToMyPage}
             onWriteClick={() => {
-              if (isGuest) {
-                toast.info("로그인 후 이용 가능합니다.");
-              } else {
-                setShowCreateSheet(true);
-              }
+              setShowCreateSheet(true);
             }}
             activeTab={currentScreen}
           />
@@ -1562,11 +1555,7 @@ function MainScreenInner({
             onBookmarksClick={navigateToBookmarks}
             onMyPageClick={navigateToMyPage}
             onWriteClick={() => {
-              if (isGuest) {
-                toast.info("로그인 후 이용 가능합니다.");
-              } else {
-                setShowCreateSheet(true);
-              }
+              setShowCreateSheet(true);
             }}
             activeTab={currentScreen}
           />
@@ -1584,7 +1573,6 @@ function MainScreenInner({
           categories={categories}
           lumenBalance={lumenBalance}
           spendLumens={lumenActions.spendLumens}
-          isGuest={isGuest}
         />
       </Suspense>
     );
@@ -1687,7 +1675,6 @@ function MainScreenInner({
               blockedUserIds={blockedUserIds} // 🆕 차단 목록 전달
               onRefresh={handleRefresh}
               isRefreshing={isRefreshing}
-              isGuest={isGuest} // 게스트 모드 여부 prop 추가
             />
           ) : (
             <>
@@ -1711,7 +1698,6 @@ function MainScreenInner({
                 onTitleShopClick={handleTitleShopClick}
                 isAdmin={isAdmin}
                 onOpenAdminReports={handleOpenAdminReports}
-                isGuest={isGuest} // 게스트 모드 여부 prop 추가
               />
               <PostListView
                 posts={visiblePosts}
@@ -1735,7 +1721,6 @@ function MainScreenInner({
                 onRefresh={handleRefresh}
                 isRefreshing={isRefreshing}
                 isLoading={postsLoading} // ✅ 초기 로딩 상태 전달
-                isGuest={isGuest} // 게스트 모드 여부 prop 추가
                 userUid={auth.currentUser?.uid || ""} // userUid 추가
               />
             </>
@@ -1747,11 +1732,7 @@ function MainScreenInner({
           onBookmarksClick={navigateToBookmarks}
           onMyPageClick={navigateToMyPage}
           onWriteClick={() => {
-            if (isGuest) {
-              toast.info("로그인 후 이용 가능합니다.");
-            } else {
-              setShowCreateSheet(true);
-            }
+            setShowCreateSheet(true);
           }}
           activeTab={currentScreen}
         />
@@ -1825,7 +1806,6 @@ function MainScreenInner({
                 }}
                 autoOpenSettings={shouldOpenSettingsOnMyPage}
                 onAutoSettingsOpened={onSettingsOpenedFromMain}
-                isGuest={isGuest} // 게스트 모드 여부 prop 추가
               />
               <BottomNavigation
                 onHomeClick={navigateToHome}
@@ -1833,11 +1813,7 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                  if (isGuest) {
-                    toast.info("로그인 후 이용 가능합니다.");
-                  } else {
-                    setShowCreateSheet(true);
-                  }
+                  setShowCreateSheet(true);
                 }}
                 activeTab={currentScreen}
               />
@@ -1868,11 +1844,7 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                  if (isGuest) {
-                    toast.info("로그인 후 이용 가능합니다.");
-                  } else {
-                    setShowCreateSheet(true);
-                  }
+                  setShowCreateSheet(true);
                 }}
                 activeTab={currentScreen}
               />
@@ -1904,7 +1876,6 @@ function MainScreenInner({
                 }}
                 userNickname={userNickname}
                 currentTitle={titleActions.currentTitle}
-                isGuest={isGuest}
               />
               <BottomNavigation
                 onHomeClick={navigateToHome}
@@ -1912,11 +1883,7 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                  if (isGuest) {
-                    toast.info("로그인 후 이용 가능합니다.");
-                  } else {
-                    setShowCreateSheet(true);
-                  }
+                  setShowCreateSheet(true);
                 }}
                 activeTab={currentScreen}
               />
@@ -1940,11 +1907,7 @@ function MainScreenInner({
               onBookmarksClick={navigateToBookmarks}
               onMyPageClick={navigateToMyPage}
               onWriteClick={() => {
-                if (isGuest) {
-                  toast.info("로그인 후 이용 가능합니다.");
-                } else {
-                  setShowCreateSheet(true);
-                }
+                setShowCreateSheet(true);
               }}
               activeTab={currentScreen}
             />
@@ -1983,7 +1946,6 @@ function MainScreenInner({
               onBookmarkToggle={bookmarkActions.handleBookmarkToggle}
               formatTimeAgo={formatTimeAgo}
               formatCreatedAt={formatCreatedAt}
-              isGuest={isGuest} // 게스트 모드 여부 prop 추가
             />
           </Suspense>
         </div>
@@ -2012,7 +1974,6 @@ function MainScreenInner({
               onBookmarkToggle={bookmarkActions.handleBookmarkToggle}
               formatTimeAgo={formatTimeAgo}
               formatCreatedAt={formatCreatedAt}
-              isGuest={isGuest} // 게스트 모드 여부 prop 추가
               userUid={auth.currentUser?.uid || ""} // userUid 추가
             />
           </Suspense>
@@ -2032,8 +1993,8 @@ function MainScreenInner({
                   userGuideCount={userStats.userGuideCount}
                   ownedTitles={titleActions.ownedTitles}
                   currentTitle={titleActions.currentTitle}
-                  onTitlePurchase={isGuest ? (_themeId, _cost) => { toast.info("로그인 후 칭호를 구매할 수 있습니다."); return Promise.resolve(false); } : titleActions.handleTitlePurchase} // 게스트 모드 시 제한
-                  onTitleEquip={isGuest ? (_titleId) => toast.info("로그인 후 칭호를 장착할 수 있습니다.") : titleActions.handleTitleEquip} // 게스트 모드 시 제한
+                  onTitlePurchase={titleActions.handleTitlePurchase}
+                  onTitleEquip={titleActions.handleTitleEquip}
                 />
               </div>
               <BottomNavigation
@@ -2042,11 +2003,7 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                  if (isGuest) {
-                    toast.info("로그인 후 이용 가능합니다.");
-                  } else {
-                    setShowCreateSheet(true);
-                  }
+                  setShowCreateSheet(true);
                 }}
                 activeTab={currentScreen}
               />
@@ -2168,11 +2125,7 @@ function MainScreenInner({
                     onBookmarksClick={navigateToBookmarks}
                     onMyPageClick={navigateToMyPage}
                     onWriteClick={() => {
-                      if (isGuest) {
-                        toast.info("로그인 후 이용 가능합니다.");
-                      } else {
-                        setShowCreateSheet(true);
-                      }
+                      setShowCreateSheet(true);
                     }}
                     activeTab={currentScreen}
                   />
@@ -2194,7 +2147,6 @@ function MainScreenInner({
                   equippedTitle={titleActions.currentTitle}
                   onTitleEquip={titleActions.handleTitleEquip}
                   onTitleUnequip={titleActions.handleTitleUnequip}
-                  isGuest={isGuest}
                 />
               </div>
               <BottomNavigation
@@ -2203,11 +2155,7 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                  if (isGuest) {
-                    toast.info("로그인 후 이용 가능합니다.");
-                  } else {
-                    setShowCreateSheet(true);
-                  }
+                  setShowCreateSheet(true);
                 }}
                 activeTab={currentScreen}
               />
@@ -2233,7 +2181,6 @@ function MainScreenInner({
                   setRoute({ name: "userProfile", nickname });
                 }}
                 currentTheme={currentTheme}
-                isGuest={isGuest}
               />
               <BottomNavigation
                 onHomeClick={navigateToHome}
@@ -2241,11 +2188,7 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                  if (isGuest) {
-                    toast.info("로그인 후 이용 가능합니다.");
-                  } else {
-                    setShowCreateSheet(true);
-                  }
+                  setShowCreateSheet(true);
                 }}
                 activeTab={currentScreen}
               />
@@ -2272,7 +2215,7 @@ function MainScreenInner({
                 formatCreatedAt={formatCreatedAt}
                 onLanternToggle={lanternActions.handleLanternToggle}
                 onBookmarkToggle={bookmarkActions.handleBookmarkToggle}
-                onPostClick={isGuest ? (_postId) => toast.info("로그인 후 게시글 상세를 볼 수 있습니다.") : (postId) => {
+                onPostClick={(postId) => {
                   const post = visiblePosts.find((p) => p.id === postId);
                   if (post) {
                     const source = effectiveMyContentList === "posts" ? "myPostsList" : "myRepliesList";
@@ -2281,7 +2224,7 @@ function MainScreenInner({
                     setRoute({ name: "postDetail", postId: post.id, source });
                   }
                 }}
-                onReplyClick={isGuest ? (_postId, _replyId) => toast.info("로그인 후 답글 상세를 볼 수 있습니다.") : (postId, _replyId) => {
+                onReplyClick={(postId, _replyId) => {
                   const post = visiblePosts.find((p) => p.id === postId);
                   if (post) {
                     setPostDetailSource("myRepliesList");
@@ -2293,7 +2236,6 @@ function MainScreenInner({
                     });
                   }
                 }}
-                isGuest={isGuest}
               />
               <BottomNavigation
                 onHomeClick={navigateToHome}
@@ -2301,11 +2243,7 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                  if (isGuest) {
-                    toast.info("로그인 후 이용 가능합니다.");
-                  } else {
-                    setShowCreateSheet(true);
-                  }
+                  setShowCreateSheet(true);
                 }}
                 activeTab={currentScreen}
               />
@@ -2329,11 +2267,7 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                  if (isGuest) {
-                    toast.info("로그인 후 이용 가능합니다.");
-                  } else {
-                    setShowCreateSheet(true);
-                  }
+                  setShowCreateSheet(true);
                 }}
                 activeTab={currentScreen}
               />
@@ -2374,11 +2308,7 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                  if (isGuest) {
-                    toast.info("로그인 후 이용 가능합니다.");
-                  } else {
-                    setShowCreateSheet(true);
-                  }
+                  setShowCreateSheet(true);
                 }}
                 activeTab={currentScreen}
               />
@@ -2404,11 +2334,7 @@ function MainScreenInner({
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
                 onWriteClick={() => {
-                  if (isGuest) {
-                    toast.info("로그인 후 이용 가능합니다.");
-                  } else {
-                    setShowCreateSheet(true);
-                  }
+                  setShowCreateSheet(true);
                 }}
                 activeTab={currentScreen}
               />
@@ -2420,7 +2346,7 @@ function MainScreenInner({
       {/* 2. 알림 설정 다이얼로그 수정 */}
       {showNotificationSettings && (
         <div className="fixed inset-0 z-50 bg-background">
-          <Suspense fallback={<div className="flex items-center justify-center p-4"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
+          <Suspense fallback={null}>
             <NotificationSettingsDialog
               onBack={handleLayerBack}
               categories={categories}
@@ -2431,7 +2357,7 @@ function MainScreenInner({
 
       {/* 3. 신고 다이얼로그 (게시글) 수정 */}
       {reportingPost && (
-        <Suspense fallback={<div className="flex items-center justify-center p-4"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
+        <Suspense fallback={null}>
           <ReportDialog
             open={!!reportingPost}
             onOpenChange={(open) => !open && setReportingPost(null)}
@@ -2465,7 +2391,7 @@ function MainScreenInner({
 
       {/* 4. 신고 다이얼로그 (답글) 수정 */}
       {reportingReply && (
-        <Suspense fallback={<div className="flex items-center justify-center p-4"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
+        <Suspense fallback={null}>
           <ReportDialog
             open={!!reportingReply}
             onOpenChange={(open) => !open && setReportingReply(null)}
@@ -2512,18 +2438,15 @@ function MainScreenInner({
       <CreateActionSheet
         open={showCreateSheet}
         onClose={() => setShowCreateSheet(false)}
-        onSelectStructured={isGuest ? () => toast.info("로그인 후 이용 가능합니다.") : () => {
+        onSelectStructured={() => {
           setShowCreateSheet(false);
-
-          // TODO: 질문 정리 화면 route/layer는 다음 단계에서 추가
-          // 지금은 일단 route만 이동하게 해도 됨
           setRoute({ name: "questionCompose" });
         }}
-        onSelectWrite={isGuest ? () => toast.info("로그인 후 이용 가능합니다.") : () => {
+        onSelectWrite={() => {
           setShowCreateSheet(false);
           handleStartWriting(); // 기존 글쓰기 그대로
         }}
-        onSelectNotes={isGuest ? () => toast.info("로그인 후 이용 가능합니다.") : () => {
+        onSelectNotes={() => {
           setShowCreateSheet(false);
           setRoute({ name: "notes" });
           setCurrentScreen("home");

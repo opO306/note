@@ -1,0 +1,1 @@
+const n="login_debug_events_v1";function c(e,t){try{return e?JSON.parse(e):t}catch{return t}}function a(){return c(localStorage.getItem(n),[])}function g(){localStorage.removeItem(n)}function i(e,t){const o=a(),r={t:Date.now(),step:e,data:t},s=[...o,r].slice(-80);localStorage.setItem(n,JSON.stringify(s))}export{g as c,i as p,a as r};

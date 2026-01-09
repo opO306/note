@@ -38,16 +38,7 @@
     android:theme="@style/AppTheme"
     android:enableOnBackInvokedCallback="true"
     android:usesCleartextTraffic="true"
-  >
-        <!-- Google Sign-In API 키 -->
-        <meta-data
-            android:name="com.google.android.gms.version"
-            android:value="@integer/google_play_services_version" />
-
-        <!-- Firebase 설정 -->
-        <meta-data
-            android:name="firebase_analytics_collection_enabled"
-            android:value="false" />
+  > <!-- ✅ 2. 로그 경고 해결 (뒤로가기 제스처) -->
 
         <activity
       android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation"

@@ -13,24 +13,16 @@ interface UseAppInitializationReturn {
     };
     globalError: string | null;
     resetAuthState: () => Promise<void>;
-    isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 
-const GUEST_USER_DATA = {
-    nickname: "게스트 사용자",
-    email: "", // 게스트는 이메일이 없음
-    profileImage: "", // 게스트용 기본 프로필 이미지 URL (필요시 추후 업데이트)
-};
 
 
-export function useAppInitialization(options?: { enableGuestMode?: boolean }): UseAppInitializationReturn {
-    const { enableGuestMode = false } = options || {};
+export function useAppInitialization(): UseAppInitializationReturn {
     const [isLoading, setIsLoading] = useState(true);
     const [initialScreen, setInitialScreen] = useState<string | null>(null);
     const [userData, setUserData] = useState({ nickname: "", email: "", profileImage: "" });
     const [globalError] = useState<string | null>(null);
-    const [isGuest, setIsGuest] = useState(false); // 게스트 모드 상태 추가
 
     useEffect(() => {
         loginLog("WAITING_AUTH");
@@ -38,14 +30,8 @@ export function useAppInitialization(options?: { enableGuestMode?: boolean }): U
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (!user) {
                 loginLog("AUTH_USER_NULL");
-                if (enableGuestMode) {
-                    setUserData(GUEST_USER_DATA);
-                    setIsGuest(true);
-                    setInitialScreen("main");
-                } else {
-                    setUserData(GUEST_USER_DATA);
-                    setInitialScreen("login");
-                }
+                setUserData({ nickname: "", email: "", profileImage: "" });
+                setInitialScreen("login");
                 setIsLoading(false);
                 return;
             }
@@ -121,7 +107,6 @@ export function useAppInitialization(options?: { enableGuestMode?: boolean }): U
     const resetAuthState = useCallback(async () => {
         setUserData({ nickname: "", email: "", profileImage: "" });
         setInitialScreen("login");
-        setIsGuest(false); // ✅ 반드시
         setIsLoading(false);
 
         try {
@@ -137,6 +122,5 @@ export function useAppInitialization(options?: { enableGuestMode?: boolean }): U
         userData,
         globalError,
         resetAuthState,
-        isGuest,
     };
 }

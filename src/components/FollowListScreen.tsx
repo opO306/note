@@ -21,7 +21,6 @@ interface FollowListScreenProps {
   onBack: () => void;
   onUserClick?: (nickname: string) => void;
   currentTheme?: string | null;
-  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 // 🔹 개별 유저 카드

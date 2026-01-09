@@ -17,7 +17,6 @@ interface ReplyData {
   hidden?: boolean;
   autoHiddenAt?: admin.firestore.Timestamp;
   clientIp?: string; // clientIp 추가
-  guestId?: string; // guestId 추가
   [key: string]: any;
 }
 
@@ -27,7 +26,6 @@ interface PostData {
   hidden?: boolean;
   replies?: ReplyData[];
   clientIp?: string; // clientIp 추가
-  guestId?: string; // guestId 추가
   [key: string]: any;
 }
 
@@ -252,32 +250,23 @@ export const onReportStatusChanged = onDocumentUpdated(
           // IP 차단 로직
           if (postData.clientIp) {
             await db.collection("blockedIPs").doc(postData.clientIp).set({
-                ip: postData.clientIp,
-                reason: "Report Confirmed (Post)",
-                blockedAt: admin.firestore.FieldValue.serverTimestamp(),
-                triggeredByReportId: after.id,
-                triggeredByPostId: targetId,
+              ip: postData.clientIp,
+              reason: "Report Confirmed (Post)",
+              blockedAt: admin.firestore.FieldValue.serverTimestamp(),
+              triggeredByReportId: after.id,
+              triggeredByPostId: targetId,
             });
             logger.warn(`[Report Trigger] 신고 확정으로 IP(${postData.clientIp}) 자동 차단됨 (게시글: ${targetId}).`);
           }
-          
+
           // 계정 정지 로직 (일반 사용자 또는 게스트 ID)
           if (postData.authorUid) { // 일반 사용자
-              await tx.update(db.collection("users").doc(postData.authorUid), {
-                  isSuspended: true,
-                  suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
-                  suspendedReason: "Report Confirmed (Post)",
-              });
-              logger.warn(`[Report Trigger] 신고 확정으로 사용자 UID(${postData.authorUid}) 정지됨 (게시글: ${targetId}).`);
-          } else if (postData.guestId) { // 게스트 사용자
-              await db.collection("suspendedGuestIds").doc(postData.guestId).set({
-                  guestId: postData.guestId,
-                  reason: "Report Confirmed (Post)",
-                  suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
-                  triggeredByReportId: after.id,
-                  triggeredByPostId: targetId,
-              });
-              logger.warn(`[Report Trigger] 신고 확정으로 게스트 ID(${postData.guestId}) 정지됨 (게시글: ${targetId}).`);
+            await tx.update(db.collection("users").doc(postData.authorUid), {
+              isSuspended: true,
+              suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
+              suspendedReason: "Report Confirmed (Post)",
+            });
+            logger.warn(`[Report Trigger] 신고 확정으로 사용자 UID(${postData.authorUid}) 정지됨 (게시글: ${targetId}).`);
           }
         }
       } else if (targetType === "reply") {
@@ -298,34 +287,24 @@ export const onReportStatusChanged = onDocumentUpdated(
           // IP 차단 로직
           if (replies[index].clientIp) {
             await db.collection("blockedIPs").doc(replies[index].clientIp!).set({
-                ip: replies[index].clientIp,
-                reason: "Report Confirmed (Reply)",
-                blockedAt: admin.firestore.FieldValue.serverTimestamp(),
-                triggeredByReportId: after.id,
-                triggeredByPostId: postId,
-                triggeredByReplyId: targetId,
+              ip: replies[index].clientIp,
+              reason: "Report Confirmed (Reply)",
+              blockedAt: admin.firestore.FieldValue.serverTimestamp(),
+              triggeredByReportId: after.id,
+              triggeredByPostId: postId,
+              triggeredByReplyId: targetId,
             });
             logger.warn(`[Report Trigger] 신고 확정으로 IP(${replies[index].clientIp}) 자동 차단됨 (댓글: ${targetId}).`);
           }
 
           // 계정 정지 로직 (일반 사용자 또는 게스트 ID)
           if (replies[index].authorUid) { // 일반 사용자
-              await tx.update(db.collection("users").doc(replies[index].authorUid!), {
-                  isSuspended: true,
-                  suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
-                  suspendedReason: "Report Confirmed (Reply)",
-              });
-              logger.warn(`[Report Trigger] 신고 확정으로 사용자 UID(${replies[index].authorUid}) 정지됨 (댓글: ${targetId}).`);
-          } else if (replies[index].guestId) { // 게스트 사용자
-              await db.collection("suspendedGuestIds").doc(replies[index].guestId!).set({
-                  guestId: replies[index].guestId,
-                  reason: "Report Confirmed (Reply)",
-                  suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
-                  triggeredByReportId: after.id,
-                  triggeredByPostId: postId,
-                  triggeredByReplyId: targetId,
-              });
-              logger.warn(`[Report Trigger] 신고 확정으로 게스트 ID(${replies[index].guestId}) 정지됨 (댓글: ${targetId}).`);
+            await tx.update(db.collection("users").doc(replies[index].authorUid!), {
+              isSuspended: true,
+              suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
+              suspendedReason: "Report Confirmed (Reply)",
+            });
+            logger.warn(`[Report Trigger] 신고 확정으로 사용자 UID(${replies[index].authorUid}) 정지됨 (댓글: ${targetId}).`);
           }
         }
       }

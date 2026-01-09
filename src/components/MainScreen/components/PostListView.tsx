@@ -3,7 +3,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { Virtuoso } from "react-virtuoso";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/toastHelper";
 import { Card, CardContent } from "@/components/ui/card";
 import { OptimizedAvatar } from "@/components/OptimizedAvatar";
 import { Badge } from "@/components/ui/badge";
@@ -68,7 +67,6 @@ interface PostListViewProps {
   currentTitle: string;
   // 자신의 신뢰도 (자신의 게시물에 기둥 표시용)
   userTrustScore?: number;
-  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 function PostListViewComponent({
@@ -94,7 +92,6 @@ function PostListViewComponent({
   isRefreshing = false,
   isLoading = false, // ✅ 초기 로딩 상태
   userTrustScore,
-  isGuest, // 게스트 모드 여부 추가
 }: PostListViewProps) {
 
   // 🆕 [추가] 차단된 유저의 게시글 필터링
@@ -169,7 +166,7 @@ function PostListViewComponent({
           </div>
         ) : visiblePosts.length === 0 ? (
           <div className="h-full overflow-y-auto scrollbar-hide p-4">
-            <EmptyState onStartWriting={onStartWriting} isGuest={isGuest} />
+            <EmptyState onStartWriting={onStartWriting} />
           </div>
         ) : (
           <PostCardsList
@@ -188,7 +185,6 @@ function PostListViewComponent({
             onBookmarkToggle={onBookmarkToggle}
             scrollRef={scrollRef}
             userTrustScore={userTrustScore}
-            isGuest={isGuest} // 게스트 모드 여부 추가
           />
         )}
       </div>
@@ -277,7 +273,7 @@ function SubCategoryBar({
     </div>
   );
 }
-function EmptyState({ onStartWriting, isGuest }: { onStartWriting: () => void; isGuest: boolean }) {
+function EmptyState({ onStartWriting }: { onStartWriting: () => void }) {
   return (
     <EmptyStatePanel
       icon={<LanternIcon className="w-20 h-20 text-amber-900 dark:text-amber-200" />}
@@ -285,9 +281,8 @@ function EmptyState({ onStartWriting, isGuest }: { onStartWriting: () => void; i
       description="첫 번째 글을 작성해서 비유노트 커뮤니티를 시작해보세요!"
       action={
         <Button
-          onClick={isGuest ? () => toast.info("로그인 후 글쓰기 기능을 이용할 수 있습니다.") : onStartWriting}
+          onClick={onStartWriting}
           className="bg-primary text-primary-foreground px-6 py-2 rounded-xl"
-          disabled={isGuest} // 게스트 모드 시 비활성화
         >
           <Plus className="w-4 h-4 mr-2" />
           첫 글 작성하기
@@ -315,7 +310,6 @@ interface PostCardsListProps {
   onBookmarkToggle: (postId: string | number) => void;
   scrollRef?: React.RefObject<HTMLElement | null>;
   userTrustScore?: number;
-  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 export const PostCardsList = React.memo(function PostCardsList({
@@ -334,7 +328,6 @@ export const PostCardsList = React.memo(function PostCardsList({
   onBookmarkToggle,
   scrollRef,
   userTrustScore,
-  isGuest, // 게스트 모드 여부 추가
 }: PostCardsListProps) {
   const cardItems = useMemo(
     () =>
@@ -386,7 +379,6 @@ export const PostCardsList = React.memo(function PostCardsList({
               onBookmarkToggle={onBookmarkToggle}
               index={index}
               userTrustScore={userTrustScore}
-              isGuest={isGuest} // 게스트 모드 여부 추가
             />
           </div>
         );
@@ -411,7 +403,6 @@ export interface PostCardProps {
   onBookmarkToggle: (postId: string | number) => void;
   index?: number;
   userTrustScore?: number;
-  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 export const PostCard = React.memo(
@@ -431,7 +422,6 @@ export const PostCard = React.memo(
     onBookmarkToggle,
     index = 999,
     userTrustScore,
-    isGuest, // 게스트 모드 여부 추가
   }: PostCardProps & { index?: number }) => {
     const { navigateToLogin } = useAuth(); // navigateToLogin 가져오기
     const [showLoginConfirm, setShowLoginConfirm] = useState(false); // 로그인 필요 다이얼로그
@@ -476,13 +466,6 @@ export const PostCard = React.memo(
 
     const handleLanternClick = useCallback(
       (e: React.MouseEvent<HTMLButtonElement>) => {
-        if (isGuest) { // 게스트 모드 시 제한 (moderation 조건 제거)
-          setShowLoginConfirm(true); // 로그인 필요 다이얼로그 표시
-          e.preventDefault();
-          e.stopPropagation();
-          e.nativeEvent.stopImmediatePropagation();
-          return;
-        }
         e.preventDefault();
         e.stopPropagation();
         e.nativeEvent.stopImmediatePropagation();
@@ -507,22 +490,16 @@ export const PostCard = React.memo(
 
         onLanternToggle(post.id);
       },
-      [onLanternToggle, post.id, isGuest] // isModerated 의존성 제거
+      [onLanternToggle, post.id]
     );
 
     const handleBookmarkClick = useCallback(
       (e: React.MouseEvent) => {
-        if (isGuest) { // 게스트 모드 시 제한 (moderation 조건 제거)
-          setShowLoginConfirm(true); // 로그인 필요 다이얼로그 표시
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        }
         e.preventDefault();
         e.stopPropagation();
         onBookmarkToggle(post.id);
       },
-      [onBookmarkToggle, post.id, isGuest] // isModerated 의존성 제거
+      [onBookmarkToggle, post.id]
     );
 
     // 현재 테마 확인 (useMemo로 최적화)
@@ -660,7 +637,7 @@ export const PostCard = React.memo(
                       </div>
                     </div>
 
-                    {/* 타입 / 카테고리 텍스트 (닉네임 아래, 배지 제거) */}
+                    {/* 타입 / 카테고리 텍스트 (닉네임 아래, 배지 제거) */} 
                     {(() => {
                       const parts = [
                         post.category && post.category !== "전체" ? post.category : null,
@@ -711,7 +688,7 @@ export const PostCard = React.memo(
                         data-post-id={post.id}
                         className={`h-8 px-2 space-x-1 ${isLanterned ? "text-amber-500" : "text-muted-foreground"
                           }`}
-                        disabled={isGuest} // 게스트 모드 시 비활성화 (moderation 조건 제거)
+                        disabled={false}
                       >
                         {isLanterned ? (
                           <LanternFilledIcon className="w-4 h-4" />
@@ -749,7 +726,7 @@ export const PostCard = React.memo(
                     onClick={handleBookmarkClick}
                     className={`h-8 px-2 ${isBookmarked ? "text-primary" : "text-muted-foreground"
                       }`}
-                    disabled={isGuest} // 게스트 모드 시 비활성화 (moderation 조건 제거)
+                    disabled={false}
                   >
                     <Bookmark
                       className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""

@@ -36,7 +36,7 @@ export { generateWeeklyQuiz } from "./weeklyQuiz";
 export { onPostCreated, onPostUpdated, onReportCreated, onReportStatusChanged, onFollowCreated, onFollowDeleted, onNotificationCreated, onLanternCreated } from "./triggers";
 
 // callable.ts
-export { finalizeOnboarding, deleteAccount, verifyLogin, toggleLantern, toggleReplyLantern, awardLumens, purchaseTitle, selectGuide, callSagesBell, verifyThemePurchase } from "./callable";
+export { finalizeOnboarding, deleteAccount, verifyLogin, toggleLantern, toggleReplyLantern, awardLumens, purchaseTitle, selectGuide, callSagesBell, verifyThemePurchase, mergeUserData } from "./callable";
 
 // dailyRecommendations.ts
 export { sendMorningRecommendations } from "./dailyRecommendations";

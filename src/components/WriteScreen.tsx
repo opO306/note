@@ -48,16 +48,14 @@ interface WriteScreenContentProps {
   categories: Category[];
   lumenBalance?: number;
   spendLumens?: (amount: number, reason: string, titleId?: string) => Promise<boolean>;
-  isGuest: boolean;
 }
 
 // 상수로 정의 (WriteScreen에서만 사용되는 것으로 가정)
-const GUEST_ID_KEY = "guestId";
 const DRAFT_EXPIRE_MS = 60 * 60 * 1000; // 1시간
 const LAST_POST_SUBMIT_TIME_KEY = "lastPostSubmitTime";
 const POST_COOLDOWN_MS = 30 * 1000; // 30초
 
-export default function WriteScreenContent({ onBack, onSubmit, categories, lumenBalance: _lumenBalance = 0, spendLumens: _spendLumens, isGuest }: WriteScreenContentProps) {
+export default function WriteScreenContent({ onBack, onSubmit, categories, lumenBalance: _lumenBalance = 0, spendLumens: _spendLumens }: WriteScreenContentProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [postType, setPostType] = useState<"question" | "guide">("question");
@@ -74,9 +72,7 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasUnsavedChanges = useRef(false);
   const [clientIp, setClientIp] = useState<string | undefined>(undefined); // IP 주소 상태 추가
-  const [guestId, setGuestId] = useState<string | undefined>(undefined); // 게스트 ID 상태 추가
   const [blockedIPs, setBlockedIPs] = useState<Set<string>>(new Set()); // 차단된 IP 목록 상태
-  const [blockedGuestIds, setBlockedGuestIds] = useState<Set<string>>(new Set()); // 차단된 게스트 ID 목록 상태
 
   // Keyboard handling
   const keyboard = useKeyboard();
@@ -109,20 +105,6 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
     fetchIpAddress();
   }, []);
 
-  // 게스트 ID 생성 및 로드
-  useEffect(() => {
-    if (isGuest) {
-      let currentGuestId = safeLocalStorage.getItem(GUEST_ID_KEY);
-      if (!currentGuestId) {
-        currentGuestId = `게스트${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-        safeLocalStorage.setItem(GUEST_ID_KEY, currentGuestId);
-      }
-      setGuestId(currentGuestId);
-    } else {
-      setGuestId(undefined);
-      safeLocalStorage.removeItem(GUEST_ID_KEY);
-    }
-  }, [isGuest]);
 
   // 차단된 IP 목록 불러오기
   useEffect(() => {
@@ -139,22 +121,6 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
     fetchBlockedIPs();
   }, []);
 
-  // 차단된 게스트 ID 목록 불러오기
-  useEffect(() => {
-    const fetchBlockedGuestIds = async () => {
-      try {
-        const blockedGuestIdsSnapshot = await getDocs(collection(db, "suspendedGuestIds"));
-        const ids = new Set<string>();
-        blockedGuestIdsSnapshot.forEach((doc: QueryDocumentSnapshot) => ids.add(doc.id));
-        setBlockedGuestIds(ids);
-      } catch (error) {
-        console.error("차단된 게스트 ID 목록 로드 실패:", error);
-      }
-    };
-    if (isGuest) {
-      fetchBlockedGuestIds();
-    }
-  }, [isGuest]);
 
   // 설정 화면에서 저장한 자동 저장 여부 불러오기
   useEffect(() => {
@@ -369,11 +335,6 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
       return;
     }
 
-    // 게스트 ID 차단 확인
-    if (isGuest && guestId && blockedGuestIds.has(guestId)) {
-      toast.error("게스트 계정이 정지되었습니다. 관리자에게 문의하세요.");
-      return;
-    }
 
     // 2단계: 쿨타임 체크
     const lastSubmitTimeStr = safeLocalStorage.getItem(LAST_POST_SUBMIT_TIME_KEY);
@@ -436,11 +397,6 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
     }
 
     // 5단계: 모든 검사를 통과하면 제출
-    // 게스트 모드에서는 글쓰기 불가
-    if (isGuest) {
-      setShowLoginConfirm(true); // 로그인 필요 다이얼로그 표시
-      return;
-    }
 
     onSubmit({
       title: title.trim(),
@@ -450,7 +406,6 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
       type: postType,
       tags,
       // 게스트 모드에서 글 작성을 막으므로, 이 로직은 더 이상 필요 없음
-      // ...(isGuest && { moderationStatus: "pending", guestId }),
       clientIp, // 획득한 IP 주소 추가
     });
 
@@ -459,7 +414,7 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
 
     // 임시저장 삭제
     clearDraft();
-  }, [isOnline, title, content, selectedCategory, postType, selectedSubCategory, tags, onSubmit, clearDraft, isGuest, clientIp, guestId, blockedIPs, blockedGuestIds]);
+  }, [isOnline, title, content, selectedCategory, postType, selectedSubCategory, tags, onSubmit, clearDraft, clientIp, blockedIPs]);
 
   const handleBack = useCallback(() => {
     // 작성 중인 내용이 있으면 확인
@@ -528,11 +483,8 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
     !content.trim() ||
     !selectedCategory ||
     !isOnline ||
-    (clientIp && blockedIPs.has(clientIp)) ||
-    (guestId && blockedGuestIds.has(guestId)) ||
-    isGuest // 게스트 모드일 경우 무조건 비활성화
+    (clientIp && blockedIPs.has(clientIp))
   );
-
   return (
     <div className="w-full h-full bg-background text-foreground overflow-hidden flex flex-col">
       {/* Header */}
@@ -838,4 +790,6 @@ export default function WriteScreenContent({ onBack, onSubmit, categories, lumen
       />
     </div>
   );
-}
+};
+
+

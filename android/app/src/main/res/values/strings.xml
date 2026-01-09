@@ -4,6 +4,7 @@
     <string name="title_activity_main">비유노트</string>
     <string name="package_name">com.bivunote.app</string>
     <string name="custom_url_scheme">com.bivunote.app</string>
+    <string name="server_client_id">852428184810-eh4ojd3kj5ssvia7o54iteamk2sub31o.apps.googleusercontent.com</string>
      <string
     name="default_web_client_id"
   >852428184810-eh4ojd3kj5ssvia7o54iteamk2sub31o.apps.googleusercontent.com</string>

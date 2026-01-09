@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo, useDeferredValue, useEffect } from "react";
 import { useScrollRestoration } from "./hooks/useScrollRestoration";
 import { useStabilizedList } from "./hooks/useStabilizedList";
-import { toast } from "../toastHelper";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { OptimizedAvatar } from "@/components/OptimizedAvatar";
@@ -36,7 +35,6 @@ interface BookmarkScreenProps {
   // ✅ 현재 로그인한 사용자 정보 (칭호 표시용)
   userNickname: string;
   currentTitle: string;
-  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 export function BookmarkScreen({
@@ -46,7 +44,6 @@ export function BookmarkScreen({
   onPostSelect,
   userNickname,
   currentTitle,
-  isGuest, // 게스트 모드 여부 추가
 }: BookmarkScreenProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
@@ -249,7 +246,6 @@ export function BookmarkScreen({
                   onSelect={handlePostSelect}
                   getAuthorTitle={getAuthorTitle}
                   authorProfile={authorProfile}
-                  isGuest={isGuest} // 게스트 모드 여부 추가
                 />
               );
             })}
@@ -265,11 +261,10 @@ interface BookmarkCardProps {
   onSelect: (postId: number) => void;
   getAuthorTitle: (author: string | undefined) => string | undefined;
   authorProfile?: { profileImage: string | null; currentTitleId: string | null };
-  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 const BookmarkCard = React.memo(
-  ({ post, onSelect, getAuthorTitle, authorProfile, isGuest }: BookmarkCardProps) => { // isGuest 추가
+  ({ post, onSelect, getAuthorTitle, authorProfile }: BookmarkCardProps) => {
     const handleClick = useCallback(() => {
       onSelect(post.id);
     }, [onSelect, post.id]);
@@ -339,9 +334,6 @@ const BookmarkCard = React.memo(
               </div>
               <Bookmark
                 className={`w-4 h-4 ${isBookmarked ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`}
-                onClick={isGuest ? () => toast.info("로그인 후 북마크를 관리할 수 있습니다.") : undefined} // 게스트 모드 시 토스트 메시지
-                // 북마크 아이콘 자체는 비활성화하기 어려우므로, onClick을 제한하고 CSS로 커서 변경 가능
-                style={isGuest ? { cursor: "not-allowed" } : undefined}
               />
             </div>
 

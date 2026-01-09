@@ -70,7 +70,6 @@ export interface Reply {
   aiSource?: string;
   moderationStatus?: "pending" | "approved" | "rejected" | "needs_review" | "action_needed" | "error"; // moderationStatus 추가
   clientIp?: string; // clientIp 추가
-  guestId?: string; // guestId 추가
 }
 
 /**
@@ -228,7 +227,6 @@ export interface MainScreenProps {
   shouldOpenSettingsOnMyPage?: boolean;
   onMainScreenReady?: () => void;
   onSettingsOpenedFromMain?: () => void;
-  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 /**

@@ -5,6 +5,12 @@ const config: CapacitorConfig = {
   appName: '비유노트',
   webDir: 'build',
   plugins: {
+    GoogleAuth: {
+      scopes: ["profile", "email"],
+      clientId: "852428184810-eh4ojd3kj5ssvia7o54iteamk2sub31o.apps.googleusercontent.com",
+      serverClientId: "852428184810-eh4ojd3kj5ssvia7o54iteamk2sub31o.apps.googleusercontent.com",
+      forceCodeForRefreshToken: true,
+    },
     SplashScreen: {
       launchShowDuration: 1000, // 1초로 단축 (성능 최적화)
       launchAutoHide: true,
@@ -13,15 +19,7 @@ const config: CapacitorConfig = {
       androidScaleType: "CENTER_CROP",
       showSpinner: false,
     },
-    FirebaseAuthentication: {
-      skipNativeAuth: false,
-      providers: ["google.com"],
-    },
   },
-  server: {
-    androidScheme: 'https',
-    hostname: 'com.bivunote.app', // 👈 이 줄을 추가해주세요! (고유 도메인 처리)
-  }
 };
 
 export default config;

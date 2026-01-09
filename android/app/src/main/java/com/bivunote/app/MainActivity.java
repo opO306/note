@@ -33,7 +33,6 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         // Bridge가 초기화되기 전에 플러그인을 등록합니다.
-        registerPlugin(FirebaseAuthenticationPlugin.class);
         registerPlugin(InAppPurchasesPlugin.class);
 
         setTheme(R.style.AppTheme_NoActionBar); // SplashScreen 테마 설정
@@ -61,22 +60,15 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onStart() {
         super.onStart();
-        android.util.Log.d("MainActivity", "🔄 MainActivity.onStart() 호출됨");
 
         // WebView 설정
         Bridge bridge = getBridge();
-        if (bridge == null) {
-            android.util.Log.w("MainActivity", "⚠️ Bridge가 null입니다");
+        if (bridge == null)
             return;
-        }
 
         WebView webView = bridge.getWebView();
-        if (webView == null) {
-            android.util.Log.w("MainActivity", "⚠️ WebView가 null입니다");
+        if (webView == null)
             return;
-        }
-
-        android.util.Log.d("MainActivity", "✅ WebView 정상 발견, 설정 적용 시작");
 
         WebSettings settings = webView.getSettings();
 
@@ -88,36 +80,8 @@ public class MainActivity extends BridgeActivity {
         // - LOAD_CACHE_ELSE_NETWORK: 네트워크가 되어도 캐시 우선(구버전 콘텐츠 노출 위험)
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
-        android.util.Log.d("MainActivity", "✅ WebView 설정 완료");
-
         // AppCache 관련 API는 SDK에서 제거되어 컴파일 에러를 유발하므로 사용하지 않음.
         // settings.setAppCacheEnabled(...) // 제거
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        android.util.Log.d("MainActivity", "🔄 MainActivity.onResume() 호출됨 - Google Sign-In 후 복귀 시점");
-
-        // WebView 상태 확인
-        Bridge bridge = getBridge();
-        if (bridge != null) {
-            WebView webView = bridge.getWebView();
-            if (webView != null) {
-                android.util.Log.d("MainActivity", "✅ WebView 상태 정상 - URL: " + webView.getUrl());
-                android.util.Log.d("MainActivity", "✅ WebView 로딩 진행중: " + webView.getProgress() + "%");
-
-                // WebView가 JavaScript를 실행할 수 있는지 확인
-                webView.post(() -> {
-                    android.util.Log.d("MainActivity", "🔄 WebView JavaScript 테스트 실행");
-                    webView.evaluateJavascript("console.log('MainActivity: WebView JavaScript 정상 작동');", null);
-                });
-            } else {
-                android.util.Log.e("MainActivity", "❌ WebView가 null입니다!");
-            }
-        } else {
-            android.util.Log.e("MainActivity", "❌ Bridge가 null입니다!");
-        }
     }
 
     /**

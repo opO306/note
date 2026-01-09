@@ -148,7 +148,6 @@ interface MyPageScreenProps {
 
   /** 🔹 현재 사용 중인 테마 */
   currentTheme?: string | null;
-  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 export function MyPageScreen({
@@ -187,7 +186,6 @@ export function MyPageScreen({
   onAutoSettingsOpened,
   onManageBlockedUsers,
   currentTheme,
-  isGuest, // 게스트 모드 여부 추가
 }: MyPageScreenProps) {
 
   const [profileDescription, setProfileDescription] =
@@ -514,7 +512,6 @@ export function MyPageScreen({
                     size="icon"
                     asChild
                     className="w-9 h-9 rounded-full cursor-pointer touch-target"
-                    disabled={isGuest} // 게스트 모드 시 비활성화
                   >
                     <label htmlFor="profile-image-upload">
                       <Camera className="w-4 h-4" />
@@ -550,8 +547,7 @@ export function MyPageScreen({
                     variant="ghost"
                     size="icon"
                     className="touch-target"
-                    onClick={isGuest ? () => toast.info("로그인 후 프로필 설명을 수정할 수 있습니다.") : () => handleDescriptionOpenChange(true)} // 게스트 모드 시 토스트 메시지
-                    disabled={isGuest} // 게스트 모드 시 비활성화
+                    onClick={() => handleDescriptionOpenChange(true)}
                   >
                     <Edit className="w-4 h-4" />
                   </Button>
@@ -817,7 +813,7 @@ export function MyPageScreen({
             </Button>
           )}
 
-          {onThemeClick && (
+          {false && onThemeClick && (
             <Button
               variant="ghost"
               className="w-full justify-start p-4 h-auto"
@@ -834,12 +830,11 @@ export function MyPageScreen({
           )}
 
           {/* 🆕 차단 관리 버튼 */}
-          {onManageBlockedUsers && !isGuest && (
+          {onManageBlockedUsers && (
             <Button
               variant="ghost"
               className="w-full justify-start p-4 h-auto"
-              onClick={isGuest ? () => toast.info("로그인 후 이용 가능합니다.") : onManageBlockedUsers} // 게스트 모드 시 토스트 메시지
-              disabled={isGuest} // 게스트 모드 시 비활성화
+              onClick={onManageBlockedUsers}
             >
               <UserX className="w-5 h-5 mr-3 text-red-500" />
               <div className="text-left">
@@ -1044,8 +1039,7 @@ export function MyPageScreen({
                 취소
               </Button>
               <Button
-                onClick={isGuest ? () => toast.info("로그인 후 프로필 설명을 저장할 수 있습니다.") : handleDescriptionUpdate} // 게스트 모드 시 토스트 메시지
-                disabled={isGuest} // 게스트 모드 시 비활성화
+                onClick={handleDescriptionUpdate}
               >
                 저장
               </Button>

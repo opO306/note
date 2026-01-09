@@ -59,7 +59,6 @@ interface MyContentListScreenProps {
     formatCreatedAt?: (date: Date) => string;
     onLanternToggle?: (postId: string) => void;
     onBookmarkToggle?: (postId: string) => void;
-    isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 export function MyContentListScreen({
@@ -78,7 +77,6 @@ export function MyContentListScreen({
     formatCreatedAt = () => "",
     onLanternToggle = () => {},
     onBookmarkToggle = () => {},
-    isGuest, // 게스트 모드 여부 추가
     userUid, // userUid 추가
 }: MyContentListScreenProps) {
     const isPostsMode = mode === "posts";
@@ -211,7 +209,6 @@ export function MyContentListScreen({
                                             onLanternToggle={(postId) => onLanternToggle?.(String(postId))}
                                             onBookmarkToggle={(postId) => onBookmarkToggle?.(String(postId))}
                                             index={index}
-                                            isGuest={isGuest} // 게스트 모드 여부 추가
                                             userUid={userUid || ""} // userUid 추가
                                         />
                                     </div>

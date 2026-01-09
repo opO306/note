@@ -17,8 +17,11 @@ import {
   Download,
   Trash2,
   AlertTriangle,
-  MessageSquare
+  MessageSquare,
+  Bug,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { LoginDebugPanel } from "./LoginDebugPanel";
 import { app, auth, db } from "../firebase";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import {
@@ -88,6 +91,7 @@ export function SettingsScreen({
   const [replyNotifications, setReplyNotifications] = useState(true);
   const [lanternNotifications, setLanternNotifications] = useState(true);
   const [autoSave, setAutoSave] = useState(true);
+  const [showLoginDebugPanel, setShowLoginDebugPanel] = useState(false);
   
   // 🔹 서버 설정이 로드되면 로컬 상태와 동기화
   useEffect(() => {
@@ -582,6 +586,23 @@ export function SettingsScreen({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <Dialog open={showLoginDebugPanel} onOpenChange={setShowLoginDebugPanel}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                >
+                  <Bug className="w-4 h-4 mr-2" />
+                  로그인 디버그 보기
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>로그인 디버그</DialogTitle>
+                </DialogHeader>
+                <LoginDebugPanel />
+              </DialogContent>
+            </Dialog>
             <Button
               variant="outline"
               className="w-full justify-start"

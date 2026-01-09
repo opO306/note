@@ -1,8 +1,6 @@
-// src/components/SearchScreen.tsx
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useScrollIntoView } from "./hooks/useScrollIntoView";
 import { KeyboardDismissButton } from "./ui/keyboard-dismiss-button";
-import { toast } from "../toastHelper";
 import { SlowConnectionWarning } from "./ui/offline-indicator";
 import { Button } from "./ui/button";
 import { ArrowLeft, Search, Clock, TrendingUp, Settings } from "lucide-react";
@@ -38,7 +36,6 @@ interface SearchScreenProps {
   onBookmarkToggle: (postId: string | number) => void;
   formatTimeAgo: (date?: Date) => string;
   formatCreatedAt: (date?: Date) => string;
-  isGuest: boolean; // 게스트 모드 여부 추가
   userUid: string; // userUid 추가
 }
 
@@ -60,7 +57,6 @@ interface SearchResultsListProps {
   onPostSelect: (post: Post) => void;
   onLanternToggle: (postId: string | number) => void;
   onBookmarkToggle: (postId: string | number) => void;
-  isGuest: boolean; // 게스트 모드 여부 추가
   userUid: string; // userUid 추가
 }
 
@@ -84,7 +80,6 @@ const SearchResultsListComponent = ({
   onPostSelect,
   onLanternToggle,
   onBookmarkToggle,
-  isGuest, // 게스트 모드 여부 추가
   userUid, // userUid 추가
 }: SearchResultsListProps) => {
   return (
@@ -101,15 +96,14 @@ const SearchResultsListComponent = ({
       onPostClick={onPostSelect}
       onLanternToggle={onLanternToggle}
       onBookmarkToggle={onBookmarkToggle}
-      isGuest={isGuest} // 게스트 모드 여부 추가
       userUid={userUid} // userUid 전달
     />
   );
 };
 
-// Refined Memoization: Removed the heavy manual comparison loop.
-// If you need deep comparison, rely on stable props from the parent or
-// implement memoization inside PostCardsList items.
+// Refined Memoization: Removed the heavy manual comparison loop.\
+// If you need deep comparison, rely on stable props from the parent or\
+// implement memoization inside PostCardsList items.\
 export const SearchResultsList = React.memo(SearchResultsListComponent);
 
 export function SearchScreen({
@@ -125,7 +119,6 @@ export function SearchScreen({
   onBookmarkToggle,
   formatTimeAgo,
   formatCreatedAt,
-  isGuest, // 게스트 모드 여부 추가
   userUid, // userUid 추가
 }: SearchScreenProps) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -313,8 +306,8 @@ export function SearchScreen({
 
     executeSearch(trimmed);
 
-    // Save History (게스트 모드에서는 저장 안 함)
-    if (isAutoSaveEnabled && !isGuest) {
+    // Save History
+    if (isAutoSaveEnabled) {
       const newRecent = [
         trimmed,
         ...recentSearches.filter((s) => s !== trimmed),
@@ -324,15 +317,15 @@ export function SearchScreen({
       persistSearchSettings(newRecent, isAutoSaveEnabled);
     }
 
-    // Analytics Log (게스트 모드에서는 로깅 안 함)
+    // Analytics Log
     const uid = auth.currentUser?.uid;
-    if (uid && !isGuest) {
+    if (uid) {
       addDoc(collection(db, "user_activity", uid, "searchLogs"), {
         keyword: trimmed,
         createdAt: serverTimestamp(),
       }).catch(err => console.warn("Log error", err));
     }
-  }, [searchTerm, executeSearch, isAutoSaveEnabled, recentSearches, persistSearchSettings, isGuest]);
+  }, [searchTerm, executeSearch, isAutoSaveEnabled, recentSearches, persistSearchSettings]);
 
   // Wrapper handlers for buttons to avoid arrow functions in render
   const handleHistoryItemClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
@@ -426,7 +419,6 @@ export function SearchScreen({
                 <Switch
                   checked={isAutoSaveEnabled}
                   onCheckedChange={toggleAutoSave}
-                  disabled={isGuest} // 게스트 모드 시 비활성화
                 />
               </div>
             </div>
@@ -464,7 +456,6 @@ export function SearchScreen({
                 onPostSelect={onPostSelect}
                 onLanternToggle={onLanternToggle}
                 onBookmarkToggle={onBookmarkToggle}
-                isGuest={isGuest} // 게스트 모드 여부 prop 추가
                 userUid={userUid || ""} // userUid 추가
               />
             </div>
@@ -500,9 +491,8 @@ export function SearchScreen({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={isGuest ? () => toast.info("로그인 후 검색 기록을 관리할 수 있습니다.") : clearRecentSearches} // 게스트 모드 시 토스트 메시지
+                      onClick={clearRecentSearches}
                       className="text-muted-foreground hover:text-foreground"
-                      disabled={isGuest} // 게스트 모드 시 비활성화
                     >
                       전체 삭제
                     </Button>

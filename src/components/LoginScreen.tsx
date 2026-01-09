@@ -1,12 +1,9 @@
 /* eslint-disable react/forbid-dom-props */
 import * as React from "react";
 import { Moon, Sun, Loader2 } from "lucide-react";
-import { signInWithGoogle } from "../lib/googleLogin";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db, auth } from "../firebase"; // firestore 및 auth 인스턴스
+import { loginWithGoogle } from "../googleAuth";
 import { toast } from "../toastHelper";
-import { AuthError, AuthFailReason } from "../authErrors";
-import { useAuth } from "../contexts/AuthContext";
+import { normalizeLoginError, type UiLoginError } from "../auth/normalizeError";
 
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
@@ -56,54 +53,13 @@ const FloatingSymbolItem = React.memo(({ item }: { item: FloatingSymbolData }) =
     </div>
   );
 });
-
-async function ensureUserDocument(uid: string, email: string) {
-  const userRef = doc(db, "users", uid);
-  const userSnap = await getDoc(userRef);
-
-  if (!userSnap.exists()) {
-    await setDoc(userRef, {
-      email,
-      createdAt: Date.now(),
-      // 초기 상태
-      nickname: null,
-      communityGuidelinesAgreed: false,
-      onboardingComplete: false,
-    });
-  }
-}
 FloatingSymbolItem.displayName = "FloatingSymbolItem";
-
-function AuthErrorBanner({ error }: { error: AuthError }) {
-  if (!error) return null;
-
-  const messageMap: Record<AuthFailReason, string> = {
-    APPCHECK_BLOCKED:
-      "보안 검증에 실패했습니다.\n앱을 최신 버전으로 업데이트해 주세요.",
-    APPCHECK_RESTRICTED: "App Check 설정이 맞지 않아 로그인할 수 없습니다.",
-    NETWORK_ERROR:
-      "네트워크 연결을 확인해 주세요.",
-    AUTH_DISABLED:
-      "현재 로그인이 비활성화되어 있습니다.",
-    TIMEOUT:
-      "로그인이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.",
-    UNKNOWN:
-      "알 수 없는 오류가 발생했습니다.",
-  };
-
-  return (
-    <div className="auth-error-banner text-center text-red-500 text-sm mb-4 whitespace-pre-wrap">
-      {messageMap[error.reason]}
-    </div>
-  );
-}
 
 interface LoginScreenProps {
   onShowTerms: () => void;
   onShowPrivacy: () => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
-  onGuestLogin?: () => void;
 }
 
 export function LoginScreen({
@@ -111,10 +67,8 @@ export function LoginScreen({
   onShowPrivacy,
   isDarkMode,
   onToggleDarkMode,
-  onGuestLogin,
 }: LoginScreenProps) {
   const { isOnline } = useOnlineStatus();
-  const { authError, refreshUserData } = useAuth(); // AuthContext에서 authError와 refreshUserData 가져오기
   const floatingSymbols = React.useMemo<FloatingSymbolData[]>(() => {
     return Array.from({ length: 30 }, (_, i) => ({
       id: i,
@@ -130,55 +84,27 @@ export function LoginScreen({
 
   const [agreedToTerms, setAgreedToTerms] = React.useState(false);
   const [isLoggingIn, setIsLoggingIn] = React.useState(false);
+  const [loginError, setLoginError] = React.useState<UiLoginError | null>(null);
 
   const handleGoogleLogin = React.useCallback(async (): Promise<void> => {
-    console.log("🔄 Google 로그인 버튼 클릭됨");
     if (!agreedToTerms) {
-      console.log("❌ 약관 동의 안됨");
       toast.error("약관에 동의해주세요.");
       return;
     }
-    if (isLoggingIn) {
-      console.log("⏳ 이미 로그인 중");
-      return;
-    }
-    console.log("🚀 Google 로그인 시작");
+    if (isLoggingIn) return;
     setIsLoggingIn(true);
     try {
-      await signInWithGoogle();
-      const currentUser = auth.currentUser; // 현재 로그인된 사용자 가져오기
-      console.log("✅ Firebase 사용자:", currentUser);
-      if (currentUser) {
-        await ensureUserDocument(currentUser.uid, currentUser.email || "");
-        console.log("✅ Firestore 문서 생성 완료");
-
-        // 🔥 AuthContext의 onAuthStateChanged가 자동으로 userData를 로드하므로
-        // 수동 refreshUserData() 호출 제거하고 AuthContext가 처리하도록 함
-        console.log("⏳ AuthContext 자동 상태 갱신 대기 중...");
-
-        // AuthContext가 user를 감지하고 라우팅할 때까지 잠시 대기
-        // (App.tsx의 useEffect가 user/userData 변경을 감지하여 자동 라우팅)
-        let waitCount = 0;
-        while (!userData?.nickname && waitCount < 50) { // 최대 5초 대기
-          await new Promise(resolve => setTimeout(resolve, 100));
-          waitCount++;
-          console.log(`🔄 AuthContext 상태 확인 ${waitCount}/50`);
-        }
-
-        console.log("✅ AuthContext 상태 갱신 완료, 라우팅 시작됨");
-      }
+      await loginWithGoogle();
     } catch (err) {
-      console.error("❌ GOOGLE LOGIN FAILED:", err);
-      if (err instanceof AuthError) {
-        // AuthContext에서 이미 에러를 설정했으므로 별도 처리 불필요
-      } else {
-        toast.error("Google 로그인에 실패했습니다.");
-      }
+      const normalized = normalizeLoginError(err);
+      setLoginError(normalized);
+
+      // 개발 중이면 콘솔에도 남겨라 (나중에 로그캣/remote debug에서 확인 가능)
+      console.error("[GoogleLoginFailed]", err);
     } finally {
       setIsLoggingIn(false);
-      console.log("🏁 로그인 프로세스 종료");
     }
-  }, [agreedToTerms, isLoggingIn, userData]);
+  }, [agreedToTerms, isLoggingIn]);
 
   const handleTermsChange = (checked: boolean | string): void => { // 명시적 반환 타입 void 추가
     const value = Boolean(checked);
@@ -247,7 +173,7 @@ export function LoginScreen({
               </div>
             </div>
 
-            {authError && <AuthErrorBanner error={authError} />}
+            {/* 약관 체크박스 */}
             <div className="space-y-3">
               <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors cursor-pointer group" onClick={() => handleTermsChange(!agreedToTerms)}>
                 <Checkbox
@@ -288,14 +214,39 @@ export function LoginScreen({
               )}
             </Button>
 
-            {/* 게스트 로그인 */}
-            {onGuestLogin && (
-              <Button className="w-full h-12 text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.98] mt-2" variant="outline" onClick={onGuestLogin} disabled={isLoggingIn || !isOnline}>
-                게스트 모드
-              </Button>
-            )}
 
             <p className="text-xs text-muted-foreground/60 text-center">© 2024 BiyuNote. All rights reserved.</p>
+
+            {loginError && (
+              <div style={{
+                margin: "12px 16px",
+                padding: "12px",
+                borderRadius: 12,
+                background: "#3a0b0b",
+                border: "1px solid rgba(255,255,255,0.12)",
+                color: "white",
+              }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                  {loginError.title}{loginError.code ? ` (code: ${loginError.code})` : ""}
+                </div>
+                <div style={{ opacity: 0.9 }}>{loginError.message}</div>
+
+                {loginError.raw && (
+                  <details style={{ marginTop: 8 }}>
+                    <summary style={{ cursor: "pointer" }}>자세히 보기</summary>
+                    <pre style={{
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      marginTop: 8,
+                      fontSize: 12,
+                      opacity: 0.9
+                    }}>
+                      {loginError.raw}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

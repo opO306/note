@@ -89,7 +89,6 @@ interface PostDetailViewProps {
   // 새로고침 관련 (optional)
   onRefresh?: () => void;
   isRefreshing?: boolean;
-  isGuest: boolean; // 게스트 모드 여부 추가
 }
 
 // 상대시간 전용 컴포넌트로 타이머 리렌더 범위 국소화
@@ -137,7 +136,6 @@ export function PostDetailView({
   canSubmitReply,
   onRefresh,
   isRefreshing = false,
-  isGuest, // 게스트 모드 여부 추가
 }: PostDetailViewProps) {
   const { navigateToLogin } = useAuth(); // navigateToLogin 가져오기
   const [showLoginConfirm, setShowLoginConfirm] = useState(false); // 로그인 필요 다이얼로그 상태
@@ -323,25 +321,23 @@ export function PostDetailView({
                         </PopoverTrigger>
                         <PopoverContent className="w-48 p-2" align="end">
                           <div className="space-y-1">
-                            {post.isOwner && !isGuest && ( // 게스트 모드 시 비활성화
+                            {post.isOwner && ( // 게스트 모드 시 비활성화
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="w-full justify-start text-red-500"
-                                onClick={isGuest ? () => setShowLoginConfirm(true) : onDelete} // 게스트 모드 시 다이얼로그 표시
-                                disabled={isGuest} // 게스트 모드 시 비활성화
+                                onClick={onDelete}
                               >
                                 <X className="w-4 h-4 mr-2" />
                                 삭제하기
                               </Button>
                             )}
-                            {!post.isOwner && !isGuest && ( // 게스트 모드 시 비활성화
+                            {!post.isOwner && ( // 게스트 모드 시 비활성화
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="w-full justify-start text-red-500"
-                                onClick={isGuest ? () => setShowLoginConfirm(true) : onReport} // 게스트 모드 시 다이얼로그 표시
-                                disabled={isGuest} // 게스트 모드 시 비활성화
+                                onClick={onReport}
                               >
                                 <Flag className="w-4 h-4 mr-2" />
                                 신고하기
@@ -375,14 +371,11 @@ export function PostDetailView({
                   {/* 등불/댓글/조회수/북마크 */}
                   <div className="flex items-center justify-between pt-4 border-t border-border">
                     <div className="flex items-center space-x-4">
-                      {post.author !== userNickname && !isGuest ? ( // 게스트 모드 시 비활성화
+                      {post.author !== userNickname ? ( // 게스트 모드 시 비활성화
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={isGuest ? () => setShowLoginConfirm(true) : onLanternToggle} // 게스트 모드 시 다이얼로그 표시
-                          className={`space-x-2 touch-target ${isPostLanterned ? "text-amber-500" : ""
-                            }`}
-                          disabled={isGuest} // 게스트 모드 시 비활성화
+                          onClick={onLanternToggle}
                         >
                           {isPostLanterned ? (
                             <LanternFilledIcon className="w-4 h-4 text-amber-500" />
@@ -412,9 +405,7 @@ export function PostDetailView({
                     <Button
                       variant={isBookmarked ? "default" : "ghost"}
                       size="sm"
-                      onClick={isGuest ? () => setShowLoginConfirm(true) : onBookmarkToggle} // 게스트 모드 시 다이얼로그 표시
-                      className="flex items-center space-x-1 touch-target"
-                      disabled={isGuest} // 게스트 모드 시 비활성화
+                      onClick={onBookmarkToggle}
                     >
                       <Bookmark
                         className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""
@@ -453,16 +444,14 @@ export function PostDetailView({
                   <Textarea
                     ref={replyInputRef as React.RefObject<HTMLTextAreaElement>}
                     placeholder={
-                      isGuest
-                        ? "로그인 후 답글을 작성할 수 있습니다." // 게스트 모드 시 메시지
-                        : canSubmitReply
-                          ? "이 글에 대한 생각을 나눠보세요."
-                          : "신뢰도 0점에서는 답글을 작성할 수 없습니다"
+                      canSubmitReply
+                        ? "이 글에 대한 생각을 나눠보세요."
+                        : "신뢰도 0점에서는 답글을 작성할 수 없습니다"
                     }
                     value={newReplyContent}
                     onChange={onReplyContentChange}
                     onKeyDown={handleKeyDown}
-                    disabled={isGuest || !canSubmitReply} // 게스트 모드 시 비활성화
+                    disabled={!canSubmitReply}
                     className="min-h-[100px] resize-none border-border/60 focus:border-primary/50 transition-colors duration-200 bg-background/50"
                   />
                   <div className="flex justify-between items-center">
@@ -470,8 +459,7 @@ export function PostDetailView({
                       {newReplyContent.length}/1000
                     </span>
                     <Button
-                      onClick={isGuest ? () => setShowLoginConfirm(true) : onReplySubmit} // 게스트 모드 시 다이얼로그 표시
-                      disabled={isGuest || !newReplyContent.trim() || !canSubmitReply} // 게스트 모드 시 비활성화
+                      onClick={onReplySubmit}
                       size="sm"
                       className="touch-target px-6 py-2 rounded-xl transition-all duration-200 disabled:opacity-50"
                     >

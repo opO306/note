@@ -6,6 +6,7 @@ import { Label } from "./ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { ArrowLeft, Check, AlertCircle, Moon, Sun } from "lucide-react";
 import { auth, functions } from "../firebase";
+import { useAuth } from "../contexts/AuthContext";
 import { httpsCallable } from "firebase/functions";
 import { NicknameConfirmModal } from "./modals/NicknameConfirmModal";
 import { FloatingSymbolItem } from "@/components/FloatingSymbolItem";
@@ -38,6 +39,7 @@ export function NicknameScreen({
   isDarkMode,
   onToggleDarkMode,
 }: NicknameScreenProps) {
+  const { refreshUserData } = useAuth();
   const [nickname, setNickname] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
@@ -101,13 +103,11 @@ export function NicknameScreen({
 
     try {
       const finalizeFn = httpsCallable(functions, "finalizeOnboarding");
-      await finalizeFn({ nickname: nickname.trim() }); // 1️⃣ 함수 실행
+      await finalizeFn({ nickname: nickname.trim() });
 
-      // 2️⃣ 서버에서 바뀐 displayName · custom claims 를 로컬에 반영
-      await user.reload();                 // or await refreshUserData(true)
-      await auth.currentUser?.getIdToken(true);
+      // 닉네임 저장 및 사용자 데이터 새로고침 (finalizeOnboarding에서 처리되므로 닉네임 직접 업데이트는 제거)
+      refreshUserData();
 
-      // 3️⃣ 모든 새 데이터가 반영된 뒤 화면 전환
       onComplete(nickname.trim());
     } catch (error: any) {
       const rawCode = String(error?.code ?? "");

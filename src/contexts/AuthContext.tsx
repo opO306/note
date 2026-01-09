@@ -1,12 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { auth, db } from "../firebase";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { signInGuestSafe } from "../auth/signInGuestSafe";
-import { doc, getDoc } from "firebase/firestore";
-import { AuthError } from "../authErrors";
-import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
-import { PluginListenerHandle } from '@capacitor/core';
-import * as Sentry from "@sentry/react";
+import { onAuthStateChanged, signOut, User } from "firebase/auth"; // signInAnonymously 제거
+import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 // 유저 데이터 타입 정의
 export interface UserData {
@@ -15,19 +11,17 @@ export interface UserData {
   profileImage: string;
   onboardingComplete?: boolean;
   communityGuidelinesAgreed?: boolean;
+  nicknameNeedsReview?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;         // Firebase User 객체
   userData: UserData | null; // Firestore에서 가져온 추가 정보
   isLoading: boolean;        // 인증 체크 중인지 여부
-  isGuest: boolean;          // 게스트 모드 여부
-  loginAsGuest: () => void;  // 게스트 로그인 함수
   logout: () => Promise<void>; // 로그아웃 함수
   refreshUserData: () => Promise<void>; // 프로필 변경 시 데이터 갱신
   navigateToLogin: () => void; // 로그인 화면으로 이동 함수
   debugMessage: string; // 개발용 디버그 메시지
-  authError: AuthError | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -35,13 +29,72 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children, navigateToLogin }: { children: React.ReactNode; navigateToLogin: () => void }) {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [debugMessage] = useState('');
-  const [authError, setAuthError] = useState<AuthError | null>(null);
+  const [debugMessage, setDebugMessage] = useState('');
 
-  // 로컬 스토리지 키
-  const GUEST_KEY = "biyunote-guest-mode";
+  useEffect(() => {
+    setDebugMessage(user?.uid || 'No User');
+  }, [user]);
+
+
+  // 헬퍼: 자동 닉네임 생성
+  const makeFallbackNickname = useCallback((u: User): string => {
+    const dn = (u.displayName ?? "").trim();
+    if (dn) return dn.slice(0, 20);
+
+    const emailLocal = (u.email ?? "").split("@")[0]?.trim();
+    if (emailLocal) return emailLocal.slice(0, 20);
+
+    return `user_${u.uid.slice(0, 6)}`;
+  }, []);
+
+  // ensureUserDoc: 문서 없으면 생성, nickname 없으면 채움 (merge)
+  const ensureUserDoc = useCallback(async (firebaseUser: User) => {
+    const ref = doc(db, "users", firebaseUser.uid);
+    const snap = await getDoc(ref); // 문서 존재 여부 확인
+
+    const base = {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email ?? "",
+      profileImage: firebaseUser.photoURL ?? "",
+      updatedAt: serverTimestamp(),
+    };
+
+    if (!snap.exists()) {
+      // 신규/레거시 누락: 문서 생성 + 자동 닉네임 세팅
+      await setDoc(
+        ref,
+        {
+          ...base,
+          createdAt: serverTimestamp(),
+          nickname: makeFallbackNickname(firebaseUser),
+          nicknameNeedsReview: true, // 나중에 설정에서 바꾸게 유도용(선택)
+        },
+        { merge: true }
+      );
+      return;
+    }
+
+    const data = snap.data() as any;
+    const nickname = String(data?.nickname ?? "").trim();
+
+    if (!nickname) {
+      // 기존 문서인데 nickname만 비어있음: nickname만 채워넣기(기존 필드 보존)
+      await setDoc(
+        ref,
+        {
+          ...base,
+          nickname: makeFallbackNickname(firebaseUser),
+          nicknameNeedsReview: true,
+        },
+        { merge: true }
+      );
+    } else {
+      // nickname은 있으니 email/photo만 최신으로 유지(선택)
+      await setDoc(ref, base, { merge: true });
+    }
+  }, [makeFallbackNickname]);
+
 
   // 사용자 정보 가져오기 (Firestore)
   const fetchUserData = useCallback(async (uid: string) => {
@@ -50,14 +103,14 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
       if (userDoc.exists()) {
         const data = userDoc.data();
         setUserData({
-          nickname: data.nickname || "",
-          email: data.email || "",
-          profileImage: data.profileImage || "",
-          onboardingComplete: data.onboardingComplete,
-          communityGuidelinesAgreed: data.communityGuidelinesAgreed,
+          nickname: String(data.nickname ?? ""),
+          email: String(data.email ?? ""),
+          profileImage: String(data.profileImage ?? ""),
+          onboardingComplete: Boolean(data.onboardingComplete),
+          communityGuidelinesAgreed: Boolean(data.communityGuidelinesAgreed),
+          nicknameNeedsReview: Boolean(data.nicknameNeedsReview),
         });
       } else {
-        // 문서가 없으면 기본값 (신규 유저 등)
         setUserData({ nickname: "", email: "", profileImage: "" });
       }
     } catch (error) {
@@ -67,114 +120,37 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
 
   // 인증 상태 감지
   useEffect(() => {
-    console.log("🔄 AuthContext: 인증 상태 감지 useEffect 시작");
-
-    // ✅ 1. Firebase Authentication 플러그인의 authStateChange 이벤트 리스너 추가
-    let authStateChangeListener: PluginListenerHandle;
-    const setupAuthListener = async () => {
-      authStateChangeListener = await FirebaseAuthentication.addListener('authStateChange', async (state) => {
-        console.log("🔥 AuthContext: FirebaseAuthentication authStateChange:", state.user?.email || "로그아웃");
-
-        if (state.user) {
-          console.log("✅ AuthContext: 네이티브 인증 상태 변경 감지 - 로그인");
-          // 네이티브에서 인증 상태가 변경되면 Firebase JS SDK에도 반영
-          // Firebase JS SDK의 onAuthStateChanged가 이를 처리할 예정
-        } else {
-          console.log("✅ AuthContext: 네이티브 인증 상태 변경 감지 - 로그아웃");
-        }
-      });
-    };
-
-    setupAuthListener();
-
-    // ✅ 2. 이미 로그인된 상태 fallback
-    const current = auth.currentUser;
-    if (current) {
-      console.log("🔄 AuthContext: 기존 로그인 사용자 발견:", current.email);
-      setUser(current);
-      setIsGuest(current.isAnonymous);
-      fetchUserData(current.uid).finally(() => {
-        console.log("✅ AuthContext: 기존 사용자 데이터 로드 완료");
-        setIsLoading(false);
-      });
-    } else {
-      console.log("🔄 AuthContext: 로그인된 사용자 없음, 로딩 상태 유지");
-      // current가 없으면 일단 로딩 상태 유지
-      setIsLoading(true);
-    }
-
-    // ✅ 3. Firebase JS SDK 상태 변화 구독
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("🔥 AuthContext: onAuthStateChanged 호출됨:", firebaseUser?.email || "로그아웃");
+      setIsLoading(true);
 
-      if (firebaseUser) {
-        console.log("✅ AuthContext: 사용자 로그인 감지, 상태 설정 시작");
-        setUser(firebaseUser);
-        const isAnon = firebaseUser.isAnonymous;
-        setIsGuest(isAnon);
-
-        if (!isAnon) {
-          localStorage.removeItem(GUEST_KEY);
+      try {
+        if (firebaseUser) {
+          setUser(firebaseUser);
+          await ensureUserDoc(firebaseUser);
+          await fetchUserData(firebaseUser.uid);
         } else {
-          localStorage.setItem(GUEST_KEY, "true");
+          setUser(null);
+          setUserData(null);
         }
-
-        console.log("🔄 AuthContext: fetchUserData 호출");
-        await fetchUserData(firebaseUser.uid);
-        console.log("✅ AuthContext: 사용자 데이터 로드 완료");
-      } else {
-        console.log("🔄 AuthContext: 사용자 로그아웃 감지");
-        setUser(null);
-        setUserData(null);
-        if (!localStorage.getItem(GUEST_KEY)) {
-          setIsGuest(false);
-        }
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
-      console.log("✅ AuthContext: isLoading = false 설정됨");
     });
 
-    return () => {
-      unsubscribe();
-      if (authStateChangeListener) {
-        authStateChangeListener.remove();
-      }
-    };
-  }, [fetchUserData]);
+    return () => unsubscribe();
+  }, [fetchUserData, ensureUserDoc]);
 
-  // 게스트 로그인 액션
-  const loginAsGuest = useCallback(async () => {
-    setIsLoading(true);
-    setAuthError(null); // 새로운 시도 전에 에러 초기화
-    try {
-      await signInGuestSafe();
-      // 상태 변경은 onAuthStateChanged가 처리
-    } catch (error) {
-      console.error("Guest login failed", error);
-      if (error instanceof AuthError) {
-        setAuthError(error);
-        Sentry.captureException(error, {
-          tags: {
-            auth_reason: error.reason,
-          },
-        });
-      } else {
-        setAuthError(new AuthError("UNKNOWN", (error as Error).message));
-      }
-      setIsLoading(false);
-      setIsGuest(false);
-    }
-  }, [setAuthError]);
+
 
   // 로그아웃 액션
   const logout = useCallback(async () => {
     try {
-      await signOut(auth);
-      localStorage.removeItem(GUEST_KEY);
+      await Promise.all([
+        signOut(auth),
+        GoogleAuth.signOut(), // Google 세션도 함께 종료
+      ]);
       setUser(null);
       setUserData(null);
-      setIsGuest(false);
-      setAuthError(null); // 로그아웃 시 에러 상태 초기화
     } catch (error) {
       console.error("Logout failed", error);
     }
@@ -185,7 +161,7 @@ export function AuthProvider({ children, navigateToLogin }: { children: React.Re
   }, [user, fetchUserData]);
 
   return (
-    <AuthContext.Provider value={{ user, userData, isLoading, isGuest, loginAsGuest, logout, refreshUserData, navigateToLogin, debugMessage, authError }}>
+    <AuthContext.Provider value={{ user, userData, isLoading, logout, refreshUserData, navigateToLogin, debugMessage }}>
       {children}
     </AuthContext.Provider>
   );
@@ -196,5 +172,3 @@ export const useAuth = () => {
   if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };
-
-

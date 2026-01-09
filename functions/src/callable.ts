@@ -611,3 +611,142 @@ export const verifyThemePurchase = onCall({ region: "asia-northeast3" }, async (
 
     return { success: true };
 });
+
+/**
+ * 9. 사용자 데이터 병합 (익명 계정 -> 기존 계정)
+ * `auth/credential-already-in-use` 케이스 처리용
+ * 클라이언트에서 호출 시 fromUid는 반드시 현재 로그인된 익명 UID여야 함.
+ */
+export const mergeUserData = onCall({ region: "asia-northeast3" }, async (request) => {
+    const { auth, data } = request;
+    if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+
+    const fromUid = auth.uid; // 클라이언트에서 넘어온 auth.uid는 익명 계정의 UID
+    const toUid = data?.toUid as string; // 기존 구글 계정의 UID
+
+    if (!toUid || fromUid === toUid) {
+        throw new HttpsError("invalid-argument", "유효한 toUid가 필요하며, fromUid와 달라야 합니다.");
+    }
+
+    // 1. fromUid (익명 계정)와 toUid (기존 계정)의 user 문서를 가져옵니다.
+    const fromUserRef = db.collection("users").doc(fromUid);
+    const toUserRef = db.collection("users").doc(toUid);
+
+    // Firestore 트랜잭션을 사용하여 원자성 보장
+    await db.runTransaction(async (tx) => {
+        const [fromUserSnap, toUserSnap] = await Promise.all([
+            tx.get(fromUserRef),
+            tx.get(toUserRef),
+        ]);
+
+        if (!fromUserSnap.exists) {
+            throw new HttpsError("not-found", `Source user ${fromUid} not found.`);
+        }
+        if (!toUserSnap.exists) {
+            throw new HttpsError("not-found", `Target user ${toUid} not found.`);
+        }
+
+        const fromUserData = fromUserSnap.data()!;
+        const toUserData = toUserSnap.data()!;
+
+        // 2. fromUid의 데이터를 toUid로 병합
+        // 이관 규칙: toUid에 없는 필드는 추가, lumenBalance와 lumenTotalEarned는 합산
+        const mergedUserData: any = {
+            ...toUserData,
+            ...fromUserData,
+            // 닉네임, 이메일, 프로필 이미지는 기존 계정(toUid)의 것을 유지하거나, 클라이언트에서 선택하도록 할 수 있음.
+            // 여기서는 toUid의 것을 우선 유지하는 것으로 가정. (클라이언트에서 업데이트 가능)
+            nickname: toUserData.nickname || fromUserData.nickname || "",
+            email: toUserData.email || fromUserData.email || "",
+            profileImage: toUserData.profileImage || fromUserData.profileImage || "",
+            onboardingComplete: toUserData.onboardingComplete || fromUserData.onboardingComplete || false,
+            communityGuidelinesAgreed: toUserData.communityGuidelinesAgreed || fromUserData.communityGuidelinesAgreed || false,
+            lumenBalance: (toUserData.lumenBalance || 0) + (fromUserData.lumenBalance || 0),
+            lumenTotalEarned: (toUserData.lumenTotalEarned || 0) + (fromUserData.lumenTotalEarned || 0),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        // 배열 필드 병합 (예: purchasedThemes)
+        const mergedPurchasedThemes = Array.from(new Set([
+            ...(toUserData.purchasedThemes || []),
+            ...(fromUserData.purchasedThemes || []),
+        ]));
+        mergedUserData.purchasedThemes = mergedPurchasedThemes;
+
+        // toUid 문서 업데이트
+        tx.set(toUserRef, mergedUserData);
+
+        // 3. fromUid가 작성한 데이터들의 authorUid를 toUid로 업데이트
+        const batch = db.batch();
+
+        // Posts
+        const postsSnap = await db.collection("posts").where("authorUid", "==", fromUid).get();
+        postsSnap.docs.forEach(doc => {
+            batch.update(doc.ref, { authorUid: toUid });
+        });
+
+        // Replies (컬렉션 그룹)
+        const repliesSnap = await db.collectionGroup("replies").where("authorUid", "==", fromUid).get();
+        repliesSnap.docs.forEach(doc => {
+            batch.update(doc.ref, { authorUid: toUid });
+        });
+
+        // User Lanterns (fromUid의 등불 정보를 toUid로 복사/병합)
+        const fromLanternsSnap = await db.collection("user_lanterns").doc(fromUid).collection("posts").get();
+        for (const doc of fromLanternsSnap.docs) {
+            const toLanternRef = db.collection("user_lanterns").doc(toUid).collection("posts").doc(doc.id);
+            tx.set(toLanternRef, doc.data(), { merge: true }); // 기존 등불이 있으면 병합
+            tx.delete(doc.ref); // fromUid의 등불 삭제
+        }
+
+        // User Notifications (toUserUid가 fromUid인 알림을 toUid로 업데이트)
+        const notificationsToSnap = await db.collectionGroup("items").where("toUserUid", "==", fromUid).get();
+        notificationsToSnap.docs.forEach(doc => {
+            batch.update(doc.ref, { toUserUid: toUid });
+        });
+
+        // User Notifications (fromUserUid가 fromUid인 알림을 toUid로 업데이트) - 옵션
+        const notificationsFromSnap = await db.collectionGroup("items").where("fromUserUid", "==", fromUid).get();
+        notificationsFromSnap.docs.forEach(doc => {
+            batch.update(doc.ref, { fromUserUid: toUid });
+        });
+
+        // Follows (followerUid 또는 followingUid가 fromUid인 경우 toUid로 업데이트)
+        const followsAsFollowerSnap = await db.collection("follows").where("followerUid", "==", fromUid).get();
+        followsAsFollowerSnap.docs.forEach(doc => {
+            batch.update(doc.ref, { followerUid: toUid });
+        });
+
+        const followsAsFollowingSnap = await db.collection("follows").where("followingUid", "==", fromUid).get();
+        followsAsFollowingSnap.docs.forEach(doc => {
+            batch.update(doc.ref, { followingUid: toUid });
+        });
+
+        // Theme Purchases (userId가 fromUid인 구매 내역을 toUid로 업데이트)
+        const themePurchasesSnap = await db.collection("theme_purchases").where("userId", "==", fromUid).get();
+        themePurchasesSnap.docs.forEach(doc => {
+            batch.update(doc.ref, { userId: toUid });
+        });
+
+        // 기타 컬렉션 (필요 시 추가)
+
+        await batch.commit();
+
+        // 4. fromUid의 user 문서 삭제
+        tx.delete(fromUserRef);
+    });
+
+    // 5. Firebase Authentication에서 fromUid 사용자 삭제
+    try {
+        await admin.auth().deleteUser(fromUid);
+        logger.info(`Successfully deleted auth user ${fromUid}`);
+    } catch (error: any) {
+        if (error.code !== 'auth/user-not-found') {
+            logger.error("Error deleting auth user for merge:", error);
+            throw new HttpsError("internal", `Failed to delete source auth user: ${error.message}`);
+        }
+        logger.info(`Auth user ${fromUid} not found, likely already deleted.`);
+    }
+
+    return { success: true };
+});
