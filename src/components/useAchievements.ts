@@ -32,7 +32,7 @@ export interface UserActivityData {
     maxDiscussionExchanges: number;
     followerCount: number;
 
-    // 분야별 길잡이를 위한 데이터
+    // 분야별 전문가를 위한 데이터
     economyReplies?: number;          // 경제 카테고리 답변 수
     economyAverageLanterns?: number;  // 경제 답변 평균 등불 개수
     itReplies?: number;               // IT 카테고리 답변 수
@@ -52,7 +52,7 @@ export interface UserActivityData {
     singleCategoryMaxReplies?: number;   // 한 카테고리 최대 답변 수
 
     // 복합 업적을 위한 데이터
-    unlockedFieldExpertCount?: number;  // 획득한 분야 길잡이 칭호 개수
+    unlockedFieldExpertCount?: number;  // 획득한 분야 전문가 칭호 개수
     tier3AchievementsCount?: number;    // 3단계 이상 달성한 기본 칭호 개수
     tier4AchievementsCount?: number;    // 4단계 달성한 기본 칭호 개수
 }
@@ -374,7 +374,7 @@ export function useAchievements(
                 case 'max_post_lanterns':
                     return activity.maxPostLanterns >= condition.target;
 
-                // 분야별 길잡이 칭호 조건
+                // 분야별 전문가 칭호 조건
                 case 'category_quality_reply':
                     if (achievement.category === 'economy') {
                         return (
@@ -399,7 +399,7 @@ export function useAchievements(
 
                 // 복합 업적 조건
                 case 'multi_field_expert':
-                    // 3개 분야 길잡이 달성
+                    // 3개 분야 전문가 달성
                     return (activity.unlockedFieldExpertCount || 0) >= condition.target;
 
                 case 'all_categories_tier3':

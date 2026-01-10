@@ -1,10 +1,9 @@
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { LogOut, Sun, Moon, Sparkles } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
-import { db } from "../firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { LogOut, Sun, Moon, Sparkles, Loader2 } from "lucide-react";
+import { trackOnboardingStep, trackOnboardingComplete } from "@/utils/analytics";
 
 interface WelcomeScreenProps {
   nickname: string;
@@ -14,24 +13,45 @@ interface WelcomeScreenProps {
   onToggleDarkMode?: () => void;
 }
 
-// 배경에 은은하게 깔릴 장식용 기호들 (스크린샷처럼 점 패턴과 조화되도록 아주 연하게 처리)
-Array.from({ length: 20 }).map((_, i) => ({
-  id: i,
-  x: Math.random() * 100,
-  y: Math.random() * 100,
-  size: Math.random() * 2 + 1, // 아주 작은 점들
-  opacity: Math.random() * 0.3 + 0.1,
-}));
+// ✅ MainScreen 프리로드 (탐험 시작 버튼 클릭 전 미리 로드)
+const preloadMainScreen = () => {
+  import("./MainScreen/MainScreenRefactored");
+};
 
 export function WelcomeScreen({ nickname, onRestart, onStartApp, isDarkMode, onToggleDarkMode }: WelcomeScreenProps) {
-  const { user, refreshUserData } = useAuth();
+  const [isStarting, setIsStarting] = useState(false);
+
+  // ✅ 컴포넌트 마운트 시 MainScreen 프리로드
+  useEffect(() => {
+    const timer = setTimeout(preloadMainScreen, 500);
+    // ✅ 웰컴 화면 도달 추적
+    trackOnboardingStep("welcome");
+    return () => clearTimeout(timer);
+  }, []);
+
+  // ✅ 탐험 시작하기 버튼 핸들러 (Optimistic UI)
+  const handleStartApp = useCallback(async () => {
+    if (isStarting) return;
+    setIsStarting(true);
+
+    // ✅ 온보딩 완료 추적
+    trackOnboardingComplete();
+
+    try {
+      await onStartApp();
+    } finally {
+      // onStartApp이 화면 전환을 하므로 이 컴포넌트는 언마운트됨
+      // 만약 에러가 발생하면 로딩 상태 해제
+      setIsStarting(false);
+    }
+  }, [isStarting, onStartApp]);
 
   return (
     <div className="w-full h-full bg-background text-foreground flex items-center justify-center relative overflow-hidden">
 
       {/* 🔹 다크모드 토글 (우측 상단) */}
       {onToggleDarkMode && (
-        <div className="absolute safe-top-button right-4 z-50">
+        <div className="absolute top-4 right-4 z-50">
           <Button
             variant="ghost"
             size="icon"
@@ -46,18 +66,6 @@ export function WelcomeScreen({ nickname, onRestart, onStartApp, isDarkMode, onT
           </Button>
         </div>
       )}
-
-      {/* 🔹 배경: 스크린샷과 동일한 Dot Pattern */}
-      <div className="absolute inset-0 pointer-events-none opacity-20">
-        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="dotGrid" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-              <circle cx="2" cy="2" r="1" fill="currentColor" className="text-muted-foreground" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#dotGrid)" />
-        </svg>
-      </div>
 
       {/* 🔹 메인 카드: 로그인 화면과 동일한 스타일 유지 */}
       {/* 테두리와 배경색을 로그인 화면의 Card 컴포넌트와 맞춤 */}
@@ -107,16 +115,20 @@ export function WelcomeScreen({ nickname, onRestart, onStartApp, isDarkMode, onT
                 {/* 만약 색이 다르면 bg-[#BFA15F] 같은 하드코딩 색상으로 변경 가능 */}
                 <Button
                   className="w-full h-11 text-base font-medium rounded-md shadow-sm transition-all active:scale-[0.98]"
-                  onClick={async () => {
-                    if (user) {
-                      await updateDoc(doc(db, "users", user.uid), { onboardingComplete: true });
-                      refreshUserData();
-                    }
-                    onStartApp();
-                  }}
+                  onClick={handleStartApp}
+                  disabled={isStarting}
                 >
-                  <Sparkles className="w-4 h-4 mr-2 opacity-80" />
-                  탐험 시작하기
+                  {isStarting ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>준비 중...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-2 opacity-80" />
+                      탐험 시작하기
+                    </>
+                  )}
                 </Button>
 
                 {/* 로그아웃 버튼: 심플하게 */}
@@ -124,6 +136,7 @@ export function WelcomeScreen({ nickname, onRestart, onStartApp, isDarkMode, onT
                   variant="ghost"
                   className="w-full h-10 text-sm text-muted-foreground hover:text-foreground"
                   onClick={onRestart}
+                  disabled={isStarting}
                 >
                   <LogOut className="w-4 h-4 mr-2" />
                   로그아웃

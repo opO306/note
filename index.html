@@ -20,17 +20,7 @@
 
 <body>
   <div id="root"></div>
-  <script type="module" src="./src/main.tsx"></script>
-  <script type="module">
-    if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker
-          .register('./sw.js')
-          .then(r => console.log('SW scope:', r.scope))
-          .catch(err => console.error('SW 실패:', err));
-      });
-    }
-  </script>
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 
 </html>

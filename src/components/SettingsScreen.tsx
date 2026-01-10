@@ -6,7 +6,6 @@ import { Label } from "./ui/label";
 import { LoadingOverlay } from "./ui/loading-animations";
 import { Separator } from "./ui/separator";
 import { toast, isToastEnabled, setToastEnabled } from "../toastHelper";
-import { usePushToken } from "./hooks/usePushToken"; // 🔹 추가
 import {
   ArrowLeft,
   Bell,
@@ -17,11 +16,8 @@ import {
   Download,
   Trash2,
   AlertTriangle,
-  MessageSquare,
-  Bug,
+  MessageSquare
 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
-import { LoginDebugPanel } from "./LoginDebugPanel";
 import { app, auth, db } from "../firebase";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import {
@@ -32,10 +28,6 @@ import {
 } from "firebase/firestore";
 import {
   getAuth,
-  reauthenticateWithCredential,
-  reauthenticateWithPopup,
-  EmailAuthProvider,
-  GoogleAuthProvider,
 } from "firebase/auth";
 
 interface SettingsScreenProps {
@@ -83,23 +75,11 @@ export function SettingsScreen({
   onShowOpenSourceLicenses,
   onShowAttributions,
 }: SettingsScreenProps) {
-  // 🔹 푸시 토큰 및 설정 관리 훅
-  const { settings: pushSettings, updateSetting, requestPermission, isPermissionGranted } = usePushToken();
-
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [newPostNotifications, setNewPostNotifications] = useState(true);
   const [replyNotifications, setReplyNotifications] = useState(true);
   const [lanternNotifications, setLanternNotifications] = useState(true);
   const [autoSave, setAutoSave] = useState(true);
-  const [showLoginDebugPanel, setShowLoginDebugPanel] = useState(false);
-  
-  // 🔹 서버 설정이 로드되면 로컬 상태와 동기화
-  useEffect(() => {
-    setNewPostNotifications(pushSettings.notifyOnFollow);
-    setReplyNotifications(pushSettings.notifyOnReply);
-    // 등불 알림은 서버에 해당 키가 없으므로 로컬 상태 유지 (또는 notifyOnGuide로 매핑 고려)
-  }, [pushSettings]);
-
   const [aiAutoReplyEnabled, setAiAutoReplyEnabled] = useState(false);
   const [personalizedDigestEnabled, setPersonalizedDigestEnabled] = useState(false);
   const [consentsLoading, setConsentsLoading] = useState(false);
@@ -222,37 +202,27 @@ export function SettingsScreen({
   );
 
   const handleNotificationsEnabledChange = useCallback(
-    async (value: boolean) => {
+    (value: boolean) => {
       setNotificationsEnabled(value);
       saveSettings({ notificationsEnabled: value });
-      
-      // 🔹 알림을 켤 때 권한 요청 시도
-      if (value && !isPermissionGranted) {
-        await requestPermission();
-      }
     },
-    [saveSettings, requestPermission, isPermissionGranted]
+    [saveSettings]
   );
 
   const handleNewPostNotificationsChange = useCallback(
     (value: boolean) => {
       setNewPostNotifications(value);
       saveSettings({ newPostNotifications: value });
-      // 🔹 서버 설정 동기화 (새 글 알림 -> 팔로우 알림으로 매핑)
-      updateSetting("notifyOnFollow", value);
     },
-    [saveSettings, updateSetting]
+    [saveSettings]
   );
 
   const handleReplyNotificationsChange = useCallback(
     (value: boolean) => {
       setReplyNotifications(value);
       saveSettings({ replyNotifications: value });
-      // 🔹 서버 설정 동기화
-      updateSetting("notifyOnReply", value);
-      updateSetting("notifyOnMention", value); // 멘션도 같이 제어
     },
-    [saveSettings, updateSetting]
+    [saveSettings]
   );
 
   const handleLanternNotificationsChange = useCallback(
@@ -289,9 +259,6 @@ export function SettingsScreen({
   const handlePersonalizedDigestChange = useCallback(
     async (value: boolean) => {
       setPersonalizedDigestEnabled(value);
-      // 🔹 서버 푸시 설정 동기화
-      updateSetting("notifyOnDailyDigest", value);
-      
       const ok = await persistConsents({ personalizedDigest: value });
       if (ok) {
         toast.success(
@@ -301,7 +268,7 @@ export function SettingsScreen({
         );
       }
     },
-    [persistConsents, updateSetting],
+    [persistConsents],
   );
 
   const handleClearCache = useCallback(() => {
@@ -324,48 +291,25 @@ export function SettingsScreen({
     setIsDeleting(true); // 로딩 시작
 
     try {
-      // --- 1. 본인 재인증 단계 ---
-      // 현재 사용자의 로그인 방식을 자동으로 확인합니다.
-      const providerId = user.providerData[0]?.providerId;
-
-      // CASE 1: 이메일/비밀번호 로그인 사용자
-      if (providerId === 'password') {
-        const password = prompt("본인 확인을 위해 비밀번호를 다시 입력해주세요.");
-        if (password === null) { // 사용자가 취소 버튼을 누른 경우
-          setIsDeleting(false);
-          return;
-        }
-        if (!user.email) throw new Error("계정의 이메일 정보를 확인할 수 없습니다.");
-        const credential = EmailAuthProvider.credential(user.email, password);
-        await reauthenticateWithCredential(user, credential);
-      }
-      // CASE 2: 구글 로그인 사용자
-      else if (providerId === 'google.com') {
-        const provider = new GoogleAuthProvider();
-        await reauthenticateWithPopup(user, provider);
-      }
-      // 다른 소셜 로그인을 사용한다면 여기에 else if (...)를 추가하면 됩니다.
-      else {
-        throw new Error("지원하지 않는 로그인 방식입니다. 관리자에게 문의해주세요.");
-      }
-
-      // --- 2. 재인증 성공 시, 백엔드에 최종 삭제 요청 ---
-      // 이제 Firebase는 이 사용자가 본인임을 신뢰하므로 Cloud Function 호출을 허용합니다.
+      // ✅ 서버에서 auth_time으로 최근 로그인(재인증) 여부를 강제
       await deleteAccountFn({});
 
-      // --- 3. 성공 후처리 ---
       toast.success("계정 탈퇴가 완료되었습니다. 이용해주셔서 감사합니다.");
       onLogout(); // 로그아웃 처리 및 로그인 화면으로 이동
 
     } catch (error: any) {
       console.error("[settings] deleteAccount 과정 실패", error);
 
+      // 서버에서 재로그인을 요구하는 경우
+      const msg = String(error?.message ?? "");
+      if (error?.code === "functions/failed-precondition" && msg.includes("REAUTH_REQUIRED")) {
+        toast.error("보안을 위해 다시 로그인한 뒤 탈퇴를 다시 시도해 주세요.");
+        onLogout();
+        return;
+      }
+
       // 사용자에게 친절한 오류 메시지 표시
-      if (error.code === 'auth/wrong-password') {
-        toast.error("비밀번호가 일치하지 않습니다.");
-      } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-        toast.info("계정 탈퇴가 취소되었습니다.");
-      } else if (error.code === 'auth/too-many-requests') {
+      if (error.code === 'auth/too-many-requests') {
         toast.error("요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.");
       } else {
         toast.error("계정 삭제 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
@@ -373,7 +317,6 @@ export function SettingsScreen({
       setIsDeleting(false); // 오류 발생 시 로딩 종료
     }
   }, [onLogout]);
-
   // localStorage에서 화면 알림 설정 불러오기
   const [toastEnabled, setToastEnabledState] = useState(isToastEnabled());
 
@@ -405,6 +348,7 @@ export function SettingsScreen({
       </header>
 
       <div className="p-4 space-y-6">
+
         {/* 화면 설정 */}
         <Card className="bg-card border-border">
           <CardHeader>
@@ -431,7 +375,6 @@ export function SettingsScreen({
             </div>
           </CardContent>
         </Card>
-
 
         {/* 알림 설정 */}
         <Card className="bg-card border-border">
@@ -586,23 +529,6 @@ export function SettingsScreen({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Dialog open={showLoginDebugPanel} onOpenChange={setShowLoginDebugPanel}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                >
-                  <Bug className="w-4 h-4 mr-2" />
-                  로그인 디버그 보기
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>로그인 디버그</DialogTitle>
-                </DialogHeader>
-                <LoginDebugPanel />
-              </DialogContent>
-            </Dialog>
             <Button
               variant="outline"
               className="w-full justify-start"

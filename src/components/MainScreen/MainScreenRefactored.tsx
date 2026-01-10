@@ -3,23 +3,22 @@
 // 기존 3,472줄 → 약 600줄로 축소
 /* eslint-disable react/jsx-no-bind, react-perf/jsx-no-new-function-as-prop */
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react";
-import { toast } from "@/toastHelper";
 import { App as CapacitorApp } from "@capacitor/app";
 import type { PluginListenerHandle } from "@capacitor/core";
-import { auth, db, functions, app } from "../../firebase";
+import { auth, db, functions } from "../../firebase";
 import {
   addDoc,
   collection,
   serverTimestamp,
   doc,
-  // onSnapshot,
+  onSnapshot,
   getDocs,
   query,
   where,
   limit,
-  updateDoc,
 } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { httpsCallable } from "firebase/functions";
+import { toast } from "@/toastHelper";
 import { useUserProfiles, useCurrentUserProfileLite } from "./hooks/useUserProfiles";
 import { formatRelativeOrDate } from "@/components/utils/timeUtils";
 import { BlockedUserListDialog } from "@/components/BlockedUserListDialog";
@@ -80,7 +79,7 @@ const MemoBookmarkScreen = React.memo(BookmarkScreen);
 const MemoSearchScreen = React.memo(SearchScreen);
 
 // 덜 자주 쓰이는 화면은 Lazy Loading 유지
-const WriteScreen = lazy(() => import("../WriteScreen").then((m) => ({ default: m.default })));
+const WriteScreen = lazy(() => import("../WriteScreen").then((m) => ({ default: m.WriteScreen })));
 const NotesScreen = lazy(() => import("../NotesScreen"));
 const NoteDetailScreen = lazy(() => import("../NoteDetailScreen"));
 const QuestionComposeScreen = lazy(() =>
@@ -90,9 +89,6 @@ const TitleShop = lazy(() => import("../TitleShop").then((m) => ({ default: m.Ti
 const TitlesCollection = lazy(() => import("../TitlesCollection").then((m) => ({ default: m.TitlesCollection })));
 const AchievementsScreen = lazy(() =>
   import("../AchievementsScreen").then((m) => ({ default: m.AchievementsScreen }))
-);
-const ThemeScreen = lazy(() =>
-  import("../ThemeScreen").then((m) => ({ default: m.ThemeScreen }))
 );
 const FollowListScreen = lazy(() =>
   import("../FollowListScreen").then((m) => ({ default: m.FollowListScreen }))
@@ -124,74 +120,9 @@ import type { MainScreenProps, Post, Reply, SortOption } from "./types";
 // 상수
 const EMPTY_STRING_ARRAY: readonly string[] = Object.freeze([]);
 const SCREEN_RESET_TIMEOUT_MS = 2 * 60 * 1000; // 2분 뒤 화면 자동 초기화
-
-// ✅ 개선된 Skeleton Fallback
 const ScreenFallback = () => (
-  <div className="w-full h-full flex items-center justify-center">
-    <div className="flex flex-col items-center gap-3">
-      <div className="w-12 h-12 rounded-full bg-muted animate-pulse" />
-      <div className="text-sm text-muted-foreground">불러오는 중...</div>
-    </div>
-  </div>
-);
-
-// ✅ TitleShop용 Skeleton
-const TitleShopSkeleton = () => (
-  <div className="w-full h-full bg-background flex flex-col">
-    <div className="bg-card/95 backdrop-blur-xl border-b border-border flex-shrink-0 safe-top sticky top-0 z-10">
-      <div className="px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center space-x-3 min-w-0">
-            <div className="w-10 h-10 rounded bg-muted animate-pulse" />
-            <div className="h-6 w-24 rounded bg-muted animate-pulse" />
-          </div>
-          <div className="h-8 w-32 rounded-full bg-muted animate-pulse" />
-        </div>
-      </div>
-    </div>
-    <div className="flex-1 overflow-y-auto p-4 space-y-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="rounded-lg border bg-card p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex-1 space-y-2">
-              <div className="h-5 w-32 rounded bg-muted animate-pulse" />
-              <div className="h-4 w-48 rounded bg-muted animate-pulse" />
-            </div>
-            <div className="h-9 w-20 rounded bg-muted animate-pulse" />
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-// ✅ MyPageScreen용 Skeleton
-const MyPageScreenSkeleton = () => (
-  <div className="w-full h-full bg-background flex flex-col">
-    <div className="bg-card/95 backdrop-blur-xl border-b border-border flex-shrink-0 safe-top sticky top-0 z-10">
-      <div className="px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="h-6 w-24 rounded bg-muted animate-pulse" />
-          <div className="w-10 h-10 rounded bg-muted animate-pulse" />
-        </div>
-      </div>
-    </div>
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      <div className="rounded-lg border bg-card p-6">
-        <div className="flex items-center space-x-4">
-          <div className="w-20 h-20 rounded-full bg-muted animate-pulse" />
-          <div className="flex-1 space-y-2">
-            <div className="h-5 w-32 rounded bg-muted animate-pulse" />
-            <div className="h-4 w-48 rounded bg-muted animate-pulse" />
-          </div>
-        </div>
-      </div>
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="rounded-lg border bg-card p-4">
-          <div className="h-16 w-full rounded bg-muted animate-pulse" />
-        </div>
-      ))}
-    </div>
+  <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
+    불러오는 중...
   </div>
 );
 
@@ -283,40 +214,12 @@ function MainScreenInner({
   onShowPrivacy,
   onShowOpenSourceLicenses,
   onShowAttributions,
-  onThemeClick,
   shouldOpenMyPageOnMain,
   shouldOpenSettingsOnMyPage,
   onMainScreenReady,
   onSettingsOpenedFromMain,
+  onRequestLogin,
 }: MainScreenProps) {
-  // 현재 테마 확인 (커스텀 테마일 때는 dark 클래스 적용하지 않음)
-  const [currentTheme, setCurrentTheme] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("app-theme") || "default";
-    }
-    return "default";
-  });
-
-  // 테마 변경 감지
-  useEffect(() => {
-    const handleThemeChange = () => {
-      const savedTheme = localStorage.getItem("app-theme") || "default";
-      setCurrentTheme(savedTheme);
-    };
-
-    window.addEventListener("theme-changed", handleThemeChange);
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "app-theme") {
-        setCurrentTheme(e.newValue || "default");
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("theme-changed", handleThemeChange);
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, []);
   // ========================================
   // 1. 화면 상태 (Navigation)
   // ========================================
@@ -343,23 +246,6 @@ function MainScreenInner({
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   // 🆕 글쓰기 선택 시트
   const [showCreateSheet, setShowCreateSheet] = useState(false);
-  const [postMountReady, setPostMountReady] = useState(false);
-  // ✅ 화면이 실제로 그려진 "다음 프레임"에 무거운 작업 허용
-  useEffect(() => {
-    const id = requestAnimationFrame(() => {
-      setPostMountReady(true);
-    });
-
-    return () => cancelAnimationFrame(id);
-  }, []);
-  // ✅ 여기 추가
-  const lumenActions = useLumens({ enabled: postMountReady });
-
-  // ========================================
-  // 2. 기존 훅 연결
-  // ========================================
-  const { posts, setPosts, loading: postsLoading, refresh } = usePosts();
-  const lumenBalance = lumenActions.balance;
 
   // 🔹 글 상세로 들어올 때, 어디에서 왔는지 기억하는 상태
   const [postDetailSource, setPostDetailSource] = useState<PostDetailSource>("home");
@@ -374,16 +260,7 @@ function MainScreenInner({
   const [activeSubCategory, setActiveSubCategory] = useState("전체");
   const [sortBy, setSortBy] = useState<SortOption["value"]>("latest");
   const autoReplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autoReplyTriggeredRef = useRef<Set<string>>((() => {
-    if (typeof window === "undefined") return new Set<string>();
-    try {
-      const stored = localStorage.getItem("aiAutoReplyTriggered");
-      return stored ? new Set(JSON.parse(stored)) : new Set<string>();
-    } catch (e) {
-      console.error("Failed to load aiAutoReplyTriggered from localStorage", e);
-      return new Set<string>();
-    }
-  })());
+  const autoReplyTriggeredRef = useRef<Set<string>>(new Set());
   // ✅ postDetail을 노트에서 열었을 때, 다시 돌아갈 noteId 기억
   const postDetailReturnNoteIdRef = useRef<string | null>(null);
 
@@ -398,7 +275,6 @@ function MainScreenInner({
   const isRankingVisible = visibility.showRanking;
   const isSearchVisible = visibility.showSearchScreen;
   const isAchievementsVisible = visibility.showAchievements;
-  const isThemeVisible = visibility.showTheme;
   const isBookmarksVisible = visibility.showBookmarks || currentScreen === "bookmarks";
   const showNotificationSettings = visibility.showNotificationSettings;
   const isQuizVisible = route.name === "quiz";
@@ -411,7 +287,6 @@ function MainScreenInner({
   const showTitleShop = visibility.showTitleShop;
   const showTitlesCollection = visibility.showTitlesCollection;
   const showAchievements = visibility.showAchievements;
-  const showTheme = visibility.showTheme;
   const showUserProfile = visibility.showUserProfile;
   const isNotesVisible = route.name === "notes";
   const effectiveFollowList = showFollowList;
@@ -483,6 +358,11 @@ function MainScreenInner({
     "profile" | "followers" | "following" | "posts" | "replies"
   >("profile");
 
+  // ========================================
+  // 2. 기존 훅 연결
+  // ========================================
+  const { posts, setPosts, refresh } = usePosts();
+  const { balance: lumenBalance } = useLumens();
 
   // 🔹 차단된 유저 목록 가져오기
   const currentUserProfileLite = useCurrentUserProfileLite();
@@ -588,15 +468,7 @@ function MainScreenInner({
       if (now - createdAtDate.getTime() < AUTO_REPLY_WAIT_MS) return;
 
       autoReplyTriggeredRef.current.add(targetId);
-      localStorage.setItem("aiAutoReplyTriggered", JSON.stringify(Array.from(autoReplyTriggeredRef.current)));
       try {
-        const currentUser = auth.currentUser;
-        if (!currentUser) {
-          // 로그인하지 않은 사용자에게는 AI 답글을 생성하지 않음
-          autoReplyTriggeredRef.current.delete(targetId);
-          return;
-        }
-
         const callable = httpsCallable(functions, "aiAutoReply");
         const promptText = `${latestPost.title ?? ""} \n\n ${latestPost.content ?? ""}`;
 
@@ -609,9 +481,8 @@ function MainScreenInner({
           postCreatedAt: createdAtDate.toISOString(),
           replyCount: latestPost.replies?.length ?? 0,
         });
-      } catch {
+      } catch (error: any) {
         autoReplyTriggeredRef.current.delete(targetId);
-        localStorage.setItem("aiAutoReplyTriggered", JSON.stringify(Array.from(autoReplyTriggeredRef.current)));
         // aiAutoReply 실패 (로그 제거)
       }
     },
@@ -671,6 +542,8 @@ function MainScreenInner({
   // 3. 분리된 훅들 연결
   // ========================================
 
+  const lumenActions = useLumens();
+
   // ✨ [해결] 이제 타입이 완벽하게 일치합니다.
   const {
     clampedTrust,
@@ -695,17 +568,38 @@ function MainScreenInner({
   const isAdmin = currentUserProfileLite?.role === "admin";
   const userStats = useUserStats({ posts, userNickname }) as any;
 
-  // 🔹 프로필 설명 변경 핸들러 (Firestore에 저장)
-  const handleProfileDescriptionChange = useCallback(async (value: string) => {
-    // UI 즉시 반영은 MyPageScreen 내부에서 처리
+  const [profileDescription, setProfileDescription] = useState("");
+
+  useEffect(() => {
     const uid = auth.currentUser?.uid;
-    if (uid) {
-      try {
-        await updateDoc(doc(db, "users", uid), { profileDescription: value });
-      } catch (e) {
-        console.error("프로필 설명 저장 실패", e);
-      }
+    if (!uid) {
+      setProfileDescription("");
+      return;
     }
+
+    const userRef = doc(db, "users", uid);
+    const unsubscribe = onSnapshot(
+      userRef,
+      (snap) => {
+        if (!snap.exists()) {
+          setProfileDescription("");
+          return;
+        }
+        const data = snap.data() as any;
+        const desc =
+          typeof data.profileDescription === "string"
+            ? data.profileDescription
+            : "";
+        setProfileDescription(desc);
+      },
+      () => {
+        // users.profileDescription 구독 에러 (로그 제거)
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const lanternActions = useLanternActions({
@@ -759,7 +653,6 @@ function MainScreenInner({
   const profileOwnerProfile =
     profileOwnerUid ? profileOwnerProfiles[profileOwnerUid] ?? null : null;
 
-
   const otherFollowStats = useOtherUserFollowStats({
     viewedNickname: activeUserProfileNickname,
     currentUserNickname: userNickname,
@@ -782,6 +675,7 @@ function MainScreenInner({
     clampedTrust,
     updateActivity,
     userProfileImage,
+    onRequestLogin,
   });
 
   const handlePostSelect = useCallback((post: Post) => {
@@ -842,20 +736,29 @@ function MainScreenInner({
   }, [goRanking]);
 
   const navigateToBookmarks = useCallback(() => {
+    // ✅ 비로그인 유저는 로그인 화면으로 이동
+    if (!auth.currentUser) {
+      onRequestLogin?.();
+      return;
+    }
     setSelectedPost(null);
     goBookmarks();
-  }, [goBookmarks]);
+  }, [goBookmarks, onRequestLogin]);
 
   const navigateToMyPage = useCallback(() => {
+    // ✅ 비로그인 유저는 로그인 화면으로 이동
+    if (!auth.currentUser) {
+      onRequestLogin?.();
+      return;
+    }
     setSelectedPost(null);
     goMyPage();
-  }, [goMyPage]);
+  }, [goMyPage, onRequestLogin]);
 
   const navigateToAchievements = useCallback(() => {
     setSelectedPost(null);
     goAchievements();
   }, [goAchievements]);
-
 
   const { isOnline, wasOffline } = useOnlineStatus();
 
@@ -899,7 +802,7 @@ function MainScreenInner({
         await refresh();
         toast.success("최신 목록을 불러왔어요");
       }
-    } catch {
+    } catch (error) {
       toast.error("목록을 불러오지 못했습니다");
     } finally {
       setIsRefreshing(false);
@@ -975,7 +878,6 @@ function MainScreenInner({
   useEffect(() => syncLayer("titlesCollection", showTitlesCollection), [showTitlesCollection, syncLayer]);
   useEffect(() => syncLayer("titleShop", showTitleShop), [showTitleShop, syncLayer]);
   useEffect(() => syncLayer("achievements", showAchievements), [showAchievements, syncLayer]);
-  useEffect(() => syncLayer("theme", showTheme), [showTheme, syncLayer]);
   useEffect(() => syncLayer("userProfile", !!showUserProfile), [showUserProfile, syncLayer]);
   useEffect(() => syncLayer("myContentList", !!showMyContentList), [showMyContentList, syncLayer]);
   useEffect(() => syncLayer("followList", !!showFollowList), [showFollowList, syncLayer]);
@@ -983,7 +885,6 @@ function MainScreenInner({
   useEffect(() => syncLayer("category", showCategoryScreen), [showCategoryScreen, syncLayer]);
   useEffect(() => syncLayer("notificationSettings", showNotificationSettings), [showNotificationSettings, syncLayer]);
   useEffect(() => syncLayer("ranking", visibility.showRanking), [visibility.showRanking, syncLayer]);
-  useEffect(() => syncLayer("bookmarks", visibility.showBookmarks), [visibility.showBookmarks, syncLayer]);
   useEffect(() => syncLayer("search", showSearchScreen), [showSearchScreen, syncLayer]);
   useEffect(() => syncLayer("quiz", route.name === "quiz"), [route.name, syncLayer]);
   useEffect(() => syncLayer("notes", route.name === "notes"), [route.name, syncLayer]);
@@ -1075,16 +976,6 @@ function MainScreenInner({
   const handleLayerBackInternal = useCallback((): boolean => {
     const top = popLayer();
     if (!top) {
-      // 레이어 스택이 비어있으면 route를 확인하여 처리
-      if (route.name === "theme") {
-        setRoute({ name: "myPage" });
-        return true;
-      }
-      if (route.name === "myPage") {
-        setRoute({ name: "home" });
-        setCurrentScreen("home");
-        return true;
-      }
       return false;
     }
 
@@ -1168,20 +1059,12 @@ function MainScreenInner({
       case "ranking":
         goHome();
         break;
-      case "bookmarks":
-        setRoute({ name: "home" });
-        setCurrentScreen("home");
-        break;
       case "quiz":
         setRoute({ name: "home" });
         setCurrentScreen("home");
         break;
       case "search":
         setRoute({ name: "home" });
-        setCurrentScreen("home");
-        break;
-      case "theme":
-        setRoute({ name: "myPage" });
         setCurrentScreen("home");
         break;
       default:
@@ -1193,7 +1076,6 @@ function MainScreenInner({
     closePostDetailFromState,
     goHome,
     popLayer,
-    route.name,
     setCurrentScreen,
     setRoute,
     setShowWriteScreen,
@@ -1240,7 +1122,7 @@ function MainScreenInner({
           setRoute({ name: "home" });
           setCurrentScreen("home");
         });
-      } catch {
+      } catch (error) {
         // backButton listener 등록 실패 (로그 제거)
       }
     };
@@ -1252,11 +1134,16 @@ function MainScreenInner({
   }, [handleLayerBackInternal, onRequestExit, setCurrentScreen, setRoute]);
 
   const handleStartWriting = useCallback(() => {
+    // ✅ 비로그인 유저는 로그인 화면으로 이동
+    if (!auth.currentUser) {
+      onRequestLogin?.();
+      return;
+    }
     postManagement.handleStartWriting(() => {
       setShowWriteScreen(true);
       setRoute({ name: "home" });
     });
-  }, [postManagement, setRoute, setShowWriteScreen]);
+  }, [postManagement, setRoute, setShowWriteScreen, onRequestLogin]);
 
   const handlePostSubmit = useCallback(
     async (postData: any) => {
@@ -1307,8 +1194,8 @@ function MainScreenInner({
       } catch {
         toast.error("노트 저장에 실패했어요.");
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // toast는 외부 스코프 값이므로 의존성에서 제외
+
+    }, [toast]);
 
   const handleMentionClick = useCallback((nickname: string) => {
     if (!nickname || nickname === DELETED_USER_NAME) {
@@ -1430,7 +1317,6 @@ function MainScreenInner({
       else if (visibility.showTitleShop) screenKey = "titleShop";
       else if (visibility.showTitlesCollection) screenKey = "titlesCollection";
       else if (visibility.showAchievements) screenKey = "achievements";
-      else if (visibility.showTheme) screenKey = "theme";
       else if (route.name === "quiz") screenKey = "quiz";
       else if (visibility.showFollowList) screenKey = "followList";
       else if (visibility.showMyContentList) screenKey = "myContentList";
@@ -1477,11 +1363,6 @@ function MainScreenInner({
             setShowWriteScreen(true);
             pushLayer("write");
           }}
-          onNavigateToNotes={() => {
-            // 노트 화면으로 이동
-            setRoute({ name: "notes" });
-            setCurrentScreen("home");
-          }}
         />
       </Suspense>
     );
@@ -1503,9 +1384,7 @@ function MainScreenInner({
             onRankingClick={navigateToRanking}
             onBookmarksClick={navigateToBookmarks}
             onMyPageClick={navigateToMyPage}
-            onWriteClick={() => {
-              setShowCreateSheet(true);
-            }}
+            onWriteClick={() => setShowCreateSheet(true)}
             activeTab={currentScreen}
           />
         </div>
@@ -1518,48 +1397,36 @@ function MainScreenInner({
   if (isNoteDetailVisible) {
     return (
       <Suspense fallback={<ScreenFallback />}>
-        <div className="w-full h-full flex flex-col">
-          <NoteDetailScreen
-            noteId={route.noteId}
-            onBack={() => {
-              setRoute({ name: "notes" });
-              setCurrentScreen("home");
-            }}
-            onGoWrite={(draft) => {
-              // 1) 초안 주입 (노트에서 온 건 일반 글)
-              setWriteDraft({ ...draft, postType: "guide" });
-              // 2) noteDetail 화면 닫고 home으로 복귀
-              setRoute({ name: "home" });
-              setCurrentScreen("home");
+        <NoteDetailScreen
+          noteId={route.noteId}
+          onBack={() => {
+            setRoute({ name: "notes" });
+            setCurrentScreen("home");
+          }}
+          onGoWrite={(draft) => {
+            // 1) 초안 주입 (노트에서 온 건 일반 글)
+            setWriteDraft({ ...draft, postType: "guide" });
+            // 2) noteDetail 화면 닫고 home으로 복귀
+            setRoute({ name: "home" });
+            setCurrentScreen("home");
 
-              // 3) 글쓰기 열기
-              setShowWriteScreen(true);
-            }}
-            onOpenSourcePost={(postId) => {
-              // ✅ 지금 보고 있는 noteDetail의 noteId를 기억해 둠 (돌아갈 곳)
-              postDetailReturnNoteIdRef.current = route.noteId;
+            // 3) 글쓰기 열기
+            setShowWriteScreen(true);
+          }}
+          onOpenSourcePost={(postId) => {
+            // ✅ 지금 보고 있는 noteDetail의 noteId를 기억해 둠 (돌아갈 곳)
+            postDetailReturnNoteIdRef.current = route.noteId;
 
-              const post = posts.find((p) => String(p.id) === String(postId));
-              if (!post) {
-                toast.error("원문 게시글을 찾을 수 없어요.");
-                return;
-              }
+            const post = posts.find((p) => String(p.id) === String(postId));
+            if (!post) {
+              toast.error("원문 게시글을 찾을 수 없어요.");
+              return;
+            }
 
-              // ✅ source를 notes로 설정해서 close 시 노트로 복귀시키기
-              openPostDetail(post, "notes" as any);
-            }}
-          />
-          <BottomNavigation
-            onHomeClick={navigateToHome}
-            onRankingClick={navigateToRanking}
-            onBookmarksClick={navigateToBookmarks}
-            onMyPageClick={navigateToMyPage}
-            onWriteClick={() => {
-              setShowCreateSheet(true);
-            }}
-            activeTab={currentScreen}
-          />
-        </div>
+            // ✅ source를 notes로 설정해서 close 시 노트로 복귀시키기
+            openPostDetail(post, "notes" as any);
+          }}
+        />
       </Suspense>
     );
   }
@@ -1571,21 +1438,13 @@ function MainScreenInner({
           onBack={handleLayerBack}
           onSubmit={handlePostSubmit}
           categories={categories}
-          lumenBalance={lumenBalance}
-          spendLumens={lumenActions.spendLumens}
         />
       </Suspense>
     );
   }
 
-  // 커스텀 테마인지 확인
-  const isCustomTheme = currentTheme !== "default";
-
-  // 기본 테마이면서 다크모드일 때만 'dark' 클래스 적용
-  const shouldApplyDark = !isCustomTheme && isDarkMode;
-
   return (
-    <div className={`w-full h-full relative ${shouldApplyDark ? "dark" : ""}`}>
+    <div className={`w-full h-full relative ${isDarkMode ? "dark" : ""}`}>
       <div
         className={`w-full h-full bg-background text-foreground flex flex-col absolute inset-0 ${currentScreen === "home" && !isCategoryVisible && !isSearchVisible && !isTitleShopVisible && !isUserProfileVisible && !route.name.includes('admin')
           ? "z-10 opacity-100"
@@ -1671,10 +1530,8 @@ function MainScreenInner({
               hideSaveNote={postDetailSource === "notes"}
               onReportReply={(reply) => setReportingReply(reply)}
               renderContentWithMentions={renderContentWithMentions}
-              canSubmitReply={!!replyActions.canSubmitReply}
+              canSubmitReply={replyActions.canSubmitReply}
               blockedUserIds={blockedUserIds} // 🆕 차단 목록 전달
-              onRefresh={handleRefresh}
-              isRefreshing={isRefreshing}
             />
           ) : (
             <>
@@ -1710,7 +1567,6 @@ function MainScreenInner({
                 onSubCategoryChange={setActiveSubCategory}
                 onSortChange={setSortBy}
                 isPostLanterned={lanternActions.isPostLanterned}
-                userTrustScore={clampedTrust}
                 isBookmarked={bookmarkActions.isBookmarked}
                 onPostClick={(post) => openPostDetail(post, "home")}
                 onLanternToggle={lanternActions.handleLanternToggle}
@@ -1720,8 +1576,6 @@ function MainScreenInner({
                 blockedUserIds={blockedUserIds} // 🆕 차단 목록 전달
                 onRefresh={handleRefresh}
                 isRefreshing={isRefreshing}
-                isLoading={postsLoading} // ✅ 초기 로딩 상태 전달
-                userUid={auth.currentUser?.uid || ""} // userUid 추가
               />
             </>
           )}
@@ -1731,16 +1585,14 @@ function MainScreenInner({
           onRankingClick={navigateToRanking}
           onBookmarksClick={navigateToBookmarks}
           onMyPageClick={navigateToMyPage}
-          onWriteClick={() => {
-            setShowCreateSheet(true);
-          }}
+          onWriteClick={() => setShowCreateSheet(true)}
           activeTab={currentScreen}
         />
       </div>
 
       {visitedScreens.has("myPage") && (
         <div className={`absolute inset-0 bg-background ${isMyPageVisible ? "z-20 block" : "z-0 hidden"}`}>
-          <Suspense fallback={<MyPageScreenSkeleton />}>
+          <Suspense fallback={<ScreenFallback />}>
             <div className="w-full h-full flex flex-col">
               <MyPageScreen
                 userNickname={userNickname}
@@ -1753,7 +1605,6 @@ function MainScreenInner({
                 onShowTerms={onShowTerms}
                 onShowPrivacy={onShowPrivacy}
                 onShowOpenSourceLicenses={onShowOpenSourceLicenses}
-                currentTheme={typeof window !== "undefined" ? localStorage.getItem("app-theme") || "default" : "default"}
                 onShowAttributions={onShowAttributions}
                 userPosts={myPageData.userPostsForMyPage}
                 userReplies={myPageData.userRepliesForMyPage}
@@ -1762,8 +1613,8 @@ function MainScreenInner({
                 onManageBlockedUsers={() => setShowBlockedUsers(true)}
                 userGuideCount={userStats.userGuideCount}
                 trustScore={clampedTrust}
-                profileDescription={currentUserProfileLite?.profileDescription ?? ""}
-                onProfileDescriptionChange={handleProfileDescriptionChange}
+                profileDescription={profileDescription}
+                onProfileDescriptionChange={setProfileDescription}
                 onHomeClick={navigateToHome}
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
@@ -1772,7 +1623,6 @@ function MainScreenInner({
                   setRoute({ name: "titleShop" });
                 }}
                 onAchievementsClick={navigateToAchievements}
-                onThemeClick={onThemeClick}
                 onTitlesCollectionClick={() => {
                   setRoute({ name: "titlesCollection" });
                 }}
@@ -1812,9 +1662,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => {
-                  setShowCreateSheet(true);
-                }}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -1836,16 +1684,13 @@ function MainScreenInner({
                 weeklyGuideRanking={userStats.weeklyGuideRanking}
                 totalGuideRanking={userStats.totalGuideRanking}
                 weeklyLanternRanking={userStats.weeklyLanternRanking}
-                currentTheme={currentTheme}
               />
               <BottomNavigation
                 onHomeClick={navigateToHome}
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => {
-                  setShowCreateSheet(true);
-                }}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -1882,9 +1727,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => {
-                  setShowCreateSheet(true);
-                }}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -1906,9 +1749,7 @@ function MainScreenInner({
               onRankingClick={navigateToRanking}
               onBookmarksClick={navigateToBookmarks}
               onMyPageClick={navigateToMyPage}
-              onWriteClick={() => {
-                setShowCreateSheet(true);
-              }}
+              onWriteClick={() => setShowCreateSheet(true)}
               activeTab={currentScreen}
             />
           </div>
@@ -1974,7 +1815,6 @@ function MainScreenInner({
               onBookmarkToggle={bookmarkActions.handleBookmarkToggle}
               formatTimeAgo={formatTimeAgo}
               formatCreatedAt={formatCreatedAt}
-              userUid={auth.currentUser?.uid || ""} // userUid 추가
             />
           </Suspense>
         </div>
@@ -1982,7 +1822,7 @@ function MainScreenInner({
 
       {isTitleShopVisible && (
         <div className="absolute inset-0 z-30 bg-background">
-          <Suspense fallback={<TitleShopSkeleton />}>
+          <Suspense fallback={<ScreenFallback />}>
             <div className="w-full h-full flex flex-col">
               <div className="flex-1 min-h-0 overflow-hidden">
                 <TitleShop
@@ -2002,9 +1842,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => {
-                  setShowCreateSheet(true);
-                }}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -2052,31 +1890,15 @@ function MainScreenInner({
                     }
                     userBio={
                       isMyself
-                        ? currentUserProfileLite?.profileDescription ?? ""
+                        ? profileDescription
                         : profileOwnerProfile?.profileDescription ?? ""
                     }
                     posts={profilePosts}
-                    trustScore={
-                      isMyself
-                        ? clampedTrust
-                        : (profileOwnerProfile?.trustScore as number | undefined) ?? undefined
-                    }
+                    trustScore={isMyself ? clampedTrust : undefined}
                     reportCount={0}
                     achievementCount={0}
                     titleCount={0}
                     guideCount={0}
-                    currentTitle={
-                      isMyself
-                        ? titleActions.currentTitle
-                        : (profileOwnerProfile?.currentTitleId as string | undefined) ?? ""
-                    }
-                    currentTheme={(() => {
-                      if (isMyself) {
-                        return typeof window !== "undefined" ? localStorage.getItem("app-theme") || "default" : "default";
-                      }
-                      const otherUserTheme = profileOwnerProfile?.currentTheme;
-                      return (otherUserTheme && otherUserTheme !== "default") ? otherUserTheme : null;
-                    })()}
                     followerCount={followerCountForProfile}
                     followingCount={followingCountForProfile}
                     followerUsers={followerUsersForProfile}
@@ -2124,9 +1946,7 @@ function MainScreenInner({
                     onRankingClick={navigateToRanking}
                     onBookmarksClick={navigateToBookmarks}
                     onMyPageClick={navigateToMyPage}
-                    onWriteClick={() => {
-                      setShowCreateSheet(true);
-                    }}
+                    onWriteClick={() => setShowCreateSheet(true)}
                     activeTab={currentScreen}
                   />
                 </div>
@@ -2154,9 +1974,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => {
-                  setShowCreateSheet(true);
-                }}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -2180,16 +1998,13 @@ function MainScreenInner({
                   setUserProfileSource({ source: "followList", mode });
                   setRoute({ name: "userProfile", nickname });
                 }}
-                currentTheme={currentTheme}
               />
               <BottomNavigation
                 onHomeClick={navigateToHome}
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => {
-                  setShowCreateSheet(true);
-                }}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -2206,15 +2021,6 @@ function MainScreenInner({
                 onBack={handleLayerBack}
                 posts={myContentData.myPosts}
                 replies={myContentData.myReplies}
-                userNickname={userNickname}
-                userProfileImage={userProfileImage}
-                currentTitle={titleActions.currentTitle}
-                isPostLanterned={lanternActions.isPostLanterned}
-                isBookmarked={bookmarkActions.isBookmarked}
-                formatTimeAgo={formatTimeAgo}
-                formatCreatedAt={formatCreatedAt}
-                onLanternToggle={lanternActions.handleLanternToggle}
-                onBookmarkToggle={bookmarkActions.handleBookmarkToggle}
                 onPostClick={(postId) => {
                   const post = visiblePosts.find((p) => p.id === postId);
                   if (post) {
@@ -2242,9 +2048,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => {
-                  setShowCreateSheet(true);
-                }}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -2266,50 +2070,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => {
-                  setShowCreateSheet(true);
-                }}
-                activeTab={currentScreen}
-              />
-            </div>
-          </Suspense>
-        </div>
-      )}
-
-      {isThemeVisible && (
-        <div className="absolute inset-0 z-30 bg-background transition-all duration-200 ease-out opacity-100 translate-y-0">
-          <Suspense fallback={<ScreenFallback />}>
-            <div className="w-full h-full flex flex-col">
-              <ThemeScreen
-                onBack={handleLayerBack}
-                isDarkMode={isDarkMode}
-                onToggleDarkMode={onToggleDarkMode}
-                lumenBalance={lumenBalance}
-                onThemePurchase={async (themeId: string, cost: number) => {
-                  const success = await lumenActions.spendLumens(cost, `테마 구매: ${themeId}`, themeId);
-                  if (success) {
-                    // Firestore에 구매 정보 저장은 ThemeScreen 내부에서 처리
-                    const functions = getFunctions(app, "asia-northeast3");
-                    const purchaseThemeFn = httpsCallable(functions, "purchaseTheme");
-                    try {
-                      await purchaseThemeFn({ themeId, cost });
-                    } catch (error) {
-                      console.error("테마 구매 정보 저장 실패:", error);
-                      toast.error("테마 구매 정보 저장에 실패했습니다.");
-                      return false;
-                    }
-                  }
-                  return success;
-                }}
-              />
-              <BottomNavigation
-                onHomeClick={navigateToHome}
-                onRankingClick={navigateToRanking}
-                onBookmarksClick={navigateToBookmarks}
-                onMyPageClick={navigateToMyPage}
-                onWriteClick={() => {
-                  setShowCreateSheet(true);
-                }}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -2333,9 +2094,7 @@ function MainScreenInner({
                 onRankingClick={navigateToRanking}
                 onBookmarksClick={navigateToBookmarks}
                 onMyPageClick={navigateToMyPage}
-                onWriteClick={() => {
-                  setShowCreateSheet(true);
-                }}
+                onWriteClick={() => setShowCreateSheet(true)}
                 activeTab={currentScreen}
               />
             </div>
@@ -2379,7 +2138,7 @@ function MainScreenInner({
                   priority: "normal",
                 });
                 toast.success("신고가 접수되었어요. 검토 후 조치하겠습니다.");
-              } catch {
+              } catch (error) {
                 toast.error("신고 처리 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
               } finally {
                 setReportingPost(null);
@@ -2414,7 +2173,7 @@ function MainScreenInner({
                   postId: selectedPost?.id ?? null,
                 });
                 toast.success("신고가 접수되었어요. 검토 후 조치하겠습니다.");
-              } catch {
+              } catch (error) {
                 // 답글 신고 저장 실패 (로그 제거)
                 toast.error("신고 처리 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
               } finally {
@@ -2440,6 +2199,9 @@ function MainScreenInner({
         onClose={() => setShowCreateSheet(false)}
         onSelectStructured={() => {
           setShowCreateSheet(false);
+
+          // TODO: 질문 정리 화면 route/layer는 다음 단계에서 추가
+          // 지금은 일단 route만 이동하게 해도 됨
           setRoute({ name: "questionCompose" });
         }}
         onSelectWrite={() => {

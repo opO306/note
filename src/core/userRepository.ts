@@ -3,7 +3,7 @@
 // Firestore 기반 유저/팔로우 관련 읽기/쓰기 모듈
 // - Cloud Function 의존성을 제거하고 Firestore 직접 쓰기로 변경하여 모바일 안정성 확보
 
-import { db, auth } from "@/firebase"; // auth 추가 필수
+import { db, auth, ensureUserDocument } from "@/firebase"; // auth 추가 필수
 // functions, httpsCallable 제거 (사용하지 않음)
 import {
     collection,
@@ -52,6 +52,9 @@ export async function setNicknameServer(nickname: string): Promise<string> {
         throw new Error("로그인이 필요합니다.");
     }
 
+    // ✅ users/{uid} 문서가 없으면 먼저 생성 (Rules의 create 조건 대응)
+    await ensureUserDocument(user);
+
     // setDoc + merge로 안전하게 업데이트
     await setDoc(doc(db, "users", user.uid), {
         nickname: nickname,
@@ -69,6 +72,9 @@ export async function completeOnboardingServer(): Promise<void> {
     if (!user) {
         throw new Error("로그인이 필요합니다.");
     }
+
+    // ✅ users/{uid} 문서가 없으면 먼저 생성 (Rules의 create 조건 대응)
+    await ensureUserDocument(user);
 
     // setDoc with merge: true를 사용하여 문서가 없어도 생성하고, 있으면 업데이트
     await setDoc(doc(db, "users", user.uid), {

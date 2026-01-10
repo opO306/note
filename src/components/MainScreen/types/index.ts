@@ -34,8 +34,6 @@ export interface Post {
   authorTitleName?: string | null;
   hidden?: boolean;
   reportCount?: number;
-  moderationStatus?: "pending" | "approved" | "rejected" | "needs_review" | "action_needed" | "error"; // moderationStatus 추가
-  clientIp?: string; // clientIp 추가
 }
 
 /**
@@ -68,8 +66,6 @@ export interface Reply {
   aiSummary?: string;
   /** auto_reply 등 생성 소스 */
   aiSource?: string;
-  moderationStatus?: "pending" | "approved" | "rejected" | "needs_review" | "action_needed" | "error"; // moderationStatus 추가
-  clientIp?: string; // clientIp 추가
 }
 
 /**
@@ -120,13 +116,11 @@ export interface ScreenVisibility {
   showTitlesCollection: boolean;
   showRanking: boolean;
   showAchievements: boolean;
-  showTheme: boolean;
   showGuidelines: boolean;
   showNotifications: boolean;
   showFollowList: "followers" | "following" | null;
   showMyContentList: "posts" | "replies" | null;
   showUserProfile: string | null;
-  currentScreen: CurrentScreen;
 }
 
 /**
@@ -222,11 +216,12 @@ export interface MainScreenProps {
   onShowGuidelines?: () => void;
   onShowOpenSourceLicenses?: () => void;
   onShowAttributions?: () => void;
-  onThemeClick?: () => void;
   shouldOpenMyPageOnMain?: boolean;
   shouldOpenSettingsOnMyPage?: boolean;
   onMainScreenReady?: () => void;
   onSettingsOpenedFromMain?: () => void;
+  /** ✅ 비로그인 유저가 로그인 필요한 기능 시도 시 호출 */
+  onRequestLogin?: () => void;
 }
 
 /**

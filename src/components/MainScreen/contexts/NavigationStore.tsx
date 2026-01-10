@@ -26,10 +26,8 @@ export type Layer =
   | "category"
   | "notificationSettings"
   | "ranking"
-  | "bookmarks"
   | "search"
-  | "quiz"
-  | "theme";
+  | "quiz";
 
 interface NavigationStoreValue {
   route: MainRoute;
@@ -150,13 +148,11 @@ export function NavigationStoreProvider({ children }: { children: React.ReactNod
         showTitlesCollection: false,
         showRanking: false,
         showAchievements: false,
-        showTheme: false,
         showGuidelines: false,
         showNotifications: false,
         showFollowList: null,
         showMyContentList: null,
         showUserProfile: null,
-        currentScreen: "home", // currentScreen 추가
       };
 
       switch (r.name) {
@@ -178,8 +174,6 @@ export function NavigationStoreProvider({ children }: { children: React.ReactNod
           return { ...base, showTitlesCollection: true };
         case "achievements":
           return { ...base, showAchievements: true };
-        case "theme":
-          return { ...base, showTheme: true };
         case "quiz":
           return base;
         case "followList":
@@ -297,6 +291,7 @@ export function NavigationStoreProvider({ children }: { children: React.ReactNod
       writeDraft,
       setWriteDraft,
       layerStackRef,
+      currentScreen,
       setCurrentScreen,
     ]
   );

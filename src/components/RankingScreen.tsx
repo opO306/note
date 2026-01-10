@@ -30,7 +30,6 @@ interface RankingScreenProps {
   weeklyGuideRanking: RankingMap;
   totalGuideRanking: RankingMap;
   weeklyLanternRanking: RankingMap;
-  currentTheme?: string | null;
 
   onHomeClick?: () => void;
   onBookmarksClick?: () => void;
@@ -44,7 +43,6 @@ interface RankingListProps {
   loading: boolean;
   userProfiles: Record<string, UserProfileLite>;
   scrollContainer?: HTMLElement | null;
-  currentTheme?: string | null;
 }
 
 interface SectionHeaderProps {
@@ -125,7 +123,6 @@ export const RankingScreen = React.memo(function RankingScreen({
   weeklyGuideRanking,
   totalGuideRanking,
   weeklyLanternRanking,
-  currentTheme,
 }: RankingScreenProps) {
   const [activeTab, setActiveTab] = useState("weekly");
 
@@ -194,7 +191,6 @@ export const RankingScreen = React.memo(function RankingScreen({
                     loading={isLoading}
                     userProfiles={userProfiles}
                     scrollContainer={scrollContainer}
-                    currentTheme={currentTheme}
                   />
                 </div>
               </TabsContent>
@@ -214,7 +210,6 @@ export const RankingScreen = React.memo(function RankingScreen({
                     loading={false}
                     userProfiles={userProfiles}
                     scrollContainer={scrollContainer}
-                    currentTheme={currentTheme}
                   />
                 </div>
               </TabsContent>
@@ -237,7 +232,6 @@ export const RankingScreen = React.memo(function RankingScreen({
                     loading={isLoading}
                     userProfiles={userProfiles}
                     scrollContainer={scrollContainer}
-                    currentTheme={currentTheme}
                   />
                 </div>
               </TabsContent>
@@ -252,8 +246,7 @@ export const RankingScreen = React.memo(function RankingScreen({
     prev.weeklyGuideRanking === next.weeklyGuideRanking &&
     prev.totalGuideRanking === next.totalGuideRanking &&
     prev.weeklyLanternRanking === next.weeklyLanternRanking &&
-    prev.onBack === next.onBack &&
-    prev.currentTheme === next.currentTheme
+    prev.onBack === next.onBack
   );
 });
 
@@ -284,12 +277,8 @@ const getRankBadge = (index: number) => {
 };
 
 // 랭킹 리스트 컴포넌트
-const RankingList = React.memo(function RankingList({ data, type, loading, userProfiles, scrollContainer, currentTheme }: RankingListProps) {
-  // data를 안정적으로 메모이제이션하여 불필요한 재렌더링 방지
-  const items = useMemo(() => {
-    if (!data || data.length === 0) return [];
-    return data;
-  }, [data]);
+const RankingList = React.memo(function RankingList({ data, type, loading, userProfiles, scrollContainer }: RankingListProps) {
+  const items = useMemo(() => data, [data]);
 
   if (loading && data.length === 0) {
     return (
@@ -313,7 +302,7 @@ const RankingList = React.memo(function RankingList({ data, type, loading, userP
     );
   }
 
-  if (items.length === 0) {
+  if (data.length === 0) {
     return (
       <EmptyStateCard
         icon={
@@ -358,11 +347,11 @@ const RankingList = React.memo(function RankingList({ data, type, loading, userP
         return (
           <div className="pb-3 last:pb-0">
             <RankingCard
+              key={item.author}
               item={item}
               index={index}
               type={type}
               profile={profile}
-              currentTheme={currentTheme}
             />
           </div>
         );
@@ -376,10 +365,9 @@ interface RankingCardProps {
   index: number;
   type: "guide" | "lantern";
   profile?: UserProfileLite;
-  currentTheme?: string | null;
 }
 
-const RankingCard = React.memo(function RankingCard({ item, index, type, profile, currentTheme: _currentTheme }: RankingCardProps) {
+const RankingCard = React.memo(function RankingCard({ item, index, type, profile }: RankingCardProps) {
   const liveTitleId = profile?.currentTitleId ?? null;
   const liveTitleLabel = getTitleLabelById(liveTitleId);
   const avatarSrc = profile?.profileImage;
@@ -388,8 +376,9 @@ const RankingCard = React.memo(function RankingCard({ item, index, type, profile
     <Card
       className={`list-optimized ${index < 3
         ? "bg-gradient-to-r from-muted/50 to-muted/30"
-        : "bg-card"
-      }`}
+        : ""
+        }`}
+      style={index >= 3 ? { backgroundColor: 'var(--card)' } : undefined}
     >
       <CardContent className="p-4">
         <div className="flex items-center space-x-3">
@@ -440,11 +429,6 @@ const RankingCard = React.memo(function RankingCard({ item, index, type, profile
     </Card>
   );
 }, (prev, next) => {
-  // item 객체의 참조가 같으면 리렌더링하지 않음
-  if (prev.item === next.item && prev.profile === next.profile && prev.index === next.index && prev.type === next.type) {
-    return true;
-  }
-  // 개별 필드 비교
   if (prev.index !== next.index) return false;
   if (prev.type !== next.type) return false;
   if (prev.item.author !== next.item.author) return false;

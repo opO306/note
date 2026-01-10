@@ -1,1 +1,0 @@
-const s=["시발","씨발","씨바","씨바알","ㅅㅂ","싯팔","개새끼","개 새끼","개새","병신","븅신","ㅂㅅ","좆같","ㅈ같","염병","엠창","시벌","애미","시1발","ㅈㄹ","지랄","병1신","테스트욕설"];function o(n){return(n||"").toLowerCase().replace(/[0-9\s~!@#$%^&*()\-_=+\[\]{};:'",.<>/?\\|`]/g,"")}function a(n){const r=o(n);return r?s.some(t=>{const e=o(t);return e?r.includes(e):!1}):!1}export{a as c};

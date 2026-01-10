@@ -20,9 +20,6 @@ import android.webkit.WebView;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
-// Firebase 인증 플러그인 수동 등록을 위한 import
-import io.capawesome.capacitorjs.plugins.firebase.authentication.FirebaseAuthenticationPlugin;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,10 +48,13 @@ public class MainActivity extends BridgeActivity {
         insetsController.setAppearanceLightStatusBars(false);
         insetsController.setAppearanceLightNavigationBars(false);
 
-        // 첫 실행 시 권한 요청
-        if (isFirstRun()) {
-            requestAllPermissions();
-        }
+        // ✅ 권한 요청은 해당 기능 사용 시점에 요청 (첫 실행 시 즉시 요청하지 않음)
+        // 사용자가 앱의 가치를 먼저 경험한 후 권한을 요청하여 이탈률 감소
+        // - 카메라 권한: 프로필 사진 변경 시
+        // - 갤러리 권한: 이미지 업로드 시
+        // if (isFirstRun()) {
+        // requestAllPermissions();
+        // }
     }
 
     @Override

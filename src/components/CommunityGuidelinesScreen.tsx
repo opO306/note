@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { ArrowLeft, Users, AlertCircle, ThumbsUp, Ban, Flag, Moon, Sun } from "lucide-react";
-import { useState, useCallback, useMemo } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import { db } from "../firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { useState, useCallback, useMemo, useEffect } from "react";
+
+// ✅ WelcomeScreen 프리로드 (다음 화면 빠른 전환용)
+const preloadWelcomeScreen = () => {
+  import("./WelcomeScreen");
+};
 
 // 아이콘 스타일 상수
 const ICON_STYLE = {
@@ -34,12 +36,16 @@ export function CommunityGuidelinesScreen({
   isDarkMode,
   onToggleDarkMode,
 }: CommunityGuidelinesScreenProps) {
-  const { user, refreshUserData } = useAuth();
   // 체크박스 state (이미 동의했으면 모두 true로 시작)
   const [agreement1, setAgreement1] = useState(isAlreadyAgreed);
   const [agreement2, setAgreement2] = useState(isAlreadyAgreed);
   const [agreement3, setAgreement3] = useState(isAlreadyAgreed);
-  const [saving, setSaving] = useState(false); // 중복 클릭 방지 상태 추가
+
+  // ✅ 컴포넌트 마운트 시 WelcomeScreen 프리로드
+  useEffect(() => {
+    const timer = setTimeout(preloadWelcomeScreen, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // 모두 동의했는지 확인
   const allAgreed = useMemo(
@@ -47,24 +53,13 @@ export function CommunityGuidelinesScreen({
     [agreement1, agreement2, agreement3]
   );
   // 버튼 클릭 핸들러
-  const handleContinue = useCallback(async () => {
-    if (saving) return; // 중복 클릭 방지
-
+  const handleContinue = useCallback(() => {
     if (onContinue && allAgreed) {
-      setSaving(true);
-      try {
-        if (user) {
-          await updateDoc(doc(db, "users", user.uid), { communityGuidelinesAgreed: true });
-          refreshUserData();
-        }
-        onContinue();
-      } finally {
-        setSaving(false);
-      }
+      onContinue();
     } else {
       onBack();
     }
-  }, [onContinue, allAgreed, onBack, user, refreshUserData, saving]);
+  }, [onContinue, allAgreed, onBack]);
 
   // ✅ 체크박스 변경 핸들러들 (JSX 안에서 화살표 함수 안 쓰기 위해 분리)
   const handleAgreement1Change = useCallback(
@@ -293,7 +288,7 @@ export function CommunityGuidelinesScreen({
 
       {/* 온보딩 플로우일 때: 체크박스 + 확인하고 계속하기 */}
       {onContinue && (
-        <div className="bg-background/95 backdrop-blur-xl border-t border-border p-4 space-y-4 safe-nav-bottom flex-shrink-0 mb-4">
+        <div className="bg-background/95 backdrop-blur-xl border-t border-border p-4 space-y-4 flex-shrink-0 safe-button-area">
           {/* 체크박스 3개 */}
           <div className="space-y-3">
             <div className="flex items-start space-x-3 p-3 rounded-lg border border-border hover:border-primary/30 active:border-primary/40 active:bg-primary/5 transition-colors transition-transform active:scale-[0.99]">
@@ -367,7 +362,7 @@ export function CommunityGuidelinesScreen({
 
       {/* 다시보기 모드일 때: 확인 버튼만 */}
       {!onContinue && (
-        <div className="bg-background/95 backdrop-blur-xl border-t border-border p-6 pb-8 safe-nav-bottom flex-shrink-0 mb-4">
+        <div className="bg-background/95 backdrop-blur-xl border-t border-border p-6 flex-shrink-0 safe-button-area-lg">
           <Button
             onClick={onBack}
             className="w-full transition-transform active:scale-95"

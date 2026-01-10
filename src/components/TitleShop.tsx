@@ -28,7 +28,7 @@ export function TitleShop({
   onTitlePurchase,
   onTitleEquip,
 }: TitleShopProps) {
-  const titles: ShopTitle[] = SHOP_TITLES.filter(t => !t.hidden);
+  const titles: ShopTitle[] = SHOP_TITLES;
 
   const getTitleStatus = (title: ShopTitle) => {
     const isOwned = ownedTitles.includes(title.id);
@@ -92,55 +92,53 @@ export function TitleShop({
           return (
             <Card
               key={title.id}
-              className={`transition-all duration-200 relative overflow-hidden ${cardOpacity} ${borderStyle}`}
+              className={`transition-all duration-200 ${cardOpacity} ${borderStyle}`}
             >
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 
                   {/* 정보 영역 */}
-                  <div className="flex-1 min-w-0 space-y-2 sm:space-y-3">
+                  <div className="flex-1 min-w-0 space-y-3">
                     {/* 타이틀 및 뱃지 */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-base truncate flex-1 min-w-0">{title.name}</h3>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {isEquipped && (
-                          <Badge className="text-[10px] px-1.5 h-5 whitespace-nowrap">착용 중</Badge>
-                        )}
-                        {!isOwned && !isRequirementsMet && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 h-5 text-muted-foreground whitespace-nowrap">잠김</Badge>
-                        )}
-                      </div>
+                      <h3 className="font-bold text-base truncate">{title.name}</h3>
+                      {isEquipped && (
+                        <Badge className="text-[10px] px-1.5 h-5">착용 중</Badge>
+                      )}
+                      {!isOwned && !isRequirementsMet && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 h-5 text-muted-foreground">잠김</Badge>
+                      )}
                     </div>
 
-                    <p className="text-sm text-muted-foreground line-clamp-2 break-words">
+                    <p className="text-sm text-muted-foreground line-clamp-2">
                       {title.description}
                     </p>
 
-                    {/* ✨ [핵심 수정] 가격과 조건을 분리하고 박스 형태로 디자인 (모바일 최적화: 패딩/간격 축소) */}
-                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs">
+                    {/* ✨ [핵심 수정] 가격과 조건을 분리하고 박스 형태로 디자인 */}
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
 
                       {/* 1. 가격 표시 */}
                       <div className={`
-                        flex items-center gap-1 sm:gap-1.5 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md border flex-shrink-0
+                        flex items-center gap-1.5 px-2 py-1 rounded-md border
                         ${!isOwned
                           ? (isAffordable ? 'bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400' : 'bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400')
                           : 'bg-muted border-transparent text-muted-foreground'}
                       `}>
-                        <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                        <span className="font-semibold tabular-nums whitespace-nowrap">{title.cost.toLocaleString()}</span>
-                        <span className="text-[10px] opacity-80 whitespace-nowrap">루멘</span>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span className="font-semibold tabular-nums">{title.cost.toLocaleString()}</span>
+                        <span className="text-[10px] opacity-80">루멘</span>
                       </div>
 
                       {/* 2. 조건 표시 (등불) */}
                       {title.requiredReplyLanterns > 0 && (
                         <div className={`
-                          flex items-center gap-1 sm:gap-1.5 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md border flex-shrink-0
+                          flex items-center gap-1.5 px-2 py-1 rounded-md border
                           ${title.requiredReplyLanterns > userReplyLanterns
                             ? 'bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400'
                             : 'bg-muted border-border text-muted-foreground'}
                         `}>
-                          <LanternFilledIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                          <span className="tabular-nums whitespace-nowrap">
+                          <LanternFilledIcon className="w-3.5 h-3.5" />
+                          <span className="tabular-nums">
                             {userReplyLanterns} / {title.requiredReplyLanterns}
                           </span>
                         </div>
@@ -149,13 +147,13 @@ export function TitleShop({
                       {/* 3. 조건 표시 (길잡이) */}
                       {title.requiredGuideCount > 0 && (
                         <div className={`
-                          flex items-center gap-1 sm:gap-1.5 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md border flex-shrink-0
+                          flex items-center gap-1.5 px-2 py-1 rounded-md border
                           ${title.requiredGuideCount > userGuideCount
                             ? 'bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400'
                             : 'bg-muted border-border text-muted-foreground'}
                         `}>
-                          <Compass className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                          <span className="tabular-nums whitespace-nowrap">
+                          <Compass className="w-3.5 h-3.5" />
+                          <span className="tabular-nums">
                             {userGuideCount} / {title.requiredGuideCount}
                           </span>
                         </div>
@@ -163,16 +161,16 @@ export function TitleShop({
                     </div>
                   </div>
 
-                  {/* 버튼 영역 - 위치 고정 및 겹침 방지 */}
-                  <div className="flex-shrink-0 w-full sm:w-auto sm:self-start mt-1 sm:mt-0">
+                  {/* 버튼 영역 */}
+                  <div className="flex-shrink-0 pt-2 sm:pt-0 self-end sm:self-center">
                     {isOwned ? (
                       isEquipped ? (
-                        <Button disabled variant="secondary" size="sm" className="w-full sm:w-auto min-w-[5rem] bg-primary/10 text-primary">
+                        <Button disabled variant="secondary" size="sm" className="min-w-[5rem] bg-primary/10 text-primary">
                           <Check className="w-3.5 h-3.5 mr-1" />
                           완료
                         </Button>
                       ) : (
-                        <Button size="sm" variant="outline" className="w-full sm:w-auto min-w-[5rem]" onClick={() => onTitleEquip(title.id)}>
+                        <Button size="sm" variant="outline" className="min-w-[5rem]" onClick={() => onTitleEquip(title.id)}>
                           착용
                         </Button>
                       )
@@ -181,7 +179,7 @@ export function TitleShop({
                         size="sm"
                         disabled={!isRequirementsMet || !isAffordable}
                         onClick={() => handlePurchaseClick(title)}
-                        className={`w-full sm:w-auto min-w-[6rem] ${!isRequirementsMet || !isAffordable ? "opacity-80" : ""}`}
+                        className={`min-w-[6rem] ${!isRequirementsMet || !isAffordable ? "opacity-80" : ""}`}
                         variant={(!isRequirementsMet || !isAffordable) ? "secondary" : "default"}
                       >
                         {!isRequirementsMet ? (

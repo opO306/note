@@ -1,37 +1,40 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { Capacitor } from "@capacitor/core";
+import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
+import { FirebaseAppCheck } from "@capacitor-firebase/app-check"; // App Check 임포트
 import "./index.css";
-import { initPerformanceMonitoring } from "./utils/performanceMonitoring";
-import * as Sentry from "@sentry/react";
+import { initFirebase, initFirebaseAppCheck } from "./firebase";
 
-Sentry.init({
-    dsn: "https://2a980add45c1a46d6284b4aff8acc727@o4510675590381568.ingest.us.sentry.io/4510675597000704",
+async function unregisterServiceWorkersInDev() {
+    if (!import.meta.env.DEV) return;
+    if (typeof window === "undefined") return;
+    if (!("serviceWorker" in navigator)) return;
 
-    integrations: [
-        Sentry.browserTracingIntegration(),
-    ],
+    const flagKey = "__dev_sw_unregistered_v1__";
+    try {
+        if (window.sessionStorage.getItem(flagKey)) return;
+        const regs = await navigator.serviceWorker.getRegistrations();
+        if (!regs.length) return;
 
-    // ✅ v8에서는 여기!
-    tracePropagationTargets: [
-        "localhost",
-        /^https:\/\/yourserver\.io\/api/,
-    ],
+        await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
+        window.sessionStorage.setItem(flagKey, "1");
 
-    // 로그인 디버깅 중
-    tracesSampleRate: 1.0,
-
-    environment: import.meta.env.MODE,
-});
-
-
-
-if (import.meta.env.DEV) {
-    import("./utils/react-version-check");
-    import("./utils/sw-unregister");
+        // SW가 컨트롤 중이었다면, 강제로 한 번 reload해서 캐시/라우팅 간섭을 제거
+        if (navigator.serviceWorker.controller) {
+            window.location.reload();
+        }
+    } catch {
+        // dev 편의용: 실패해도 무시
+    }
 }
 
-
 async function bootstrap() {
+    // ✅ Vite dev에서 JS 모듈 요청이 HTML로 바뀌는 이슈(대개 SW 간섭)를 방지
+    await unregisterServiceWorkersInDev();
+    // ✅ 4번/9번: Cold Start 최적화 - 렌더링을 먼저 시작하고 무거운 작업은 백그라운드로
+    // requestIdleCallback을 사용하여 브라우저 유휴 시간에 초기화
+    const ric = window.requestIdleCallback || ((cb: () => void) => setTimeout(cb, 1));
     // 시스템 네비게이션 바 높이 자동 계산 및 CSS 변수 업데이트
     // env(safe-area-inset-bottom)이 자동으로 작동하지 않는 경우를 대비한 보완 로직
     if (typeof window !== 'undefined') {
@@ -53,13 +56,8 @@ async function bootstrap() {
 
             // 계산된 값이 유효하고 env 값이 작거나 0이면 계산된 값 사용
             // (env 값이 이미 있으면 그것을 우선 사용)
-            // ✅ Safe Area API가 작동하지 않는 경우를 위한 fallback
             if (systemBarHeight > 0 && (envBottomValue === 0 || systemBarHeight > envBottomValue)) {
                 root.style.setProperty('--safe-area-inset-bottom', `${systemBarHeight}px`);
-            } else if (envBottomValue === 0 && systemBarHeight === 0) {
-                // ✅ Android 기기에서 시스템 바가 있을 수 있으므로 최소값 보장
-                // 일반적으로 Android 시스템 네비게이션 바는 48-56px 정도
-                root.style.setProperty('--safe-area-inset-bottom', '48px');
             }
 
             // 상단 safe area 계산 (상태 바 높이)
@@ -86,22 +84,21 @@ async function bootstrap() {
                 calculatedTopBarHeight = Math.min(Math.max(estimatedTopBarHeight, 24), 48);
             }
 
-            // 계산된 값이 유효하고 env 값이 작거나 0이면 계산된 값 사용
-            // (env 값이 이미 있으면 그것을 우선 사용)
+            // ✅ 13번: Safe Area 계산 개선 - 최소값 보장 및 더 안정적인 계산
             if (calculatedTopBarHeight > 0 && (envTopValue === 0 || calculatedTopBarHeight > envTopValue)) {
                 root.style.setProperty('--safe-area-inset-top', `${calculatedTopBarHeight}px`);
             } else if (envTopValue === 0) {
                 // env 값도 없고 계산도 안 되면 최소값 보장 (Android 상태 바 최소 높이)
-                root.style.setProperty('--safe-area-inset-top', '24px');
+                // ✅ 개선: Android 화면 밀도에 따른 동적 계산
+                const dpr = window.devicePixelRatio || 1;
+                const minStatusBar = Math.round(24 * Math.min(dpr, 1.5)); // 일반적으로 24-36px
+                root.style.setProperty('--safe-area-inset-top', `${minStatusBar}px`);
             }
         };
 
-        // ✅ 최적화: requestAnimationFrame 사용하여 다음 프레임에 실행 (블로킹 최소화)
+        // 초기 계산 (DOM이 준비된 후 약간의 지연을 두어 브라우저가 모든 값을 계산한 후 실행)
         const initUpdate = () => {
-            // requestAnimationFrame을 두 번 사용하여 브라우저가 레이아웃 계산을 완료한 후 실행
-            requestAnimationFrame(() => {
-                requestAnimationFrame(updateSafeAreaInsets);
-            });
+            setTimeout(updateSafeAreaInsets, 100);
         };
 
         if (document.readyState === 'loading') {
@@ -117,35 +114,67 @@ async function bootstrap() {
         });
     }
 
-    // ✅ Cold start 최적화: Firebase 초기화와 App 컴포넌트 로드를 병렬로 실행
-    // 1. Firebase App (firebase.ts에서 자동 초기화됨)
-    // await initFirebase();
-    // 2. App Check (Auth보다 먼저)
-    const AppModule = await import("./App");
+    // ✅ 4번: Cold start 최적화 - Firebase 초기화를 브라우저 유휴 시간에 실행
+    // 렌더링을 블로킹하지 않도록 await 제거
+    ric(() => {
+        void initFirebase();
+    });
 
-    // ✅ Performance Monitoring 초기화 (백그라운드에서 실행)
-    try {
-        initPerformanceMonitoring();
-    } catch {
-        // Performance Monitoring 초기화 실패는 무시 (개발 환경 등)
+    // ✅ AppCheck와 Authentication 리스너는 "백그라운드"에서 초기화
+    //    - 첫 화면 렌더링을 막지 않도록 await 사용하지 않음
+    //    - 웹 환경에서는 initFirebaseAppCheck()에서 App Check를 설정
+    //    - 네이티브 환경에서는 Capacitor App Check 플러그인도 함께 초기화
+    void initFirebaseAppCheck().catch(() => {
+        // App Check 초기화 실패는 무시 (백그라운드 작업)
+    });
+
+    if (Capacitor.isNativePlatform()) {
+        try {
+            void FirebaseAppCheck.initialize({
+                provider: 'playIntegrity',
+                isTokenAutoRefreshEnabled: true,
+            });
+        } catch {
+            // App Check initialization failed (로그 제거)
+        }
     }
 
-    // ✅ Foreground 이벤트 핸들러 초기화
-    try {
-        const { initForegroundHandler } = await import("./utils/foregroundHandler");
-        initForegroundHandler();
-    } catch {
-        // Foreground 핸들러 초기화 실패는 무시
-    }
+    // FirebaseAuthentication 리스너 설정 (렌더링을 블로킹하지 않음)
+    FirebaseAuthentication.removeAllListeners()
+        .then(() => {
+            return FirebaseAuthentication.addListener('authStateChange', () => {
+                // Auth State 변경 (로그 제거)
+            });
+        })
+        .catch(() => {
+            // FirebaseAuthentication listener setup failed (로그 제거)
+        });
 
-    // ✅ App 컴포넌트 로드 및 렌더링 (이미 위에서 로드됨)
-    const { default: App } = AppModule;
+    // ✅ App 컴포넌트 로드 및 렌더링 (AppCheck 초기화를 기다리지 않고 즉시 시작)
+    const { default: App } = await import("./App");
 
     ReactDOM.createRoot(document.getElementById("root")!).render(
         <React.StrictMode>
             <App />
         </React.StrictMode>
     );
+
+    // ✅ PROD에서만 Service Worker 등록 (Vite HTML inline module 스크립트 제거로 인한 대체)
+    if (import.meta.env.PROD && typeof window !== "undefined" && "serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+            const swUrl = `${import.meta.env.BASE_URL}sw.js`;
+            navigator.serviceWorker
+                .register(swUrl)
+                .then((r) => {
+                    // eslint-disable-next-line no-console
+                    console.log("SW scope:", r.scope);
+                })
+                .catch((err) => {
+                    // eslint-disable-next-line no-console
+                    console.error("SW 실패:", err);
+                });
+        });
+    }
 }
 
 bootstrap();

@@ -6,7 +6,9 @@ import { HttpsError } from "firebase-functions/v2/https";
 // 1. Firebase Admin SDK 초기화 및 내보내기 (Export)
 // =====================================================
 // 이 파일이 로드될 때 한 번만 실행되어야 합니다.
-admin.initializeApp();
+if (admin.apps.length === 0) {
+    admin.initializeApp();
+}
 
 /** Firestore 데이터베이스 인스턴스 */
 export const db = admin.firestore();
@@ -295,9 +297,9 @@ async function getRecentUserContent(
                     const data = doc.data();
                     const createdAt = data.createdAt;
                     const createdAtMs = createdAt?.toMillis ? createdAt.toMillis() : (typeof createdAt === "number" ? createdAt : Date.now());
-                    
+
                     if (createdAtMs < cutoffTime) return null;
-                    
+
                     return {
                         content: `${data.title || ""} ${data.content || ""}`.trim(),
                         createdAt: createdAt
@@ -313,30 +315,30 @@ async function getRecentUserContent(
                 .get();
 
             const recentReplies: Array<{ content: string; createdAt: any }> = [];
-            
+
             for (const postDoc of postsSnap.docs) {
                 const postData = postDoc.data();
                 const replies = postData.replies || [];
-                
+
                 for (const reply of replies) {
                     if (reply.authorUid === userId) {
                         const createdAt = reply.createdAt;
                         const createdAtMs = createdAt?.toMillis ? createdAt.toMillis() : (typeof createdAt === "number" ? createdAt : Date.now());
-                        
+
                         if (createdAtMs >= cutoffTime) {
                             recentReplies.push({
                                 content: reply.content || "",
                                 createdAt: createdAt
                             });
-                            
+
                             if (recentReplies.length >= limit) break;
                         }
                     }
                 }
-                
+
                 if (recentReplies.length >= limit) break;
             }
-            
+
             return recentReplies.sort((a, b) => {
                 const aMs = a.createdAt?.toMillis ? a.createdAt.toMillis() : (typeof a.createdAt === "number" ? a.createdAt : 0);
                 const bMs = b.createdAt?.toMillis ? b.createdAt.toMillis() : (typeof b.createdAt === "number" ? b.createdAt : 0);
@@ -357,7 +359,7 @@ async function getRecentUserContent(
  */
 function calculateSimilarity(text1: string, text2: string): number {
     if (!text1 || !text2) return 0;
-    
+
     // 정규화: 소문자 변환, 공백 제거, 특수문자 제거
     const normalize = (text: string) => {
         return text.toLowerCase()
@@ -365,25 +367,25 @@ function calculateSimilarity(text1: string, text2: string): number {
             .replace(/\s+/g, " ")
             .trim();
     };
-    
+
     const norm1 = normalize(text1);
     const norm2 = normalize(text2);
-    
+
     if (norm1.length === 0 || norm2.length === 0) return 0;
-    
+
     // 완전 일치
     if (norm1 === norm2) return 1.0;
-    
+
     // 단어 집합으로 변환
     const words1 = new Set(norm1.split(/\s+/).filter(w => w.length > 1));
     const words2 = new Set(norm2.split(/\s+/).filter(w => w.length > 1));
-    
+
     if (words1.size === 0 || words2.size === 0) return 0;
-    
+
     // Jaccard 유사도 계산
     const intersection = new Set([...words1].filter(w => words2.has(w)));
     const union = new Set([...words1, ...words2]);
-    
+
     return intersection.size / union.size;
 }
 
@@ -394,9 +396,9 @@ function calculateSimilarity(text1: string, text2: string): number {
  */
 function detectAdvertisementKeywords(text: string): boolean {
     if (!text || typeof text !== "string") return false;
-    
+
     const normalized = text.toLowerCase();
-    
+
     // 광고성 키워드 목록
     const adKeywords = [
         "구매", "할인", "무료", "광고", "홍보", "링크", "클릭", "이벤트",
@@ -405,21 +407,21 @@ function detectAdvertisementKeywords(text: string): boolean {
         "www.", ".com", ".kr", "카톡", "문의", "연락", "상담",
         "지금", "지금만", "한정", "오늘", "오늘만"
     ];
-    
+
     // 키워드가 3개 이상 포함되면 광고로 의심
     const matchedKeywords = adKeywords.filter(keyword => normalized.includes(keyword));
-    
+
     if (matchedKeywords.length >= 3) {
         return true;
     }
-    
+
     // URL 패턴이 여러 개 있으면 광고로 의심
     const urlPattern = /(https?:\/\/|www\.)[^\s]+/gi;
     const urls = normalized.match(urlPattern);
     if (urls && urls.length >= 2) {
         return true;
     }
-    
+
     return false;
 }
 
@@ -444,7 +446,7 @@ export async function detectSpam(
         // ✅ 비용 절감: 조회 개수 감소 (20 → 5, 유사도 검사에 충분)
         const oneHourAgo = 60 * 60 * 1000;
         const recentContent = await getRecentUserContent(userId, type, oneHourAgo, 5);
-        
+
         // 게시물: 1시간에 10개 이상
         // 답글: 1시간에 20개 이상
         const maxAllowed = type === "post" ? 10 : 20;

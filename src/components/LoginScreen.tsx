@@ -1,21 +1,53 @@
-/* eslint-disable react/forbid-dom-props */
-import * as React from "react";
+import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
+import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { Moon, Sun, Loader2 } from "lucide-react";
-import { loginWithGoogle } from "../googleAuth";
+import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import { auth, initFirebaseAppCheck, db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
 import { toast } from "../toastHelper";
-import { normalizeLoginError, type UiLoginError } from "../auth/normalizeError";
+import {
+  trackLoginScreenView,
+  trackLoginStarted,
+  trackLoginSuccess,
+  trackLoginFailure,
+  trackLoginCancelled,
+  trackTermsAgreed,
+} from "@/utils/analytics";
+
+// ✅ 다음 화면들 프리로드 (로그인 성공 시 빠른 전환을 위해)
+const preloadNextScreens = () => {
+  // Lazy 컴포넌트들을 미리 로드
+  import("./WelcomeScreen");
+  import("./NicknameScreen");
+  import("./CommunityGuidelinesScreen");
+  import("./VerifyEmailScreen");
+};
+
+// ✅ App Check 사전 초기화 (로그인 버튼 클릭 전에 미리 시작)
+let appCheckWarmedUp = false;
+const warmupAppCheck = () => {
+  if (appCheckWarmedUp) return;
+  appCheckWarmedUp = true;
+  // 백그라운드에서 App Check 초기화 (권한 검증에 필요)
+  void initFirebaseAppCheck();
+};
+
+// ✅ Firestore 연결 워밍 (cold start 줄이기)
+let firestoreWarmedUp = false;
+const warmupFirestore = () => {
+  if (firestoreWarmedUp) return;
+  firestoreWarmedUp = true;
+  // 더미 쿼리로 Firestore 연결 사전 수립 (결과는 무시)
+  void getDoc(doc(db, "_warmup", "ping")).catch(() => { });
+};
 
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
-import { useOnlineStatus } from "./hooks/useOnlineStatus";
 
-/**
- * ENV 설정
- *  VITE_GOOGLE_WEB_CLIENT_ID
- *  ➜ Google Cloud Console / OAuth Web Client ID
- */
+// ... (기존 FloatingSymbolData, CURSIVE_SYMBOLS, FloatingSymbolItem 코드는 그대로 두거나 복사해오세요. UI 관련이라 생략하지 않고 유지하시면 됩니다.)
+// 편의를 위해 UI 관련 부분은 기존 코드를 그대로 유지한다고 가정합니다.
 
 interface FloatingSymbolData {
   id: number;
@@ -58,18 +90,47 @@ FloatingSymbolItem.displayName = "FloatingSymbolItem";
 interface LoginScreenProps {
   onShowTerms: () => void;
   onShowPrivacy: () => void;
+  onShowEmailLogin?: () => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
+  onLoginStart?: () => void; // ✅ 로그인 시작 시 호출 (Optimistic UI용)
+  onLoginEnd?: () => void; // ✅ 로그인 완료/실패 시 호출 (로딩 상태 리셋용)
 }
 
 export function LoginScreen({
   onShowTerms,
   onShowPrivacy,
+  onShowEmailLogin,
   isDarkMode,
   onToggleDarkMode,
+  onLoginStart,
+  onLoginEnd,
 }: LoginScreenProps) {
-  const { isOnline } = useOnlineStatus();
-  const floatingSymbols = React.useMemo<FloatingSymbolData[]>(() => {
+  // ✅ 컴포넌트 마운트 시 사전 준비 작업
+  useEffect(() => {
+    // 0) 로그인 화면 조회 추적
+    trackLoginScreenView();
+
+    // 1) App Check 사전 초기화 (500ms 후 - 가장 중요)
+    const appCheckTimer = setTimeout(warmupAppCheck, 500);
+
+    // 2) Firestore 연결 워밍 (700ms 후)
+    const firestoreTimer = setTimeout(warmupFirestore, 700);
+
+    // 3) 다음 화면 프리로드 (1000ms 후)
+    const preloadTimer = setTimeout(preloadNextScreens, 1000);
+
+    return () => {
+      clearTimeout(appCheckTimer);
+      clearTimeout(firestoreTimer);
+      clearTimeout(preloadTimer);
+    };
+  }, []);
+
+  // ✅ 약관 체크박스 클릭 시에도 워밍업 실행 (사용자가 로그인 의도 표현)
+  const hasWarmedUpOnAgree = useRef(false);
+
+  const floatingSymbols = useMemo<FloatingSymbolData[]>(() => {
     return Array.from({ length: 30 }, (_, i) => ({
       id: i,
       symbol: CURSIVE_SYMBOLS[Math.floor(Math.random() * CURSIVE_SYMBOLS.length)],
@@ -81,34 +142,86 @@ export function LoginScreen({
       opacity: 0.15 + Math.random() * 0.2,
     }));
   }, []);
-
-  const [agreedToTerms, setAgreedToTerms] = React.useState(false);
-  const [isLoggingIn, setIsLoggingIn] = React.useState(false);
-  const [loginError, setLoginError] = React.useState<UiLoginError | null>(null);
-
-  const handleGoogleLogin = React.useCallback(async (): Promise<void> => {
-    if (!agreedToTerms) {
-      toast.error("약관에 동의해주세요.");
-      return;
+  // ✅ 12번: 약관 동의 상태 복원 (재방문 시 다시 체크하지 않아도 됨)
+  const [agreedToTerms, setAgreedToTerms] = useState(() => {
+    try {
+      return localStorage.getItem("tosAccepted") === "true";
+    } catch {
+      return false;
     }
+  });
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleGoogleLogin = useCallback(async () => {
+    if (!agreedToTerms) return toast.error("약관에 동의해주세요.");
     if (isLoggingIn) return;
     setIsLoggingIn(true);
-    try {
-      await loginWithGoogle();
-    } catch (err) {
-      const normalized = normalizeLoginError(err);
-      setLoginError(normalized);
 
-      // 개발 중이면 콘솔에도 남겨라 (나중에 로그캣/remote debug에서 확인 가능)
-      console.error("[GoogleLoginFailed]", err);
+    // ✅ 로그인 시작 시간 기록
+    const loginStartTime = Date.now();
+    trackLoginStarted("google");
+
+    // ✅ Optimistic UI: 로그인 시작 즉시 부모에게 알림 (로딩 상태 전환)
+    onLoginStart?.();
+
+    try {
+      // 1) 네이티브 구글 로그인
+      const result = await FirebaseAuthentication.signInWithGoogle({
+        // Android에서 Credential Manager를 우회 (플러그인 7.2.0+)
+        useCredentialManager: false,
+      });
+
+      // 2) 네이티브 로그인 결과를 설치본에서도 바로 확인
+      const idToken = result.credential?.idToken ?? "";
+      const accessToken = result.credential?.accessToken ?? "";
+
+      // 3) 토큰이 없으면 에러 처리 (사용자 취소)
+      if (!idToken && !accessToken) {
+        trackLoginCancelled("google");
+        return undefined;
+      }
+
+      // ✅ 다음 화면 프리로드 시작 (로그인 성공 직후 병렬 실행)
+      preloadNextScreens();
+
+      // 4) Web SDK credential 생성 + 로그인 시도
+      const credential = GoogleAuthProvider.credential(
+        idToken || undefined,
+        accessToken || undefined
+      );
+
+      await signInWithCredential(auth, credential);
+
+      // ✅ 로그인 성공 추적
+      const loginDuration = Date.now() - loginStartTime;
+      trackLoginSuccess("google", loginDuration);
+    } catch (err: any) {
+      // ✅ 로그인 실패 추적
+      const loginDuration = Date.now() - loginStartTime;
+      const errorMessage = err?.code || err?.message || "unknown_error";
+      trackLoginFailure("google", errorMessage, loginDuration);
+
+      toast.error("로그인에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setIsLoggingIn(false);
+      onLoginEnd?.(); // ✅ 로그인 완료/실패 시 부모에게 알림
     }
-  }, [agreedToTerms, isLoggingIn]);
+    return undefined;
+  }, [agreedToTerms, isLoggingIn, onLoginStart, onLoginEnd]);
 
-  const handleTermsChange = (checked: boolean | string): void => { // 명시적 반환 타입 void 추가
+  const handleTermsChange = useCallback((checked: boolean | string) => {
     const value = Boolean(checked);
     setAgreedToTerms(value);
+
+    // ✅ 약관 동의 시 워밍업 즉시 실행 (로그인 의도 표현)
+    if (value && !hasWarmedUpOnAgree.current) {
+      hasWarmedUpOnAgree.current = true;
+      trackTermsAgreed();
+      warmupAppCheck();
+      warmupFirestore();
+      preloadNextScreens();
+    }
+
     try {
       if (typeof window !== "undefined" && window.localStorage) {
         if (value) {
@@ -119,31 +232,27 @@ export function LoginScreen({
           window.localStorage.removeItem("privacyAccepted");
         }
       }
-    } catch {
-      /* LocalStorage 접근 실패는 무시 */
+    } catch (e) {
+      // LocalStorage 접근 실패는 무시 (선택적 기능)
     }
-    return; // 함수 마지막에 명시적 반환 추가
-  };
+  }, []);
 
-  /* --------- 이하 UI 렌더 --------- */
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center p-6 overflow-hidden bg-background text-foreground transition-colors duration-300">
+    <div className="relative w-full h-full flex flex-col items-center justify-center p-6 pt-safe pb-safe overflow-hidden bg-background text-foreground transition-colors duration-300">
       {onToggleDarkMode && (
-        <div className="absolute safe-top-button right-4 z-50">
+        <div className="absolute top-4 right-4 z-50">
           <Button variant="ghost" size="icon" onClick={onToggleDarkMode} className="rounded-full hover:bg-accent transition-colors">
             {isDarkMode ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-slate-700 dark:text-slate-300" />}
           </Button>
         </div>
       )}
 
-      {/* 배경 심볼 */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none opacity-60" aria-hidden="true">
         {floatingSymbols.map((item) => (
           <FloatingSymbolItem key={item.id} item={item} />
         ))}
       </div>
 
-      {/* 그리드 + 대각선 패턴 */}
       <div className="absolute inset-0 opacity-30 pointer-events-none" aria-hidden="true">
         <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -160,7 +269,6 @@ export function LoginScreen({
         </svg>
       </div>
 
-      {/* 카드 */}
       <div className="relative z-10 w-full max-w-sm animate-in fade-in zoom-in duration-500">
         <Card className="w-full border-border/60 shadow-2xl bg-background/95 backdrop-blur-sm">
           <CardContent className="pt-6 pb-7 px-4 sm:px-6 space-y-8">
@@ -169,33 +277,58 @@ export function LoginScreen({
                 <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent dark:from-white dark:to-gray-400">
                   비유노트
                 </h1>
-                <p className="text-sm text-muted-foreground">세상의 모든 지식을 비유로 연결하다</p>
+                <p className="text-sm text-muted-foreground">
+                  세상의 모든 지식을 비유로 연결하다
+                </p>
               </div>
             </div>
 
-            {/* 약관 체크박스 */}
             <div className="space-y-3">
-              <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors cursor-pointer group" onClick={() => handleTermsChange(!agreedToTerms)}>
+              <div
+                className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors cursor-pointer group"
+                onClick={() => handleTermsChange(!agreedToTerms)}
+              >
                 <Checkbox
                   id="terms"
                   checked={agreedToTerms}
-                  onCheckedChange={(checked: boolean) => handleTermsChange(checked)}
+                  onCheckedChange={(checked) => handleTermsChange(checked as boolean)}
                   className="mt-0.5 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
                 <div className="grid gap-1.5 leading-none">
-                  <Label htmlFor="terms" className="text-sm font-medium leading-snug cursor-pointer select-none group-hover:text-foreground/80">서비스 이용약관 동의 (필수)</Label>
+                  <Label
+                    htmlFor="terms"
+                    className="text-sm font-medium leading-snug cursor-pointer select-none group-hover:text-foreground/80"
+                  >
+                    서비스 이용약관 동의 (필수)
+                  </Label>
                   <p className="text-xs text-muted-foreground whitespace-nowrap -ml-1 sm:ml-0">
-                    <button type="button" className="underline decoration-muted-foreground/50 hover:text-primary hover:decoration-primary underline-offset-2 transition-all mr-0.5 sm:mr-1" onClick={(e) => { e.stopPropagation(); onShowTerms(); }}>이용약관</button>
+                    <button
+                      type="button"
+                      className="underline decoration-muted-foreground/50 hover:text-primary hover:decoration-primary underline-offset-2 transition-all mr-0.5 sm:mr-1"
+                      onClick={(e) => { e.stopPropagation(); onShowTerms(); }}
+                    >
+                      이용약관
+                    </button>
                     과
-                    <button type="button" className="underline decoration-muted-foreground/50 hover:text-primary hover:decoration-primary underline-offset-2 transition-all mx-0.5 sm:mx-1" onClick={(e) => { e.stopPropagation(); onShowPrivacy(); }}>개인정보처리방침</button>
+                    <button
+                      type="button"
+                      className="underline decoration-muted-foreground/50 hover:text-primary hover:decoration-primary underline-offset-2 transition-all mx-0.5 sm:mx-1"
+                      onClick={(e) => { e.stopPropagation(); onShowPrivacy(); }}
+                    >
+                      개인정보처리방침
+                    </button>
                     을 읽고 동의합니다.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* 구글 로그인 버튼 */}
-            <Button className="w-full h-12 text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.98]" variant={agreedToTerms ? "default" : "secondary"} disabled={!agreedToTerms || isLoggingIn || !isOnline} onClick={handleGoogleLogin}>
+            <Button
+              className="w-full h-12 text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
+              variant={agreedToTerms ? "default" : "secondary"}
+              disabled={!agreedToTerms || isLoggingIn}
+              onClick={handleGoogleLogin}
+            >
               {isLoggingIn ? (
                 <div className="flex items-center justify-center gap-2">
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -204,49 +337,41 @@ export function LoginScreen({
               ) : (
                 <div className="flex items-center justify-center gap-2">
                   <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
-                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.84z" />
-                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                    <path
+                      fill="currentColor"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="currentColor"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="currentColor"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.84z"
+                    />
+                    <path
+                      fill="currentColor"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    />
                   </svg>
                   <span>Google 계정으로 시작하기</span>
                 </div>
               )}
             </Button>
 
-
-            <p className="text-xs text-muted-foreground/60 text-center">© 2024 BiyuNote. All rights reserved.</p>
-
-            {loginError && (
-              <div style={{
-                margin: "12px 16px",
-                padding: "12px",
-                borderRadius: 12,
-                background: "#3a0b0b",
-                border: "1px solid rgba(255,255,255,0.12)",
-                color: "white",
-              }}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>
-                  {loginError.title}{loginError.code ? ` (code: ${loginError.code})` : ""}
-                </div>
-                <div style={{ opacity: 0.9 }}>{loginError.message}</div>
-
-                {loginError.raw && (
-                  <details style={{ marginTop: 8 }}>
-                    <summary style={{ cursor: "pointer" }}>자세히 보기</summary>
-                    <pre style={{
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                      marginTop: 8,
-                      fontSize: 12,
-                      opacity: 0.9
-                    }}>
-                      {loginError.raw}
-                    </pre>
-                  </details>
-                )}
-              </div>
+            {onShowEmailLogin && (
+              <Button
+                variant="outline"
+                className="w-full"
+                disabled={!agreedToTerms || isLoggingIn}
+                onClick={onShowEmailLogin}
+              >
+                이메일로 로그인
+              </Button>
             )}
+            <p className="text-xs text-muted-foreground/60 text-center">
+              © 2024 BiyuNote. All rights reserved.
+            </p>
           </CardContent>
         </Card>
       </div>

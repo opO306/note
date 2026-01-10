@@ -5,11 +5,9 @@ const config: CapacitorConfig = {
   appName: '비유노트',
   webDir: 'build',
   plugins: {
-    GoogleAuth: {
-      scopes: ["profile", "email"],
-      clientId: "852428184810-eh4ojd3kj5ssvia7o54iteamk2sub31o.apps.googleusercontent.com",
-      serverClientId: "852428184810-eh4ojd3kj5ssvia7o54iteamk2sub31o.apps.googleusercontent.com",
-      forceCodeForRefreshToken: true,
+    FirebaseAuthentication: {
+      providers: ['google.com'],
+      skipNativeAuth: true,
     },
     SplashScreen: {
       launchShowDuration: 1000, // 1초로 단축 (성능 최적화)

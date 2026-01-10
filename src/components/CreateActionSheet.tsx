@@ -1,4 +1,3 @@
-/* eslint-disable react/forbid-dom-props */
 // src/components/CreateActionSheet.tsx
 import * as React from "react";
 import { Sparkles, PenLine, NotebookText } from "lucide-react";
@@ -14,11 +13,12 @@ type CreateActionSheetProps = {
 type ActionButtonProps = {
     icon: React.ReactNode;
     title: string;
+    description?: string;
     onClick: () => void;
     variant?: "default" | "outline";
 };
 
-function ActionButton({ icon, title, onClick, variant = "default" }: ActionButtonProps) {
+function ActionButton({ icon, title, description, onClick, variant = "default" }: ActionButtonProps) {
     const [isDark, setIsDark] = React.useState(() =>
         document.documentElement.classList.contains('dark')
     );
@@ -86,6 +86,11 @@ function ActionButton({ icon, title, onClick, variant = "default" }: ActionButto
                 <div className={`text-[15px] font-semibold ${variant === "default" && isDark ? "text-[#D4D4D4]" : "text-foreground"}`}>
                     {title}
                 </div>
+                {description ? (
+                    <div className={`text-[13px] leading-snug ${variant === "default" && isDark ? "text-[#D4D4D4]/80" : "text-muted-foreground"}`}>
+                        {description}
+                    </div>
+                ) : null}
             </div>
         </button>
     );

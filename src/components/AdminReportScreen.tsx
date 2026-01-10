@@ -91,12 +91,10 @@ export function AdminReportScreen({ onBack }: AdminReportScreenProps) {
     useEffect(() => {
         const reportsRef = collection(db, "reports");
 
-        // ✅ 쿼리 구조 개선: priority 필드가 없는 문서도 처리 가능하도록
-        // priority로 먼저 정렬하려면 모든 문서에 priority 필드가 있어야 함
-        // 대신 createdAt만으로 정렬하고, 클라이언트에서 priority로 재정렬
         const q = query(
             reportsRef,
             where("status", "in", ["pending", "needs_review"]),
+            orderBy("priority", "desc"),
             orderBy("createdAt", "desc"),
             limit(50)
         );
@@ -136,27 +134,15 @@ export function AdminReportScreen({ onBack }: AdminReportScreenProps) {
                     };
                 });
 
-                // ✅ 클라이언트에서 priority로 재정렬 (high 우선, 그 다음 createdAt)
-                const sortedList = list.sort((a, b) => {
-                    if (a.priority === "high" && b.priority !== "high") return -1;
-                    if (a.priority !== "high" && b.priority === "high") return 1;
-                    // priority가 같으면 createdAt으로 정렬 (이미 desc로 정렬되어 있음)
-                    return 0;
-                });
-
-                setReports(sortedList);
+                setReports(list);
 
                 // 선택된 신고가 사라졌으면 선택 해제
                 setSelectedReportId((curr) =>
-                    curr && !sortedList.some((r) => r.id === curr) ? null : curr
+                    curr && !list.some((r) => r.id === curr) ? null : curr
                 );
             },
             (error) => {
                 console.error("[AdminReportScreen] reports 구독 에러:", error);
-                console.error("에러 코드:", error.code);
-                console.error("에러 메시지:", error.message);
-                // ✅ 사용자에게 오류 표시 (선택사항)
-                // toast.error("신고 목록을 불러오는 중 오류가 발생했습니다.");
             }
         );
 

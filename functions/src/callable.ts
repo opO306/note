@@ -20,11 +20,23 @@ import { sendPushNotification, callSagesForQuestion } from "./notificationServic
 
 /**
  * 1. 온보딩(닉네임 설정) 최종 완료 처리
+ * ✅ 탈퇴 이력 검증 추가: 로그인 시점이 아닌 닉네임 제출 시점에 검증
+ *    → 신규 유저 로그인 로딩 2-5초 단축 (verifyLogin 백그라운드화)
  */
 export const finalizeOnboarding = onCall({ region: "asia-northeast3" }, async (request) => {
     // ... (이전과 동일한 코드)
     const { auth, data } = request;
     if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+
+    // ✅ 탈퇴 이력 검증 (로그인 시점에서 이동됨)
+    const email = auth.token.email;
+    if (email) {
+        const hash = require("crypto").createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
+        const banSnap = await db.collection("deletedEmails").doc(hash).get();
+        if (banSnap.exists) {
+            throw new HttpsError("failed-precondition", "탈퇴한 이력이 있는 계정으로는 재가입할 수 없습니다. 30일 후에 다시 시도해주세요.");
+        }
+    }
 
     const nickname = String(data?.nickname ?? "").trim();
     const nicknameLower = nickname.toLowerCase();
@@ -86,72 +98,27 @@ export const finalizeOnboarding = onCall({ region: "asia-northeast3" }, async (r
  * 2. 회원 탈퇴 처리
  */
 export const deleteAccount = onCall({ region: "asia-northeast3" }, async (request) => {
-    // ... (이전과 동일한 코드)
     const { auth } = request;
     if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+
+    // ✅ 최근 로그인 강제 (서버에서 auth_time으로 판별)
+    const AUTH_AGE_LIMIT_SEC = 10 * 60; // 10분
+    const authTime = Number(auth.token.auth_time ?? 0);
+    const nowSec = Math.floor(Date.now() / 1000);
+
+    if (!authTime || nowSec - authTime > AUTH_AGE_LIMIT_SEC) {
+        throw new HttpsError("failed-precondition", "REAUTH_REQUIRED");
+    }
+
     const uid = auth.uid;
 
-    const userRef = db.collection("users").doc(uid);
-    await userRef.set({
-        nickname: DELETED_USER_NAME,
-        nicknameLower: DELETED_USER_NAME.toLowerCase(),
-        displayName: DELETED_USER_NAME,
-        photoURL: null,
-        bio: "",
-        isDeleted: true,
-        deletedAt: admin.firestore.FieldValue.serverTimestamp(),
-        email: admin.firestore.FieldValue.delete()
-    }, { merge: true });
-
-    const followsRef = db.collection("follows");
-    const [followingSnap, followerSnap] = await Promise.all([
-        followsRef.where("followerUid", "==", uid).get(),
-        followsRef.where("followingUid", "==", uid).get()
-    ]);
-    const batch = db.batch();
-    followingSnap.forEach(doc => batch.delete(doc.ref));
-    followerSnap.forEach(doc => batch.delete(doc.ref));
-    await batch.commit();
-
-    const myPostsSnap = await db.collection("posts").where("authorUid", "==", uid).get();
-    await batchUpdateSnapshot(myPostsSnap, {
-        authorUid: null,
-        author: DELETED_USER_NAME,
-        authorNickname: DELETED_USER_NAME,
-        authorDeleted: true
-    });
-
-    // 🚨 [수정 2] '==' 주변의 따옴표 오타를 수정합니다.
-    const myRepliesSnap = await db.collectionGroup('replies').where('authorUid', '==', uid).get();
-    await batchUpdateSnapshot(myRepliesSnap, {
-        authorUid: null,
-        author: DELETED_USER_NAME,
-        authorNickname: DELETED_USER_NAME,
-        authorDeleted: true
-    });
-
-    const guidePostsSnap = await db.collection("posts").where("guideReplyAuthorUid", "==", uid).get();
-    await batchUpdateSnapshot(guidePostsSnap, {
-        guideReplyAuthorUid: null,
-        guideReplyAuthor: DELETED_USER_NAME
-    });
-
+    // ✅ Auth 삭제만 담당 (데이터 정리는 auth.user().onDelete 트리거에서 수행)
     try {
         await admin.auth().deleteUser(uid);
     } catch (error: any) {
-        if (error.code !== 'auth/user-not-found') {
+        if (error?.code !== "auth/user-not-found") {
             throw error;
         }
-    }
-
-    if (auth.token.email) {
-        const hash = crypto.createHash("sha256").update(auth.token.email.trim().toLowerCase()).digest("hex");
-        const expireDate = new Date();
-        expireDate.setDate(expireDate.getDate() + 30);
-        await db.collection("deletedEmails").doc(hash).set({
-            deletedAt: admin.firestore.FieldValue.serverTimestamp(),
-            expireAt: admin.firestore.Timestamp.fromDate(expireDate)
-        });
     }
 
     return { success: true };
@@ -159,6 +126,9 @@ export const deleteAccount = onCall({ region: "asia-northeast3" }, async (reques
 
 /**
  * 3. 로그인 검증
+ * ✅ 비용 최적화: minInstances 제거 (신규 유저만 호출되므로 콜드스타트 영향 최소화)
+ * - 기존 유저: Firestore 문서 존재 → verifyLogin 호출 안 함
+ * - 신규 유저: 첫 가입 시 1회만 호출 (콜드스타트 2-5초 허용)
  */
 export const verifyLogin = onCall({ region: "asia-northeast3" }, async (request) => {
     // ... (이전과 동일한 코드)

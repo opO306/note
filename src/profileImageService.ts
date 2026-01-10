@@ -10,8 +10,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
  * - 형식: WebP (미지원 시 JPEG)
  * - 개선점: 작지만 용량이 큰 파일도 강제 압축
  */
-// ✅ 비용 절감: 품질 조정 (0.82 → 0.75, 용량 더 절감)
-async function resizeProfileImage(file: File, maxSize = 512, quality = 0.75): Promise<File> {
+async function resizeProfileImage(file: File, maxSize = 512, quality = 0.82): Promise<File> {
     if (typeof window === "undefined" || typeof document === "undefined") return file;
     if (!file.type.startsWith("image/")) return file;
 
@@ -32,8 +31,8 @@ async function resizeProfileImage(file: File, maxSize = 512, quality = 0.75): Pr
     // 2. 리사이즈 필요 여부 계산
     let scale = Math.min(1, maxSize / Math.max(width, height));
 
-    // ✅ 비용 절감: 1MB → 500KB로 기준 낮춤 (더 많은 이미지 압축)
-    if (scale >= 1 && file.size < 512 * 1024) {
+    // 💡 추가: 크기가 작아도 용량이 1MB 이상이면 강제 리사이징(압축) 진행
+    if (scale >= 1 && file.size < 1024 * 1024) {
         return file;
     }
 

@@ -12,6 +12,8 @@ interface SearchHighlightProps {
   highlightClassName?: string;
   /** 대소문자 구분 */
   caseSensitive?: boolean;
+  /** HTML 태그로 렌더링 */
+  dangerouslySetInnerHTML?: boolean;
 }
 
 /**
@@ -23,6 +25,7 @@ export function SearchHighlight({
   className,
   highlightClassName = "bg-primary/20 text-primary font-medium px-0.5 rounded",
   caseSensitive = false,
+  dangerouslySetInnerHTML = false,
 }: SearchHighlightProps) {
   const highlightedText = useMemo(() => {
     if (!query.trim() || !text) {
@@ -77,7 +80,23 @@ export function SearchHighlight({
     }
   }, [text, query, caseSensitive]);
 
-  // ✅ 안전한 React 컴포넌트 렌더링만 사용 (XSS 방지)
+  if (dangerouslySetInnerHTML) {
+    const htmlString = highlightedText.parts
+      .map((part) =>
+        part.isHighlight
+          ? `<mark class="${highlightClassName}">${part.text}</mark>`
+          : part.text
+      )
+      .join("");
+
+    return (
+      <span
+        className={className}
+        dangerouslySetInnerHTML={{ __html: htmlString }}
+      />
+    );
+  }
+
   return (
     <span className={className}>
       {highlightedText.parts.map((part, index) =>

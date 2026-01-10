@@ -1,16 +1,20 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { ArrowLeft, Check, AlertCircle, Moon, Sun } from "lucide-react";
-import { auth, functions } from "../firebase";
-import { useAuth } from "../contexts/AuthContext";
-import { httpsCallable } from "firebase/functions";
+import { auth, db, ensureUserDocument } from "../firebase";
+import { collection, doc, getDocs, limit, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import { NicknameConfirmModal } from "./modals/NicknameConfirmModal";
 import { FloatingSymbolItem } from "@/components/FloatingSymbolItem";
 import { containsProfanity } from "./utils/profanityFilter";
+
+// ✅ CommunityGuidelinesScreen 프리로드 (다음 화면 빠른 전환용)
+const preloadNextScreen = () => {
+  import("./CommunityGuidelinesScreen");
+};
 
 const cursiveSymbols = [
   "𝓐", "𝓑", "𝓒", "𝓓", "𝓔", "𝓕",
@@ -39,11 +43,11 @@ export function NicknameScreen({
   isDarkMode,
   onToggleDarkMode,
 }: NicknameScreenProps) {
-  const { refreshUserData } = useAuth();
   const [nickname, setNickname] = useState("");
+  const [avatarSeed, setAvatarSeed] = useState("user");
   const [errorMsg, setErrorMsg] = useState("");
+  const [isChecking, setIsChecking] = useState(false);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
-  const [saving, setSaving] = useState(false); // 🔒 중복 클릭 방지 상태 추가
 
   const floatingSymbols = useMemo(() => {
     return Array.from({ length: 30 }, (_, i) => ({
@@ -57,7 +61,21 @@ export function NicknameScreen({
       opacity: 10 + Math.random() * 15,
     }));
   }, []);
-  // showConfirmPopup 상태 변경 (로그 제거)
+
+  // ✅ 컴포넌트 마운트 시 다음 화면 프리로드
+  useEffect(() => {
+    const timer = setTimeout(preloadNextScreen, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // ✅ Dicebear avatar 요청을 디바운스해서 입력 지연/네트워크 낭비를 줄임
+  useEffect(() => {
+    const trimmed = nickname.trim();
+    const handle = window.setTimeout(() => {
+      setAvatarSeed(trimmed || "user");
+    }, 250);
+    return () => window.clearTimeout(handle);
+  }, [nickname]);
 
   const handleNicknameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setNickname(e.target.value);
@@ -66,7 +84,7 @@ export function NicknameScreen({
 
   const handleSubmit = useCallback(() => {
     const trimmed = nickname.trim();
-    if (saving) return;
+    if (isChecking) return;
 
     if (trimmed.length < 2 || trimmed.length > 12) {
       setErrorMsg("닉네임은 2~12글자로 입력해주세요.");
@@ -77,14 +95,8 @@ export function NicknameScreen({
       return;
     }
 
-    // ✅ 욕설 필터링 검사
-    if (containsProfanity(trimmed)) {
-      setErrorMsg("부적절한 단어가 포함되어 있습니다.");
-      return;
-    }
-
     setShowConfirmPopup(true);
-  }, [nickname, saving]);
+  }, [nickname, isChecking]);
 
   const handleCancelModal = useCallback(() => {
     setShowConfirmPopup(false);
@@ -92,8 +104,7 @@ export function NicknameScreen({
 
   const handleConfirmNickname = useCallback(async () => {
     setShowConfirmPopup(false);
-    if (saving) return; // 🔒 중복 클릭 방지
-    setSaving(true);
+    setIsChecking(true);
 
     const user = auth.currentUser;
     if (!user) {
@@ -102,28 +113,55 @@ export function NicknameScreen({
     }
 
     try {
-      const finalizeFn = httpsCallable(functions, "finalizeOnboarding");
-      await finalizeFn({ nickname: nickname.trim() });
+      const trimmed = nickname.trim();
+      const nicknameLower = trimmed.toLowerCase();
 
-      // 닉네임 저장 및 사용자 데이터 새로고침 (finalizeOnboarding에서 처리되므로 닉네임 직접 업데이트는 제거)
-      refreshUserData();
+      // ✅ users/{uid} 문서가 아직 없으면 먼저 생성 (Rules의 create 조건 대응)
+      await ensureUserDocument(user);
 
-      onComplete(nickname.trim());
-    } catch (error: any) {
-      const rawCode = String(error?.code ?? "");
-      const code = rawCode.replace(/^functions\//, "");
+      // 1) 로컬 검증 (서버 호출 전에 빠르게 컷)
+      if (!/^[가-힣a-zA-Z0-9]{2,12}$/.test(trimmed)) {
+        setErrorMsg("닉네임은 2~12자의 한글, 영문, 숫자만 사용할 수 있습니다.");
+        return;
+      }
+      if (containsProfanity(trimmed)) {
+        setErrorMsg("부적절한 단어가 포함된 닉네임은 사용할 수 없습니다.");
+        return;
+      }
 
-      if (code === "already-exists") {
+      // 2) 중복 검사 (users.nicknameLower)
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("nicknameLower", "==", nicknameLower), limit(1));
+      const snap = await getDocs(q);
+      if (!snap.empty && snap.docs[0].id !== user.uid) {
         setErrorMsg("이미 사용 중인 닉네임입니다.");
-      } else if (code === "invalid-argument") {
-        setErrorMsg("사용할 수 없는 닉네임입니다.");
-      } else if (code === "unauthenticated") {
+        return;
+      }
+
+      // 3) 저장
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          nickname: trimmed,
+          nicknameLower,
+          email: user.email ?? userEmail ?? undefined,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      onComplete(trimmed);
+    } catch (error: any) {
+      const code = String(error?.code ?? "");
+      if (code.includes("permission-denied")) {
+        setErrorMsg("권한 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      } else if (code.includes("unauthenticated")) {
         setErrorMsg("로그인이 풀렸어요. 다시 로그인해주세요.");
       } else {
         setErrorMsg("오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       }
     } finally {
-      setSaving(false);
+      setIsChecking(false);
     }
   }, [nickname, onBack, onComplete]);
 
@@ -136,9 +174,9 @@ export function NicknameScreen({
 
   return (
     <>
-      <div className="relative w-full h-full flex flex-col items-center justify-center p-6 overflow-hidden bg-background text-foreground transition-colors duration-300">
+      <div className="relative w-full h-full flex flex-col items-center justify-center p-6 bg-background text-foreground transition-colors duration-300">
         {onToggleDarkMode && (
-          <div className="absolute safe-top-button right-4 z-50">
+          <div className="absolute top-4 right-4 z-50">
             <Button
               variant="ghost"
               size="icon"
@@ -150,33 +188,17 @@ export function NicknameScreen({
           </div>
         )}
 
-        {/* 배경 애니메이션 (Floating Symbols) */}
+        {/* 배경 레이어만 클리핑 (카드 shadow가 잘리지 않도록) */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none">
+          {/* 배경 애니메이션 (Floating Symbols) */}
           {floatingSymbols.map(item => <FloatingSymbolItem key={item.id} item={item} />)}
-        </div>
 
-        {/*  [수정됨] 배경 패턴: 점(circle)을 제거하고 선만 남김 */}
-        <div className="absolute inset-0 opacity-30 pointer-events-none">
-          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="nicknameComplexGrid" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-                {/*  수직/수평 격자선은 유지 */}
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1" className="text-muted-foreground/20" />
-                {/*  점을 그리는 <circle> 태그를 제거했습니다. */}
-              </pattern>
-              <pattern id="nicknameDiagonalLines" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
-                {/* 대각선은 유지 */}
-                <path d="M 0 60 L 60 0" stroke="currentColor" strokeWidth="1" className="text-muted-foreground/10" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#nicknameComplexGrid)" />
-            <rect width="100%" height="100%" fill="url(#nicknameDiagonalLines)" />
-          </svg>
+          {/*  [수정됨] 배경 패턴: 점(circle)을 제거하고 선만 남김 */}
         </div>
 
         {/* 🔹 메인 카드 영역 */}
         <div className="relative z-10 w-full max-w-sm animate-in fade-in zoom-in duration-500">
-          <Card className="w-full border-border/60 shadow-2xl bg-background">
+          <Card className="w-full border-border/60 shadow-2xl">
             <CardHeader className="pb-4">
               <div className="w-full relative">
                 <Button
@@ -191,7 +213,7 @@ export function NicknameScreen({
                 <div className="flex flex-col items-center text-center space-y-4 pt-2">
                   <Avatar className="w-24 h-24 border-4 border-background shadow-xl relative ring-2 ring-primary/20">
                     <AvatarImage
-                      src={`https://api.dicebear.com/7.x/notionists/svg?seed=${nickname || "user"}&backgroundColor=transparent`}
+                      src={`https://api.dicebear.com/7.x/notionists/svg?seed=${avatarSeed}&backgroundColor=transparent`}
                     />
                     <AvatarFallback className="text-3xl bg-gradient-to-br from-primary via-primary/80 to-primary/60 text-primary-foreground font-bold">
                       {nickname ? nickname.charAt(0).toUpperCase() : "?"}
@@ -258,7 +280,7 @@ export function NicknameScreen({
                   onClick={handleSubmit}
                   className="w-full h-12 text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  {saving ? "저장 중..." : "계속하기"}
+                  {isChecking ? "저장 중..." : "계속하기"}
                 </Button>
 
                 <Button

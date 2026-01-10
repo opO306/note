@@ -2,11 +2,10 @@ import { useState, useCallback, useMemo, useEffect, type MouseEvent } from "reac
 import { useScrollRestoration } from "./hooks/useScrollRestoration";
 import { Button } from "./ui/button";
 import { auth, db } from "@/firebase";
-import { getTitleLabelById } from "@/data/titleData";
+import { titles as titleData } from "@/data/titleData";
 import { doc, updateDoc } from "firebase/firestore";
 import { Card, CardContent } from "./ui/card";
 import { OptimizedAvatar } from "./OptimizedAvatar";
-import { LaurelWreath } from "./icons/LaurelWreath";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
@@ -32,10 +31,10 @@ import {
   Users,
   UserCheck,
   UserX,
-  Palette,
-  Scroll,
 } from "lucide-react";
 import { AppHeader } from "./layout/AppHeader";
+
+
 // 신뢰도 점수에 따라 텍스트 색 클래스 결정 (Tailwind)
 function getTrustColorClass(score: number): string {
   if (score <= 10) return "text-red-400";
@@ -54,41 +53,6 @@ function getTrustDescription(score: number): string {
     return "안정적인 신뢰도예요. 비유와 예시로 많은 사람에게 도움을 주고 있어요.";
   return "매우 높은 신뢰도예요. 이곳에서 믿고 보는 길잡이로, 당신의 설명이 길이 되고 있어요.";
 }
-
-// 🔹 테마별 스타일 (프로필에 테마 색감 미리보기)
-// TODO: 향후 테마별 스타일 적용 시 사용 예정
-// function getThemeStyle(theme: string | null | undefined): {
-//   borderColor: string;
-//   borderWidth: string;
-//   boxShadow: string;
-// } | null {
-//   // 테마가 없거나 "default"이면 null 반환 (테두리 없음)
-//   if (!theme || theme === "default" || theme.trim() === "") return null;
-//
-//   // 테마별 스타일 반환
-//   switch (theme) {
-//     case "midnight":
-//       return {
-//         borderColor: "#d4af37", // 금색
-//         borderWidth: "2px",
-//         boxShadow: "0 0 12px rgba(212, 175, 55, 0.4), inset 0 0 8px rgba(212, 175, 55, 0.1)",
-//       };
-//     case "e-ink":
-//       return {
-//         borderColor: "#5a564d", // 베이지 톤
-//         borderWidth: "2px",
-//         boxShadow: "0 0 8px rgba(90, 86, 77, 0.3), inset 0 0 4px rgba(90, 86, 77, 0.08)",
-//       };
-//     case "golden-library":
-//       return {
-//         borderColor: "#d4af37", // 금색
-//         borderWidth: "2px",
-//         boxShadow: "0 0 16px rgba(212, 175, 55, 0.5), inset 0 0 12px rgba(212, 175, 55, 0.15)",
-//       };
-//     default:
-//       return null;
-//   }
-// }
 
 interface MyPageScreenProps {
   userNickname: string;
@@ -133,7 +97,6 @@ interface MyPageScreenProps {
 
   onTitleShopClick?: () => void;
   onAchievementsClick?: () => void;
-  onThemeClick?: () => void;
   onTitlesCollectionClick?: () => void;
   onBadgeShopClick?: () => void;
   onPostClick?: (postId: string) => void;
@@ -145,9 +108,6 @@ interface MyPageScreenProps {
 
   /** 🆕 차단 관리 버튼 클릭 콜백 */
   onManageBlockedUsers?: () => void;
-
-  /** 🔹 현재 사용 중인 테마 */
-  currentTheme?: string | null;
 }
 
 export function MyPageScreen({
@@ -172,7 +132,6 @@ export function MyPageScreen({
   profileDescription: initialProfileDescription = "",
   onProfileDescriptionChange,
   onAchievementsClick,
-  onThemeClick,
   onTitlesCollectionClick,
   followerCount = 0,
   followingCount = 0,
@@ -185,12 +144,10 @@ export function MyPageScreen({
   autoOpenSettings,
   onAutoSettingsOpened,
   onManageBlockedUsers,
-  currentTheme,
 }: MyPageScreenProps) {
 
   const [profileDescription, setProfileDescription] =
     useState(initialProfileDescription);
-
 
   useEffect(() => {
     setProfileDescription(initialProfileDescription);
@@ -224,7 +181,7 @@ export function MyPageScreen({
     setShowLogoutConfirm(false);
 
     try {
-      onLogout(); // 부모 컴포넌트의 로그아웃 핸들러 호출 (resetAuthState가 모든 처리를 담당)
+      await onLogout();
       toast.success("로그아웃 되었습니다.");
     } catch {
       toast.error("로그아웃 중 오류가 발생했습니다.");
@@ -253,11 +210,10 @@ export function MyPageScreen({
     }
   }, [onProfileImageChange]);
 
-  const currentTitleName = useMemo(() => {
-    return getTitleLabelById(currentTitle);
-  }, [currentTitle]);
-
-
+  const getCurrentTitleName = () => {
+    const title = titleData.find(t => t.id === currentTitle);
+    return title?.name || "";
+  };
 
   const mockUserPosts = userPosts;
   const mockUserReplies = userReplies;
@@ -286,21 +242,6 @@ export function MyPageScreen({
   const trust = Math.max(0, Math.min(100, trustScore));
   const trustColorClass = getTrustColorClass(trust);
   const trustDescription = getTrustDescription(trust);
-
-  // 신뢰도에 따른 금박 테두리 색상 계산 (10점 단위)
-  // 신뢰도가 높을수록 더 순수한 금색으로 변함
-  const trustLevel = Math.floor(trust / 10);
-  const trustBrightness = trustLevel / 10;
-  const trustOpacityBase = 0.4 + trustBrightness * 0.6;
-  const trustOpacityHigh = 0.7 + trustBrightness * 0.3;
-  // 낮을 때: 어두운 금색/갈색 (180, 150, 40) → 높을 때: 순수한 밝은 금색 (255, 215, 0)
-  // 신뢰도가 높을수록 더 순수한 금색(노란색)으로 변함
-  const trustRBase = Math.max(0, Math.min(255, Math.floor(180 + trustBrightness * 75))); // 180~255
-  const trustGBase = Math.max(0, Math.min(255, Math.floor(150 + trustBrightness * 65))); // 150~215 (금색)
-  const trustBBase = Math.max(0, Math.min(255, Math.floor(40 * (1 - trustBrightness)))); // 40~0 (금색은 파란색 없음)
-  const trustRHigh = Math.max(0, Math.min(255, Math.floor(220 + trustBrightness * 35))); // 220~255
-  const trustGHigh = Math.max(0, Math.min(255, Math.floor(200 + trustBrightness * 15))); // 200~215 (금색)
-  const trustBHigh = 0; // 항상 0 (순수 금색)
 
   const userStats = {
     postsCount: mockUserPosts.length,
@@ -352,7 +293,7 @@ export function MyPageScreen({
       toast.success("프로필 설명이 변경되었습니다!");
       setShowDescriptionDialog(false);
       setTempDescription("");
-    } catch {
+    } catch (error) {
       toast.error("프로필 설명을 저장하지 못했어요. 잠시 후 다시 시도해주세요.");
     }
   }, [tempDescription, onProfileDescriptionChange]);
@@ -480,25 +421,17 @@ export function MyPageScreen({
         ref={scrollRef}
         className="flex-1 scroll-container scrollbar-hide p-4 pb-24 space-y-4"
       >
-        <div
-          className="bg-card text-card-foreground flex flex-col gap-6 rounded-xl transition-all border border-border/70 shadow-sm"
-        >
-          <CardContent className="p-6 relative z-10">
+        <Card>
+          <CardContent className="p-6">
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <div
-                  className={`rounded-full overflow-hidden border-4 ${
-                    currentTheme === "golden-library" ? "border-[#d4af37]" : "border-white"
-                  }`}
-                >
-                  <OptimizedAvatar
-                    src={userProfileImage}
-                    alt={userNickname ? `${userNickname}님의 프로필` : "프로필 이미지"}
-                    fallbackText={userNickname?.charAt(0)?.toUpperCase() || "?"}
-                    nickname={userNickname}
-                    className="w-20 h-20 rounded-full shadow-xl"
-                  />
-                </div>
+                <OptimizedAvatar
+                  src={userProfileImage}
+                  alt={userNickname ? `${userNickname}님의 프로필` : "프로필 이미지"}
+                  fallbackText={userNickname?.charAt(0)?.toUpperCase() || "?"}
+                  nickname={userNickname}
+                  className="w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-xl"
+                />
 
                 <div className="absolute -bottom-1 -right-1">
                   <input
@@ -522,24 +455,10 @@ export function MyPageScreen({
               <div className="flex-1 min-h-20 flex flex-col">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      {/* 월계관 왕관 (그리스 신전 테마 + 신뢰도 70 이상) */}
-                      {currentTheme === "greek-temple" && trustScore >= 70 && (
-                        <div className={`shrink-0 ${currentTheme === "greek-temple" ? 'laurel-wreath-premium' : 'laurel-wreath'}`}>
-                          <LaurelWreath size={20} isPremium={currentTheme === "greek-temple"} />
-                        </div>
-                      )}
-                      {/* 황금 두루마리 (황금빛 서재 테마 + 신뢰도 70 이상) */}
-                      {currentTheme === "golden-library" && trustScore >= 70 && (
-                        <div className="shrink-0">
-                          <Scroll className="w-5 h-5 text-[#d4af37]" strokeWidth={2.5} />
-                        </div>
-                      )}
-                      <h2 className="text-xl font-semibold truncate">{userNickname}</h2>
-                    </div>
-                    {currentTitleName && (
+                    <h2 className="text-xl font-semibold truncate">{userNickname}</h2>
+                    {getCurrentTitleName() && (
                       <Badge variant="secondary" className="text-xs shrink-0">
-                        {currentTitleName}
+                        {getCurrentTitleName()}
                       </Badge>
                     )}
                   </div>
@@ -561,22 +480,10 @@ export function MyPageScreen({
               </div>
             </div>
           </CardContent>
-        </div>
+        </Card>
 
         {/* 신뢰도 정보 카드 */}
-        <Card
-          className="trust-score-card rounded-xl mt-3 border-border/70 shadow-sm"
-          style={{
-            '--trust-score': trust,
-            '--trust-level': trustLevel,
-            '--trust-brightness': trustBrightness,
-            '--trust-opacity-base': trustOpacityBase,
-            '--trust-opacity-high': trustOpacityHigh,
-            '--trust-color-base': `rgba(${trustRBase}, ${trustGBase}, ${trustBBase}, ${trustOpacityBase})`,
-            '--trust-color-high': `rgba(${trustRHigh}, ${trustGHigh}, ${trustBHigh}, ${trustOpacityHigh})`,
-            '--trust-color-bright': `rgba(${trustRBase}, ${trustGBase}, ${trustBBase}, ${trustOpacityBase + 0.15})`,
-          } as React.CSSProperties}
-        >
+        <Card className="border-border/70 shadow-sm rounded-xl mt-3">
           <CardContent className="p-4 flex flex-col items-center text-center gap-2">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-muted-foreground" />
@@ -813,22 +720,6 @@ export function MyPageScreen({
             </Button>
           )}
 
-          {false && onThemeClick && (
-            <Button
-              variant="ghost"
-              className="w-full justify-start p-4 h-auto"
-              onClick={onThemeClick}
-            >
-              <Palette className="w-5 h-5 mr-3 text-purple-500" />
-              <div className="text-left">
-                <p className="font-medium">테마 설정</p>
-                <p className="text-sm text-muted-foreground">
-                  몰입을 위한 테마를 선택하고 구매할 수 있어요.
-                </p>
-              </div>
-            </Button>
-          )}
-
           {/* 🆕 차단 관리 버튼 */}
           {onManageBlockedUsers && (
             <Button
@@ -1038,9 +929,7 @@ export function MyPageScreen({
               <Button variant="outline" onClick={handleCloseDescriptionDialog}>
                 취소
               </Button>
-              <Button
-                onClick={handleDescriptionUpdate}
-              >
+              <Button onClick={handleDescriptionUpdate}>
                 저장
               </Button>
             </div>

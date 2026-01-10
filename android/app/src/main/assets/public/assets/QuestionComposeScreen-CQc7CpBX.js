@@ -1,0 +1,20 @@
+import{r as a,j as e,b as C,d as k}from"./index-BJjkZhAE.js";import{a1 as w,S,a0 as g}from"./vendor-firebase-B8qz7irO.js";import{r as $,B as A,C as c,b as d,s as x}from"./App-Cnx-z95_.js";import"./vendor-capacitor-Bm7NWSxP.js";import"./vendor-react-1wgkHQEd.js";function D({onBack:n,onGoWrite:t}){const[s,o]=a.useState(""),[r,f]=a.useState(""),[m,j]=a.useState(""),[p,y]=a.useState(""),[h,N]=a.useState(""),l=a.useMemo(()=>s.trim().length>=2&&r.trim().length>=5,[s,r]),u=()=>`
+      ### 상황
+      ${r}
+      
+      ### 시도한 것
+      ${m||"-"}
+      
+      ### 기대 결과
+      ${p||"-"}
+      
+      ### 실제 결과
+      ${h||"-"}
+      
+      ### 궁금한 점
+      ${s}
+        `.trim(),v=async()=>{if(!l)return;const b=C.currentUser?.uid;if(!b){x.error("로그인 후 사용할 수 있어요.");return}try{await w(S(k,"notes"),{uid:b,title:s.trim(),body:u(),createdAt:g(),updatedAt:g(),source:"questionCompose"}),x.success("노트로 저장했어요.")}catch{x.error("저장 중 문제가 생겼어요. 잠시 후 다시 시도해주세요.")}};return e.jsxs("div",{className:"w-full h-full bg-background text-foreground flex flex-col",children:[e.jsx($,{title:"질문 정리",onBack:n,rightSlot:e.jsx(A,{type:"button",size:"sm",className:"rounded-xl text-sm",onClick:()=>{t({title:s,body:u()})},children:"그냥 글쓰기"})}),e.jsxs("div",{className:"flex-1 overflow-y-auto p-4 space-y-4",children:[e.jsx(c,{children:e.jsx(d,{className:"p-4",children:e.jsxs("div",{className:"space-y-3",children:[e.jsx("label",{className:"text-sm font-medium",children:"제목 (필수)"}),e.jsx(T,{placeholder:"예) Firebase Functions 배포 시 unknown triggers 오류",value:s,onChange:o})]})})}),e.jsx(c,{children:e.jsx(d,{className:"p-4",children:e.jsxs("div",{className:"space-y-3",children:[e.jsx("label",{className:"text-sm font-medium",children:"상황 설명 (필수)"}),e.jsx(i,{placeholder:"무슨 기능을 만들고 있었는지, 어떤 환경(기기/OS/버전)인지 적어줘.",value:r,onChange:f,rows:5})]})})}),e.jsx(c,{children:e.jsx(d,{className:"p-4",children:e.jsxs("div",{className:"space-y-3",children:[e.jsx("label",{className:"text-sm font-medium",children:"내가 해본 것"}),e.jsx(i,{placeholder:"재설치, 캐시 삭제, 로그 확인, 설정 변경 등 시도한 내용을 적어줘.",value:m,onChange:j,rows:4})]})})}),e.jsx(c,{children:e.jsx(d,{className:"p-4",children:e.jsxs("div",{className:"space-y-3",children:[e.jsx("label",{className:"text-sm font-medium",children:"기대 결과"}),e.jsx(i,{placeholder:"원래는 어떻게 동작해야 하는지.",value:p,onChange:y,rows:3})]})})}),e.jsx(c,{children:e.jsx(d,{className:"p-4",children:e.jsxs("div",{className:"space-y-3",children:[e.jsx("label",{className:"text-sm font-medium",children:"실제 결과"}),e.jsx(i,{placeholder:"지금 실제로는 어떻게 되는지.",value:h,onChange:N,rows:3})]})})}),e.jsx("div",{className:"text-xs text-muted-foreground px-1",children:'다음 단계에서는 이 내용을 기반으로 "게시글 초안"을 자동 생성해서 글쓰기 화면에 넣어줄 수 있음.'})]}),e.jsx("div",{className:"px-4 py-3 border-t border-border bg-background/95 backdrop-blur-xl safe-nav-bottom flex-shrink-0",children:e.jsxs("div",{className:"flex gap-2",children:[e.jsx("button",{type:"button",disabled:!l,onClick:v,className:`flex-1 py-3 rounded-2xl text-sm font-semibold transition
+        ${l?"bg-accent text-foreground hover:bg-accent/80":"bg-muted text-muted-foreground"}
+      `,children:"노트로 저장"}),e.jsx("button",{type:"button",disabled:!l,onClick:()=>t({title:s,body:u()}),className:`flex-[1.4] py-3 rounded-2xl text-sm font-semibold transition
+        ${l?"bg-primary text-primary-foreground hover:bg-primary/90":"bg-muted text-muted-foreground"}
+      `,children:"정리 완료 → 글쓰기"})]})})]})}function T({value:n,onChange:t,placeholder:s}){return e.jsx("input",{value:n,onChange:o=>t(o.target.value),placeholder:s,className:"w-full px-3 py-3 rounded-xl bg-input-background dark:bg-input/30 border border-input outline-none focus:ring-2 focus:ring-primary/30"})}function i({value:n,onChange:t,placeholder:s,rows:o=4}){return e.jsx("textarea",{value:n,onChange:r=>t(r.target.value),placeholder:s,rows:o,className:"w-full px-3 py-3 rounded-xl bg-input-background dark:bg-input/30 border border-input outline-none focus:ring-2 focus:ring-primary/30 resize-none"})}export{D as QuestionComposeScreen};

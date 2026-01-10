@@ -20,7 +20,6 @@ interface FollowListScreenProps {
   users: Array<FollowUserInfo | string | null | undefined>;
   onBack: () => void;
   onUserClick?: (nickname: string) => void;
-  currentTheme?: string | null;
 }
 
 // 🔹 개별 유저 카드
@@ -31,7 +30,6 @@ interface UserCardProps {
   bio?: string;
   title?: string;                      // ★ 추가: 칭호
   onUserClick?: (nickname: string) => void;
-  currentTheme?: string | null;
 }
 
 const UserCard = memo(function UserCard({
@@ -41,7 +39,6 @@ const UserCard = memo(function UserCard({
   bio,
   title,           // ★ 추가
   onUserClick,
-  currentTheme: _currentTheme,
 }: UserCardProps) {
   const handleClick = useCallback(() => {
     if (!nickname) return;
@@ -54,7 +51,7 @@ const UserCard = memo(function UserCard({
 
   return (
     <Card
-      className="cursor-pointer rounded-xl"
+      className="cursor-pointer rounded-xl"          // ★ 카드 모서리 살짝 크게
       onClick={handleClick}
     >
       <CardContent className="p-4 flex items-center justify-between">
@@ -112,7 +109,6 @@ export function FollowListScreen({
   users,
   onBack,
   onUserClick,
-  currentTheme,
 }: FollowListScreenProps) {
   const title = mode === "followers" ? "내 선원들" : "승선한 배들";
   const emptyText =
@@ -157,7 +153,6 @@ export function FollowListScreen({
                 title={user.title}        // ★ 추가: 칭호 전달
                 mode={mode}
                 onUserClick={onUserClick}
-                currentTheme={currentTheme}
               />
             ))}
           </div>

@@ -111,12 +111,13 @@ function HomeHeaderComponent({
             </Button>
 
             {/* 🔹 운영자 전용 신고 관리 버튼 */}
-            {isAdmin && onOpenAdminReports && ( // 게스트 모드 시 비활성화
+            {isAdmin && onOpenAdminReports && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="touch-target rounded-xl hover:bg-accent/80 transition-all duration-200 text-foreground"
                 onClick={onOpenAdminReports}
+                aria-label="신고 관리"
               >
                 {/* 이미 import된 아이콘 중에서 적당한 것 사용 (예: Star) */}
                 <Star className="w-5 h-5" />
@@ -163,6 +164,7 @@ function HomeHeaderComponent({
                           variant="outline"
                           size="sm"
                           onClick={onMarkAllNotificationsRead}
+                          className="text-xs h-7 px-2"
                         >
                           모두 읽음
                         </Button>

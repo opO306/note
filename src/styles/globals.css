@@ -537,6 +537,17 @@ html[data-theme='e-ink'] body {
     min-height: calc(env(safe-area-inset-bottom, var(--safe-area-inset-bottom, 0px)) + 3.5rem);
   }
 
+  /* ✅ 버튼 영역용 Safe Area (기본 패딩 + safe area) */
+  .safe-button-area {
+    /* 최소 32px(2rem) + safe area */
+    padding-bottom: calc(env(safe-area-inset-bottom, var(--safe-area-inset-bottom, 0px)) + 2rem) !important;
+  }
+
+  .safe-button-area-lg {
+    /* 최소 40px(2.5rem) + safe area */
+    padding-bottom: calc(env(safe-area-inset-bottom, var(--safe-area-inset-bottom, 0px)) + 2.5rem) !important;
+  }
+
   /* Safe Area for floating buttons (상단 우측 토글 버튼용) */
   .safe-top-button {
     top: calc(var(--safe-area-inset-top) + 1rem);

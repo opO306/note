@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { functions, db } from "@/firebase";
+import { auth, functions } from "@/firebase";
 import { httpsCallable } from "firebase/functions";
-import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { toast } from "@/toastHelper";
-import confetti from "canvas-confetti";
 import { safeLocalStorage } from "@/components/utils/storageUtils";
-import { invalidateUserDataCache } from "@/utils/userDataLoader";
 import type { Post } from "../types";
+// ✅ Firestore 읽기/쓰기 분리 문제를 해결한 함수를 import 합니다.
+import { createNotificationForEvent } from "@/components/utils/notificationUtils"; // 경로를 실제 파일 위치에 맞게 수정하세요
 
 interface UseGuideActionsParams {
   posts: Post[];
@@ -96,52 +95,6 @@ export function useGuideActions({
 
       toast.success(`${replyAuthor}님을 길잡이로 채택했습니다! 🌟`);
 
-      // --- [NEW] 공개 테스트 개척자 칭호 지급 로직 ---
-      // ✅ 답변 작성자(길잡이로 채택된 사람)에게 칭호 지급
-      const isOpenBeta = true; // 공개 테스트 기간 플래그
-      if (isOpenBeta) {
-        try {
-          // 답변에서 작성자 UID 찾기
-          const selectedReply = post.replies?.find((r: any) => r.id === replyId);
-          const replyAuthorUid = selectedReply?.authorUid;
-          
-          if (!replyAuthorUid) {
-            console.warn("답변 작성자 UID를 찾을 수 없습니다.");
-          } else {
-            const userRef = doc(db, "users", replyAuthorUid);
-            // 사용자 데이터 확인 (칭호 보유 여부)
-            getDoc(userRef).then(async (snap) => {
-              if (snap.exists()) {
-                const userData = snap.data();
-                const ownedTitles: string[] = userData.ownedTitles || [];
-                
-                // 아직 개척자 칭호가 없다면 지급
-                if (!ownedTitles.includes("guide_pathfinder")) {
-                  await updateDoc(userRef, {
-                    ownedTitles: arrayUnion("guide_pathfinder")
-                  });
-                  
-                  // 캐시 무효화
-                  invalidateUserDataCache(replyAuthorUid);
-                  
-                  // 획득 연출
-                  confetti({
-                    particleCount: 150,
-                    spread: 70,
-                    origin: { y: 0.6 },
-                    colors: ['#f59e0b', '#fbbf24', '#d97706'] // Amber colors
-                  });
-                  
-                  toast.success("🏆 최초 채택 달성! '개척자' 칭호를 획득했습니다!");
-                }
-              }
-            }).catch(err => console.error("칭호 지급 확인 중 오류:", err));
-          }
-        } catch (e) {
-          console.error("개척자 칭호 로직 오류:", e);
-        }
-      }
-
       // --- 2) Cloud Functions + Firestore 백그라운드 업데이트 ---
       try {
         // 2-1) Cloud Functions(selectGuide)를 호출해 서버 권한으로
@@ -155,7 +108,28 @@ export function useGuideActions({
           replyId,
         });
 
-        // ✅ 알림은 Cloud Function에서 생성하므로 클라이언트에서는 생성하지 않음
+        // 2-2) 알림 발송을 위해 replyAuthorUid 를 로컬 데이터에서 가져옵니다.
+        const guideReply = (post.replies || []).find((r: any) => r.id === replyId);
+        const replyAuthorUid = guideReply?.authorUid ?? null;
+
+        // ✅ 수정된 createNotificationForEvent 함수를 사용하여 알림 생성
+        const currentUid = auth.currentUser?.uid;
+        if (replyAuthorUid && currentUid) { // 보낸 사람과 받는 사람이 모두 유효할 때만 알림 전송
+          await createNotificationForEvent({
+            toUserUid: replyAuthorUid,
+            fromUserUid: currentUid,
+            type: "guide",
+            categoryId: (post as any).categoryId ?? post.category ?? null,
+            data: {
+              postId: post.id,
+              replyId,
+              userId: currentUid,
+              userName: userNickname,
+              // 'titleName' 이나 'lumenReward' 같은 커스텀 필드는 data 객체 안에 넣는 것이 좋습니다.
+              // customData: { titleName: replyAuthor, lumenReward: GUIDE_LUMEN_REWARD }
+            },
+          });
+        }
       } catch (error) {
         console.error("길잡이 채택 Firestore/알림 업데이트 실패:", error);
         toast.error("서버에 길잡이 정보를 업데이트하는 중 오류가 발생했습니다.");

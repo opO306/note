@@ -2,8 +2,11 @@
 import { useCallback } from "react";
 import { auth, db } from "../../firebase";
 import {
+    addDoc,
+    collection,
     doc,
     increment,
+    serverTimestamp,
     updateDoc,
 } from "firebase/firestore";
 import { toast } from "@/toastHelper";
@@ -34,7 +37,7 @@ export function usePostNavigation({
 }: UsePostNavigationParams) {
     // 🔹 게시글을 눌렀을 때: views +1 하고 상세 화면으로
     const handlePostClick = useCallback(
-        async (post: any) => {
+        (post: any) => {
             const updatedPost = {
                 ...post,
                 views: (post.views ?? 0) + 1,
@@ -62,14 +65,17 @@ export function usePostNavigation({
                 });
             }
 
-            // 4) 사용자별 조회 로그 적재 (관심사 모델링용) - ✅ 배치 처리로 변경
+            // 4) 사용자별 조회 로그 적재 (관심사 모델링용)
             const uid = auth.currentUser?.uid;
             if (uid) {
-                const { addViewLog } = await import("../utils/viewLogBatcher");
-                addViewLog({
+                const logRef = collection(db, "user_activity", uid, "viewLogs");
+                addDoc(logRef, {
                     postId: post.id,
                     category: post.category ?? null,
                     subCategory: post.subCategory ?? null,
+                    createdAt: serverTimestamp(),
+                }).catch((error) => {
+                    console.warn("[analytics] 조회 로그 적재 실패", error);
                 });
             }
         },

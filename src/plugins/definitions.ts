@@ -1,28 +1,51 @@
-// src/plugins/definitions.ts
-// 인앱 구매 플러그인 타입 정의
+export interface InAppPurchaseInitializeResult {
+    success: boolean;
+}
+
+export interface InAppPurchaseProduct {
+    productId: string;
+    title?: string;
+    description?: string;
+    price?: string;
+    priceAmountMicros?: number;
+    priceCurrencyCode?: string;
+}
+
+export interface InAppPurchaseGetProductsOptions {
+    productIds: string[];
+}
+
+export interface InAppPurchaseGetProductsResult {
+    products: InAppPurchaseProduct[];
+}
+
+export interface InAppPurchasePurchaseOptions {
+    productId: string;
+}
+
+export interface InAppPurchaseTransaction {
+    transactionId: string;
+    productId: string;
+    purchaseTime?: number;
+    receipt?: string;
+    purchaseToken?: string;
+}
+
+export interface InAppPurchasePurchaseResult {
+    transaction: InAppPurchaseTransaction;
+}
+
+export interface InAppPurchaseRestorePurchasesResult {
+    products: Array<{
+        productId: string;
+        transactionId?: string;
+        purchaseTime?: number;
+    }>;
+}
 
 export interface InAppPurchasesPlugin {
-  initialize(): Promise<{ success: boolean }>;
-  getProducts(options: { productIds: string[] }): Promise<{ products: Product[] }>;
-  purchase(options: { productId: string }): Promise<{ transaction: Transaction | null }>;
-  restorePurchases(): Promise<{ products: Product[] }>;
+    initialize(): Promise<InAppPurchaseInitializeResult>;
+    getProducts(options: InAppPurchaseGetProductsOptions): Promise<InAppPurchaseGetProductsResult>;
+    purchase(options: InAppPurchasePurchaseOptions): Promise<InAppPurchasePurchaseResult>;
+    restorePurchases(): Promise<InAppPurchaseRestorePurchasesResult>;
 }
-
-export interface Product {
-  productId: string;
-  title: string;
-  description: string;
-  price: string;
-  priceAmountMicros: number;
-  priceCurrencyCode: string;
-}
-
-export interface Transaction {
-  transactionId: string;
-  productId: string;
-  purchaseTime: number;
-  receipt: string;
-  purchaseToken?: string;
-  originalTransactionIdentifier?: string;
-}
-

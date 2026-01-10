@@ -1,8 +1,8 @@
 // MainScreen/hooks/useUserStats.ts
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { auth, db } from "@/firebase";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 
 import type { Post } from "../types";
 
@@ -26,18 +26,23 @@ export function useUserStats({ posts, userNickname }: UseUserStatsParams) {
   const [userGuideCount, setUserGuideCount] = useState(0);
 
   // 프로필 정보 상태
+  const [profileDescription, setProfileDescription] = useState("");
   const [profileInterests, setProfileInterests] = useState("");
 
   // 1. 초기값은 Firestore에서만 로드 (로컬 스토리지 사용 안 함)
   // 모든 사용자 데이터는 Firestore에만 저장됨
 
-  // 2. 내 통계 실시간 동기화 (Firestore -> State)
-  useEffect(() => {
+  // 2. 내 통계 동기화 (Firestore -> State) - 폴링 방식 (60초 간격)
+  const STATS_POLLING_INTERVAL = 60000; // 60초
+  const lastFetchRef = useRef<number>(0);
+
+  const fetchUserStats = useCallback(async () => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
 
-    const userRef = doc(db, "users", uid);
-    const unsubscribe = onSnapshot(userRef, (snap) => {
+    try {
+      const userRef = doc(db, "users", uid);
+      const snap = await getDoc(userRef);
       if (!snap.exists()) return;
       const data = snap.data() as any;
 
@@ -53,14 +58,44 @@ export function useUserStats({ posts, userNickname }: UseUserStatsParams) {
       }
 
       // 프로필 정보 업데이트 (Firestore에서만 관리, 로컬 스토리지 사용 안 함)
+      if (typeof data.profileDescription === "string") {
+        setProfileDescription(data.profileDescription);
+      }
       if (typeof data.profileInterests === "string") {
         setProfileInterests(data.profileInterests);
       }
-    }, (error) => {
-      console.error("[useUserStats] 통계 구독 실패:", error);
-    });
+      lastFetchRef.current = Date.now();
+    } catch (error) {
+      console.error("[useUserStats] 통계 조회 실패:", error);
+    }
+  }, []);
 
-    return () => unsubscribe();
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+
+    // 즉시 한 번 실행
+    fetchUserStats();
+
+    // 60초마다 폴링
+    const intervalId = setInterval(fetchUserStats, STATS_POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [fetchUserStats]);
+
+  // 3. 프로필 수정 핸들러 (Firestore에만 저장)
+  const handleProfileDescriptionChange = useCallback(async (value: string) => {
+    setProfileDescription(value); // UI 즉시 반영 (Optimistic UI)
+    // 프로필 정보는 Firestore에만 저장 (로컬 스토리지 사용 안 함)
+
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      try {
+        await updateDoc(doc(db, "users", uid), { profileDescription: value });
+      } catch (e) {
+        console.error("프로필 설명 저장 실패", e);
+      }
+    }
   }, []);
 
   const handleProfileInterestsChange = useCallback(async (value: string) => {
@@ -199,7 +234,9 @@ export function useUserStats({ posts, userNickname }: UseUserStatsParams) {
     userReplyLanterns,
     userGuideCount,
 
+    profileDescription,
     profileInterests,
+    handleProfileDescriptionChange,
     handleProfileInterestsChange,
 
     weeklyGuideRanking,

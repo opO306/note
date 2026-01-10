@@ -1,6 +1,6 @@
 // MainScreen/components/PostListView.tsx
 // 게시물 목록 화면 컴포넌트 - 서브카테고리 필터 + 정렬 + 차단 필터링 포함
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import { Virtuoso } from "react-virtuoso";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,16 +8,10 @@ import { OptimizedAvatar } from "@/components/OptimizedAvatar";
 import { Badge } from "@/components/ui/badge";
 import { SimpleDropdown } from "@/components/ui/simple-dropdown";
 import { EmptyStatePanel } from "@/components/ui/empty-state";
-import { PostListSkeleton } from "@/components/ui/skeleton";
 import { LanternIcon, LanternFilledIcon } from "@/components/icons/Lantern";
 import { MessageCircle, Bookmark, Plus, RotateCw } from "lucide-react";
 import { getUserTitle, getTitleLabelById } from "@/data/titleData";
 import { filterGoogleProfileImage } from "@/utils/profileImageUtils";
-import { GreekColumn, getColumnStyleByTrustScore } from "@/components/icons/GreekColumn";
-import { LaurelWreath } from "@/components/icons/LaurelWreath";
-import { useAuth } from "@/contexts/AuthContext"; // useAuth 훅 임포트
-import { AlertDialogSimple } from "@/components/ui/alert-dialog-simple"; // AlertDialogSimple 임포트
-// import { getBookShelfLevelByTrustScore } from "@/components/icons/BookShelf"; // TODO: 향후 황금빛 서재 테마 구현 시 사용 예정
 import {
   getDisplayName,
   isDeletedAuthor,
@@ -38,13 +32,11 @@ interface PostListViewProps {
   posts: Post[];
   userNickname: string;
   userProfileImage: string;
-  userUid: string; // userUid 추가
   activeCategory: string;
   activeSubCategory: string;
   sortBy: SortOption["value"];
   onRefresh?: () => void;
   isRefreshing?: boolean;
-  isLoading?: boolean; // ✅ 초기 로딩 상태
   // 🆕 [추가] 차단된 유저 ID 목록
   blockedUserIds: string[];
 
@@ -65,15 +57,12 @@ interface PostListViewProps {
   onBookmarkToggle: (postId: string | number) => void;
   onStartWriting: () => void;
   currentTitle: string;
-  // 자신의 신뢰도 (자신의 게시물에 기둥 표시용)
-  userTrustScore?: number;
 }
 
 function PostListViewComponent({
   posts,
   userNickname,
   userProfileImage,
-  userUid, // userUid 추가
   activeCategory,
   activeSubCategory,
   sortBy,
@@ -90,8 +79,6 @@ function PostListViewComponent({
   currentTitle,
   onRefresh,
   isRefreshing = false,
-  isLoading = false, // ✅ 초기 로딩 상태
-  userTrustScore,
 }: PostListViewProps) {
 
   // 🆕 [추가] 차단된 유저의 게시글 필터링
@@ -108,15 +95,6 @@ function PostListViewComponent({
     });
   }, [posts, blockedUserIds]);
 
-  // moderationStatus에 따른 추가 필터링
-  const moderatedPosts = useMemo(() => {
-    return filteredPostsByBlock.filter(() => {
-      // isModerated 로직 제거에 따라 모든 게시물을 표시합니다.
-      // 숨김 처리는 post.hidden 필드에 의해 별도로 제어됩니다.
-      return true;
-    });
-  }, [filteredPostsByBlock, userUid]);
-
   const {
     scrollRef,
     currentSubCategories,
@@ -127,7 +105,7 @@ function PostListViewComponent({
     formatCreatedAt,
     userProfiles,
   } = usePostListViewModel({
-    posts: moderatedPosts, // 🆕 필터링된 posts 전달
+    posts: filteredPostsByBlock, // 🆕 필터링된 posts 전달
     activeCategory,
     activeSubCategory,
     sortBy,
@@ -159,12 +137,7 @@ function PostListViewComponent({
 
       {/* Posts */}
       <div className="flex-1 overflow-hidden bg-background">
-        {/* ✅ 초기 로딩 또는 새로고침 중일 때 Skeleton UI 표시 */}
-        {(isLoading || isRefreshing) && posts.length === 0 ? (
-          <div className="h-full overflow-y-auto scrollbar-hide">
-            <PostListSkeleton count={5} />
-          </div>
-        ) : visiblePosts.length === 0 ? (
+        {visiblePosts.length === 0 ? (
           <div className="h-full overflow-y-auto scrollbar-hide p-4">
             <EmptyState onStartWriting={onStartWriting} />
           </div>
@@ -173,7 +146,6 @@ function PostListViewComponent({
             posts={visiblePosts}
             userNickname={userNickname}
             userProfileImage={userProfileImage}
-            userUid={userUid} // userUid 전달
             isPostLanterned={isPostLanterned}
             isBookmarked={isBookmarked}
             currentTitle={currentTitle}
@@ -184,7 +156,6 @@ function PostListViewComponent({
             onLanternToggle={onLanternToggle}
             onBookmarkToggle={onBookmarkToggle}
             scrollRef={scrollRef}
-            userTrustScore={userTrustScore}
           />
         )}
       </div>
@@ -298,7 +269,6 @@ interface PostCardsListProps {
   posts: Post[];
   userNickname: string;
   userProfileImage: string;
-  userUid: string; // userUid 추가
   isPostLanterned: (postId: string | number) => boolean;
   isBookmarked: (postId: string | number) => boolean;
   currentTitle: string;
@@ -309,14 +279,12 @@ interface PostCardsListProps {
   onLanternToggle: (postId: string | number) => void;
   onBookmarkToggle: (postId: string | number) => void;
   scrollRef?: React.RefObject<HTMLElement | null>;
-  userTrustScore?: number;
 }
 
 export const PostCardsList = React.memo(function PostCardsList({
   posts,
   userNickname,
   userProfileImage,
-  userUid, // userUid 추가
   isPostLanterned,
   isBookmarked,
   currentTitle,
@@ -327,7 +295,6 @@ export const PostCardsList = React.memo(function PostCardsList({
   onLanternToggle,
   onBookmarkToggle,
   scrollRef,
-  userTrustScore,
 }: PostCardsListProps) {
   const cardItems = useMemo(
     () =>
@@ -367,7 +334,6 @@ export const PostCardsList = React.memo(function PostCardsList({
               post={post}
               userNickname={userNickname}
               userProfileImage={userProfileImage}
-              userUid={userUid} // userUid 전달
               isLanterned={isLanterned}
               isBookmarked={isBookmarked}
               timeAgo={timeAgo}
@@ -378,7 +344,6 @@ export const PostCardsList = React.memo(function PostCardsList({
               onLanternToggle={onLanternToggle}
               onBookmarkToggle={onBookmarkToggle}
               index={index}
-              userTrustScore={userTrustScore}
             />
           </div>
         );
@@ -391,7 +356,6 @@ export interface PostCardProps {
   post: Post;
   userNickname: string;
   userProfileImage: string;
-  userUid: string; // userUid 추가
   isLanterned: boolean;
   isBookmarked: boolean;
   timeAgo: string;
@@ -402,7 +366,6 @@ export interface PostCardProps {
   onLanternToggle: (postId: string | number) => void;
   onBookmarkToggle: (postId: string | number) => void;
   index?: number;
-  userTrustScore?: number;
 }
 
 export const PostCard = React.memo(
@@ -410,7 +373,6 @@ export const PostCard = React.memo(
     post,
     userNickname,
     userProfileImage,
-    userUid, // userUid 추가
     isLanterned,
     isBookmarked,
     timeAgo,
@@ -420,13 +382,9 @@ export const PostCard = React.memo(
     onPostClick,
     onLanternToggle,
     onBookmarkToggle,
-    index = 999,
-    userTrustScore,
+    index = 999, // 기본값: 낮은 우선순위
   }: PostCardProps & { index?: number }) => {
-    const { navigateToLogin } = useAuth(); // navigateToLogin 가져오기
-    const [showLoginConfirm, setShowLoginConfirm] = useState(false); // 로그인 필요 다이얼로그
-    const isOwnPost = post.authorUid === userUid; // userUid로 비교
-    // AI 답변이 있는 게시글은 moderationStatus와 상관없이 모더레이션 상태가 아니라고 간주
+    const isOwnPost = post.author === userNickname;
 
     const liveAuthorTitleId = authorProfile?.currentTitleId ?? null;
     const liveAuthorTitle = getTitleLabelById(liveAuthorTitleId);
@@ -460,9 +418,8 @@ export const PostCard = React.memo(
       : post.authorTitleName || liveAuthorTitle || authorTitleFallback;
 
     const handleCardClick = useCallback(() => {
-      // isModerated 조건 제거: 게시글 클릭 가능하도록 변경
       onPostClick(post);
-    }, [onPostClick, post]); // isModerated 의존성 제거
+    }, [onPostClick, post]);
 
     const handleLanternClick = useCallback(
       (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -502,253 +459,161 @@ export const PostCard = React.memo(
       [onBookmarkToggle, post.id]
     );
 
-    // 현재 테마 확인 (useMemo로 최적화)
-    const cardThemeClass = useMemo(() => {
-      const currentTheme = typeof window !== "undefined"
-        ? document.documentElement.getAttribute("data-theme") || "default"
-        : "default";
-
-      const themeClasses = {
-        "midnight": "border-l-4 border-l-[#d4af37] shadow-md bg-card/90 hover:shadow-lg hover:border-l-[#e6c85a]",
-        "e-ink": "border-l-2 border-l-[#5a564d] shadow-sm bg-card/98 border-t border-t-[#d4cfc2]/50",
-        "golden-library": "bg-card/90 hover:shadow-lg",
-        "default": "border-border/60 shadow-sm bg-card/80"
-      };
-
-      return themeClasses[currentTheme as keyof typeof themeClasses] || themeClasses.default;
-    }, []);
-
-    // 그리스 신전 테마 확인
-    const isGreekTempleTheme = useMemo(() => {
-      if (typeof window === "undefined") return false;
-      const currentTheme = document.documentElement.getAttribute("data-theme") || "default";
-      return currentTheme === "greek-temple";
-    }, []);
-
-    // 황금빛 서재 테마 확인
-    const isGoldenLibraryTheme = useMemo(() => {
-      if (typeof window === "undefined") return false;
-      const currentTheme = document.documentElement.getAttribute("data-theme") || "default";
-      return currentTheme === "golden-library";
-    }, []);
-
-    // 신뢰도 기반 기둥 스타일 결정
-    // 자신의 게시물이면 자신의 신뢰도 사용, 아니면 작성자의 신뢰도 사용
-    const authorTrustScore = isOwnPost ? userTrustScore : (authorProfile?.trustScore);
-    const columnStyle = useMemo(() => {
-      if (!isGreekTempleTheme) return null;
-      return getColumnStyleByTrustScore(authorTrustScore);
-    }, [isGreekTempleTheme, authorTrustScore]);
-
-    // 신뢰도 기반 책장 레벨 결정 (황금빛 서재 테마용)
-    // TODO: 향후 황금빛 서재 테마 구현 시 사용 예정
-    // const bookShelfLevel = useMemo(() => {
-    //   if (!isGoldenLibraryTheme) return null;
-    //   return getBookShelfLevelByTrustScore(authorTrustScore);
-    // }, [isGoldenLibraryTheme, authorTrustScore]);
-
-    // 강조가 필요한 게시글인지 판단 (인기글, 길잡이 글, 내가 쓴 글 등)
-    const isHighlighted = useMemo(() => {
-      const lanternCount = post.lanterns ?? 0;
-      const viewCount = post.views ?? 0;
-      const isGuide = post.type === "guide";
-      const isMyPostByNickname = post.author === userNickname; // 닉네임 비교 (UI 표시용)
-
-      // 등불 10개 이상, 조회수 100 이상, 길잡이 글, 내가 쓴 글 중 하나라도 해당되면 강조
-      return lanternCount >= 10 || viewCount >= 100 || isGuide || isMyPostByNickname;
-    }, [post.lanterns, post.views, post.type, post.author, userNickname]);
-
     return (
-      <>
-        <Card
-          className={`${cardThemeClass} backdrop-blur-sm transition-all cursor-pointer list-optimized relative ${isOwnPost && isGoldenLibraryTheme ? 'my-post-golden-border' : ''}`}
-          onClick={handleCardClick}
-          data-highlighted={isHighlighted ? "true" : "false"}
-          data-lanterns={post.lanterns ?? 0}
-          data-views={post.views ?? 0}
-          data-type={post.type || ""}
-          data-is-owner={isOwnPost ? "true" : "false"} // userUid로 비교
-        >
-          {/* 그리스 신전 테마: 신뢰도 기반 기둥 장식 (왼쪽) */}
-          {isGreekTempleTheme && columnStyle && (
-            <div className="absolute left-0 top-0 bottom-0 w-1 flex items-center justify-center opacity-60">
-              <div className="h-full flex items-center justify-center py-2">
-                <GreekColumn style={columnStyle} size={16} className="text-primary/70" />
-              </div>
-            </div>
-          )}
-          <CardContent className="p-4 relative z-10">
-            <div className="space-y-3">
-              {/* 작성자 + 시간 */}
-              <div className="flex items-center space-x-3">
-                <OptimizedAvatar
-                  src={postAuthorProfileImage || undefined}
-                  alt={
-                    displayAuthorName
-                      ? `${displayAuthorName}님의 프로필`
-                      : "프로필 이미지"
-                  }
-                  nickname={isAuthorDeleted ? undefined : displayAuthorName}
-                  fallbackText={displayAuthorName.charAt(0)?.toUpperCase() || "?"}
-                  className="w-10 h-10 ring-2 ring-border/20"
-                  size={40}
-                  loading={index < 3 ? "eager" : "lazy"}
-                  decoding="async"
-                />
-                <div className="w-full">
-                  <div className="flex flex-col">
-                    {/* 윗줄: 닉네임 + 칭호 */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <div className="flex items-center gap-1.5">
-                          {/* 월계관 왕관 (그리스 신전 테마 + 신뢰도 70 이상) */}
-                          {isGreekTempleTheme && authorTrustScore !== undefined && authorTrustScore >= 70 && (
-                            <div className={`shrink-0 ${isGreekTempleTheme ? 'laurel-wreath-premium' : 'laurel-wreath'}`}>
-                              <LaurelWreath size={14} isPremium={isGreekTempleTheme} />
-                            </div>
-                          )}
-                          <p
-                            className={
-                              "text-sm font-medium " +
-                              (isAuthorDeleted ? "text-muted-foreground" : "")
-                            }
-                          >
-                            {displayAuthorName}
-                          </p>
-                        </div>
-                        {authorTitle && (
-                          <Badge
-                            variant="secondary"
-                            className="text-[10px] px-2 py-0.5 h-auto bg-primary/10 text-primary border-primary/20"
-                          >
-                            {authorTitle}
-                          </Badge>
-                        )}
-                        {/* moderationStatus 표시 */}
-                      </div>
-
-                      {/* 오른쪽: 시간 */}
-                      <div className="text-xs text-muted-foreground">
-                        {(post.timeAgo ?? timeAgo) && (
-                          <span title={createdAtText || undefined}>
-                            {post.timeAgo ?? timeAgo}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 타입 / 카테고리 텍스트 (닉네임 아래, 배지 제거) */} 
-                    {(() => {
-                      const parts = [
-                        post.category && post.category !== "전체" ? post.category : null,
-                        post.subCategory && post.subCategory !== "전체" ? post.subCategory : null,
-                        post.type ? (post.type === "guide" ? "길잡이 글" : "질문글") : null,
-                      ].filter(Boolean) as string[];
-                      return parts.length ? (
-                        <div className="text-xs text-muted-foreground mt-2">
-                          {parts.join(" · ")}
-                        </div>
-                      ) : null;
-                    })()}
-                  </div>
-                </div>
-              </div>
-
-              {/* 제목 + 내용 미리보기 */}
-              <div className="space-y-2">
-                <h3 className="font-medium text-base mb-1 line-clamp-1">
-                  {post.title}
-                </h3>
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {post.content}
-                </p>
-              </div>
-
-              {/* 태그 (앞 2개만) */}
-              {/* 목록에서는 태그 미표시 (상세에서만 표시) */}
-
-              {/* 등불 / 댓글 / 조회수 / 북마크 */}
-              <div
-                className="flex items-center justify-between pt-2 border-t border-border/50 relative z-10"
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center space-x-4 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-                  {/* 등불 */}
-                  {!isOwnPost ? (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleLanternClick}
-                        data-post-id={post.id}
-                        className={`h-8 px-2 space-x-1 ${isLanterned ? "text-amber-500" : "text-muted-foreground"
-                          }`}
-                        disabled={false}
+      <Card
+        className="border-border/60 shadow-sm bg-card/80 backdrop-blur-sm hover:shadow-md transition-shadow cursor-pointer list-optimized"
+        onClick={handleCardClick}
+      >
+        <CardContent className="p-4">
+          <div className="space-y-3">
+            {/* 작성자 + 시간 */}
+            <div className="flex items-center space-x-3">
+              <OptimizedAvatar
+                src={postAuthorProfileImage || undefined}
+                alt={
+                  displayAuthorName
+                    ? `${displayAuthorName}님의 프로필`
+                    : "프로필 이미지"
+                }
+                nickname={isAuthorDeleted ? undefined : displayAuthorName}
+                fallbackText={displayAuthorName.charAt(0)?.toUpperCase() || "?"}
+                className="w-10 h-10 ring-2 ring-border/20"
+                size={40}
+                loading={index < 3 ? "eager" : "lazy"}
+                decoding="async"
+              />
+              <div className="w-full">
+                <div className="flex flex-col">
+                  {/* 윗줄: 닉네임 + 칭호 */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <p
+                        className={
+                          "text-sm font-medium " +
+                          (isAuthorDeleted ? "text-muted-foreground" : "")
+                        }
                       >
-                        {isLanterned ? (
-                          <LanternFilledIcon className="w-4 h-4" />
-                        ) : (
-                          <LanternIcon className="w-4 h-4" />
-                        )}
-                        <span className="text-xs">{post.lanterns ?? 0}</span>
-                      </Button>
+                        {displayAuthorName}
+                      </p>
+                      {authorTitle && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-2 py-0.5 h-auto bg-primary/10 text-primary border-primary/20"
+                        >
+                          {authorTitle}
+                        </Badge>
+                      )}
                     </div>
-                  ) : (
-                    <div className="flex items-center space-x-1">
-                      <LanternIcon className="w-4 h-4" />
-                      <span className="text-xs">{post.lanterns ?? 0}</span>
-                    </div>
-                  )}
 
-                  {/* 댓글 수 */}
-                  <div className="flex items-center space-x-1">
-                    <MessageCircle className="w-4 h-4" />
-                    <span className="text-xs">
-                      {post.comments ?? post.replies?.length ?? 0}
-                    </span>
+                    {/* 오른쪽: 시간 */}
+                    <div className="text-xs text-muted-foreground">
+                      {(post.timeAgo ?? timeAgo) && (
+                        <span title={createdAtText || undefined}>
+                          {post.timeAgo ?? timeAgo}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* 조회수 */}
-                  <span>조회수 {post.views ?? 0}</span>
-                </div>
-
-                {/* 북마크 */}
-                <div onClick={(e) => e.stopPropagation()}>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleBookmarkClick}
-                    className={`h-8 px-2 ${isBookmarked ? "text-primary" : "text-muted-foreground"
-                      }`}
-                    disabled={false}
-                  >
-                    <Bookmark
-                      className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""
-                        }`}
-                    />
-                  </Button>
+                  {/* 타입 / 카테고리 텍스트 (닉네임 아래, 배지 제거) */}
+                  {(() => {
+                    const parts = [
+                      post.category && post.category !== "전체" ? post.category : null,
+                      post.subCategory && post.subCategory !== "전체" ? post.subCategory : null,
+                      post.type ? (post.type === "guide" ? "길잡이 글" : "질문글") : null,
+                    ].filter(Boolean) as string[];
+                    return parts.length ? (
+                      <div className="text-xs text-muted-foreground mt-2">
+                        {parts.join(" · ")}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* 로그인 필요 다이얼로그 */}
-        <AlertDialogSimple
-          open={showLoginConfirm}
-          onOpenChange={setShowLoginConfirm}
-          title="로그인이 필요합니다."
-          description="로그인 후 이 기능을 이용할 수 있습니다. 지금 로그인하시겠습니까?"
-          confirmText="로그인"
-          onConfirm={navigateToLogin}
-        />
-      </>
+            {/* 제목 + 내용 미리보기 */}
+            <div className="space-y-2">
+              <h3 className="font-medium text-base mb-1 line-clamp-1">
+                {post.title}
+              </h3>
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {post.content}
+              </p>
+            </div>
+
+            {/* 태그 (앞 2개만) */}
+            {/* 목록에서는 태그 미표시 (상세에서만 표시) */}
+
+            {/* 등불 / 댓글 / 조회수 / 북마크 */}
+            <div
+              className="flex items-center justify-between pt-2 border-t border-border/50 relative z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center space-x-4 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                {/* 등불 */}
+                {!isOwnPost ? (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleLanternClick}
+                      data-post-id={post.id}
+                      className={`h-8 px-2 space-x-1 ${isLanterned ? "text-amber-500" : "text-muted-foreground"
+                        }`}
+                    >
+                      {isLanterned ? (
+                        <LanternFilledIcon className="w-4 h-4" />
+                      ) : (
+                        <LanternIcon className="w-4 h-4" />
+                      )}
+                      <span className="text-xs">{post.lanterns ?? 0}</span>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-1">
+                    <LanternIcon className="w-4 h-4" />
+                    <span className="text-xs">{post.lanterns ?? 0}</span>
+                  </div>
+                )}
+
+                {/* 댓글 수 */}
+                <div className="flex items-center space-x-1">
+                  <MessageCircle className="w-4 h-4" />
+                  <span className="text-xs">
+                    {post.comments ?? post.replies?.length ?? 0}
+                  </span>
+                </div>
+
+                {/* 조회수 */}
+                <span>조회수 {post.views ?? 0}</span>
+              </div>
+
+              {/* 북마크 */}
+              <div onClick={(e) => e.stopPropagation()}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleBookmarkClick}
+                  className={`h-8 px-2 ${isBookmarked ? "text-primary" : "text-muted-foreground"
+                    }`}
+                >
+                  <Bookmark
+                    className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""
+                      }`}
+                  />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     );
   },
   (prev, next) => {
@@ -774,8 +639,6 @@ export const PostCard = React.memo(
     if (prev.currentTitle !== next.currentTitle) return false;
     if (prev.userProfileImage !== next.userProfileImage) return false;
     if (prev.userNickname !== next.userNickname) return false;
-    if (prev.userUid !== next.userUid) return false; // userUid 비교 추가
-    if (prev.post.moderationStatus !== next.post.moderationStatus) return false; // moderationStatus 비교 추가
     return true;
   }
 );

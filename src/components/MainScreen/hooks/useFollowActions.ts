@@ -277,45 +277,24 @@ export function useFollowActions({ userNickname }: UseFollowActionsParams) {
         }
 
         // 서버 기준으로 팔로우/언팔로우 토글
-        const result = await toggleFollowByNickname({
+        await toggleFollowByNickname({
           currentUid,
           currentNickname: userNickname,
           targetNickname: normalizedTarget,
         });
 
-        // 성공 시 로컬 상태 즉시 업데이트 (Optimistic UI)
-        if (result.isFollowing) {
-          setFollowingUsers((prev) => {
-            if (!prev.includes(normalizedTarget)) {
-              return [...prev, normalizedTarget];
-            }
-            return prev;
-          });
-        } else {
-          setFollowingUsers((prev) => prev.filter((name) => name !== normalizedTarget));
-        }
-
         return true;
       } catch (error: any) {
         console.error("팔로우/언팔로우 실패:", error);
-        console.error("에러 상세:", {
-          code: error?.code,
-          message: error?.message,
-          stack: error?.stack,
-        });
 
         const message = typeof error?.message === "string" ? error.message : "";
-        const code = typeof error?.code === "string" ? error.code : "";
-        
-        if (message.includes("TARGET_USER_NOT_FOUND") || code === "TARGET_USER_NOT_FOUND") {
+        if (message.includes("TARGET_USER_NOT_FOUND")) {
           toast.error("해당 닉네임의 사용자를 찾을 수 없습니다.");
           // 서버에 유저가 없으면 로컬 팔로잉 목록에서도 제거해 재시도시 반복 에러 방지
           setFollowingUsers((prev) => prev.filter((name) => name !== normalizedTarget));
-        } else if (code === "permission-denied" || message.includes("permission")) {
-          toast.error("팔로우 권한이 없습니다. 로그인 상태를 확인해주세요.");
         } else {
           toast.error(
-            `팔로우 상태를 변경하지 못했습니다: ${message || code || "알 수 없는 오류"}`,
+            "팔로우 상태를 변경하지 못했습니다. 잠시 후 다시 시도해주세요.",
           );
         }
         return false;

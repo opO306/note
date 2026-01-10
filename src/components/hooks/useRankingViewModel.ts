@@ -103,23 +103,15 @@ export function useRankingViewModel({
     isLoading,
   } = useRankingData(db, fallbackWeeklyGuide, fallbackWeeklyLantern);
 
-  const weeklyGuideForProfiles = useMemo(
-    () => weeklyGuideData.length > 0 ? weeklyGuideData : fallbackWeeklyGuide,
-    [weeklyGuideData, fallbackWeeklyGuide]
-  );
-  const weeklyLanternForProfiles = useMemo(
-    () => weeklyLanternData.length > 0 ? weeklyLanternData : fallbackWeeklyLantern,
-    [weeklyLanternData, fallbackWeeklyLantern]
-  );
+  const weeklyGuideForProfiles =
+    weeklyGuideData.length > 0 ? weeklyGuideData : fallbackWeeklyGuide;
+  const weeklyLanternForProfiles =
+    weeklyLanternData.length > 0 ? weeklyLanternData : fallbackWeeklyLantern;
 
-  const weeklyGuideForView = useMemo(
-    () => visibleWeeklyGuide.length > 0 ? visibleWeeklyGuide : fallbackWeeklyGuide,
-    [visibleWeeklyGuide, fallbackWeeklyGuide]
-  );
-  const weeklyLanternForView = useMemo(
-    () => visibleWeeklyLantern.length > 0 ? visibleWeeklyLantern : fallbackWeeklyLantern,
-    [visibleWeeklyLantern, fallbackWeeklyLantern]
-  );
+  const weeklyGuideForView =
+    visibleWeeklyGuide.length > 0 ? visibleWeeklyGuide : fallbackWeeklyGuide;
+  const weeklyLanternForView =
+    visibleWeeklyLantern.length > 0 ? visibleWeeklyLantern : fallbackWeeklyLantern;
 
   const allRankingUids = useMemo(
     () => {

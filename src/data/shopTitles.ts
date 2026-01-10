@@ -12,24 +12,11 @@ export interface ShopTitle {
   requiredGuideCount: number;
   color: string;
   type?: "shop";
-  hidden?: boolean;
 }
 
 // 칭호 상점/도감/마이페이지에서 공통으로 사용하는 상점 칭호 데이터
 export const SHOP_TITLES: ShopTitle[] = [
   // ===== 길잡이 계열 =====
-  {
-    id: "guide_pathfinder",
-    name: "개척자",
-    description: "새로운 지식의 땅에 첫 발자국을 남긴, 비유노트의 첫 번째 개척자",
-    cost: 0,
-    tier: 0,
-    icon: Sparkles,
-    requiredReplyLanterns: 0,
-    requiredGuideCount: 1,
-    color: "text-amber-500",
-    hidden: true,
-  },
   {
     id: "guide_sprout",
     name: "길잡이 꿈나무",

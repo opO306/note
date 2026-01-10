@@ -67,6 +67,7 @@ const ACHIEVEMENT_TITLES: AchievementTitle[] = [
     // 길잡이 칭호
     { id: "guide_guide", name: "가이드", description: "길잡이로 5회 채택되었습니다", type: "achievement" },
     { id: "guide_navigator", name: "내비게이터", description: "길잡이로 20회 채택되었습니다", type: "achievement" },
+    { id: "guide_pathfinder", name: "개척자", description: "길잡이로 50회 채택되었습니다", type: "achievement" },
     { id: "guide_luminary", name: "선도자", description: "길잡이로 100회 채택되었습니다", type: "achievement" },
 
     // 등불 칭호
@@ -92,19 +93,19 @@ const ACHIEVEMENT_TITLES: AchievementTitle[] = [
     // 선장 칭호
     { id: "captain_captain", name: "선장", description: "선원 100명을 모았습니다", type: "achievement" },
 
-    // 분야별 길잡이
+    // 분야별 전문가
     { id: "economy_analyst", name: "경제 분석인", description: "경제 분야 답변 활동을 했습니다", type: "achievement" },
-    { id: "economy_expert", name: "경제 길잡이", description: "경제 분야를 함께 탐색하는 길잡이입니다", type: "achievement" },
+    { id: "economy_expert", name: "경제 전문가", description: "경제 분야 전문 답변가입니다", type: "achievement" },
     { id: "it_consultant", name: "기술 상담인", description: "IT 분야 답변 활동을 했습니다", type: "achievement" },
-    { id: "it_expert", name: "기술 이야기꾼", description: "IT 분야를 함께 탐색하는 이야기꾼입니다", type: "achievement" },
+    { id: "it_expert", name: "기술 전문가", description: "IT 분야 전문 답변가입니다", type: "achievement" },
     { id: "language_tutor", name: "언어 튜터", description: "외국어 분야 답변 활동을 했습니다", type: "achievement" },
-    { id: "language_expert", name: "언어 항해사", description: "외국어 분야를 함께 탐색하는 항해사입니다", type: "achievement" },
+    { id: "language_expert", name: "언어 전문가", description: "외국어 분야 전문 답변가입니다", type: "achievement" },
     { id: "engineering_curious", name: "변수 연구자", description: "공학 분야 질문을 많이 했습니다", type: "achievement" },
     { id: "engineering_first_light", name: "공학자의 첫 등불", description: "공학 분야에서 첫 인정을 받았습니다", type: "achievement" },
     { id: "engineering_destroyer", name: "방정식 해결사", description: "공학 분야 답변을 많이 했습니다", type: "achievement" },
 
     // --- 히든 칭호 ---
-    { id: "multi_specialist", name: "다중 분야 항해사", description: "3개 분야에서 길잡이 칭호를 획득했습니다", type: "achievement", isHidden: true },
+    { id: "multi_specialist", name: "멀티 전문가", description: "3개 분야에서 전문가 칭호를 획득했습니다", type: "achievement", isHidden: true },
     { id: "discussion_expert", name: "마라톤 토론러", description: "한 글에서 답변을 15회 이상 주고받았습니다", type: "achievement", isHidden: true },
     { id: "best_contributor", name: "베스트 컨트리뷰터", description: "한 글에서 등불 100개 이상을 받았습니다", type: "achievement", isHidden: true },
     { id: "community_fellow", name: "커뮤니티 펠로우", description: "모든 기본 칭호 3단계를 달성했습니다", type: "achievement", isHidden: true },
@@ -344,7 +345,7 @@ function TitleCard({ title, isUnlocked, isEquipped, onEquip, onUnequip, variant 
                             )}
                         </div>
 
-                        <div className="flex-1 min-w-0 overflow-hidden">
+                        <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                                 <span className={`font-bold truncate ${isUnlocked ? "text-foreground" : "text-muted-foreground"}`}>
                                     {title.name}
@@ -361,7 +362,7 @@ function TitleCard({ title, isUnlocked, isEquipped, onEquip, onUnequip, variant 
                                 )}
                             </div>
 
-                            <p className="text-[10px] text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+                            <p className="text-xs text-muted-foreground line-clamp-1">
                                 {title.description}
                             </p>
 

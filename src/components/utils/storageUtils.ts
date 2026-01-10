@@ -58,14 +58,4 @@ export const safeLocalStorage = {
             return defaultValue;
         }
     },
-    removeItem: (key: string) => {
-        try {
-            localStorage.removeItem(key);
-        } catch (error) {
-            console.warn(
-                `Failed to remove ${key} from localStorage:`,
-                error,
-            );
-        }
-    },
 };

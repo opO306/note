@@ -1,3 +1,4 @@
+// src/components/SearchScreen.tsx
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useScrollIntoView } from "./hooks/useScrollIntoView";
 import { KeyboardDismissButton } from "./ui/keyboard-dismiss-button";
@@ -36,7 +37,6 @@ interface SearchScreenProps {
   onBookmarkToggle: (postId: string | number) => void;
   formatTimeAgo: (date?: Date) => string;
   formatCreatedAt: (date?: Date) => string;
-  userUid: string; // userUid 추가
 }
 
 interface UserSearchSettings {
@@ -57,7 +57,6 @@ interface SearchResultsListProps {
   onPostSelect: (post: Post) => void;
   onLanternToggle: (postId: string | number) => void;
   onBookmarkToggle: (postId: string | number) => void;
-  userUid: string; // userUid 추가
 }
 
 // Optimization: Constant for popular tags
@@ -80,7 +79,6 @@ const SearchResultsListComponent = ({
   onPostSelect,
   onLanternToggle,
   onBookmarkToggle,
-  userUid, // userUid 추가
 }: SearchResultsListProps) => {
   return (
     <PostCardsList
@@ -96,14 +94,13 @@ const SearchResultsListComponent = ({
       onPostClick={onPostSelect}
       onLanternToggle={onLanternToggle}
       onBookmarkToggle={onBookmarkToggle}
-      userUid={userUid} // userUid 전달
     />
   );
 };
 
-// Refined Memoization: Removed the heavy manual comparison loop.\
-// If you need deep comparison, rely on stable props from the parent or\
-// implement memoization inside PostCardsList items.\
+// Refined Memoization: Removed the heavy manual comparison loop.
+// If you need deep comparison, rely on stable props from the parent or
+// implement memoization inside PostCardsList items.
 export const SearchResultsList = React.memo(SearchResultsListComponent);
 
 export function SearchScreen({
@@ -119,7 +116,6 @@ export function SearchScreen({
   onBookmarkToggle,
   formatTimeAgo,
   formatCreatedAt,
-  userUid, // userUid 추가
 }: SearchScreenProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Post[]>([]);
@@ -456,7 +452,6 @@ export function SearchScreen({
                 onPostSelect={onPostSelect}
                 onLanternToggle={onLanternToggle}
                 onBookmarkToggle={onBookmarkToggle}
-                userUid={userUid || ""} // userUid 추가
               />
             </div>
           </div>
